@@ -1,0 +1,308 @@
+"use client";
+
+import { useState } from "react";
+
+import { CashFlowChart } from "@/components/calculator/CashFlowChart";
+import { LeadForm } from "@/components/calculator/LeadForm";
+import { PackageComparison } from "@/components/calculator/PackageComparison";
+import { trackEvent } from "@/lib/analytics";
+import {
+  formatKwh,
+  formatKwhRange,
+  formatPaybackRange,
+  formatPercent,
+  formatVnd,
+} from "@/lib/formatters";
+import { generateSolarInsights } from "@/lib/solar-insights";
+import type {
+  CalculationResponse,
+  PackageCalculationResult,
+  SolarPackage,
+} from "@/types/solar";
+
+interface CalculationResultsProps {
+  result: CalculationResponse;
+  packages: SolarPackage[];
+}
+
+interface MetricProps {
+  label: string;
+  value: string;
+  accent?: boolean;
+}
+
+function Metric({ label, value, accent = false }: MetricProps) {
+  return (
+    <div className="bg-[var(--paper)] p-4 sm:p-5">
+      <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+        {label}
+      </dt>
+      <dd
+        className={`mt-2 break-words text-2xl font-semibold leading-snug sm:text-3xl ${
+          accent ? "text-[var(--brand-dark)]" : "text-[var(--ink)]"
+        }`}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function SectionHeading({
+  eyebrow,
+  id,
+  title,
+}: {
+  eyebrow: string;
+  id: string;
+  title: string;
+}) {
+  return (
+    <div className="mb-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand)]">
+        {eyebrow}
+      </p>
+      <h3 id={id} className="mt-2 font-display text-2xl font-semibold tracking-tight text-[var(--ink)] sm:text-3xl">
+        {title}
+      </h3>
+    </div>
+  );
+}
+
+function findPackage(packages: SolarPackage[], packageId: string): SolarPackage | null {
+  return packages.find((item) => item.id === packageId) ?? null;
+}
+
+function findResult(
+  results: PackageCalculationResult[],
+  packageId: string,
+): PackageCalculationResult | null {
+  return results.find((item) => item.packageId === packageId) ?? null;
+}
+
+export function CalculationResults({ result, packages }: CalculationResultsProps) {
+  const recommendedPackageId = result.recommendedPackage?.packageId ?? "";
+  const recommendedPackage = findPackage(packages, recommendedPackageId);
+  const [selectedPackageId, setSelectedPackageId] = useState(recommendedPackageId);
+  const selectedResult = findResult(result.comparedPackages, selectedPackageId);
+  const selectedPackage = findPackage(packages, selectedPackageId);
+
+  if (!selectedResult || !selectedPackage || !result.recommendedPackage) {
+    return (
+      <div id="ket-qua" className="rounded-2xl border border-[var(--danger-line)] bg-[var(--danger-soft)] p-6 text-[var(--danger)]">
+        <h2 className="font-display text-2xl font-semibold tracking-tight">Thiếu dữ liệu gói sản phẩm</h2>
+        <p className="mt-2 text-sm leading-6">
+          Kết quả đã được tính nhưng thông tin gói không còn trong danh sách đang hoạt động. Hãy tính lại để nhận dữ liệu mới nhất.
+        </p>
+        <LeadForm
+          calculationId={result.calculationId}
+          packageId={result.recommendedPackage?.packageId}
+          settings={result.assumptions}
+        />
+      </div>
+    );
+  }
+
+  const isRecommended = selectedPackageId === recommendedPackageId;
+  const insights = generateSolarInsights({
+    input: result.inputSummary,
+    solarPackage: selectedPackage,
+    result: selectedResult,
+  });
+
+  function selectPackage(packageId: string) {
+    setSelectedPackageId(packageId);
+    trackEvent("package_selected", {
+      calculationId: result.calculationId,
+      packageId,
+      isRecommended: packageId === recommendedPackageId,
+    });
+    document.getElementById("ket-qua")?.focus({ preventScroll: true });
+  }
+
+  return (
+    <div id="ket-qua" className="rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-6 py-10 sm:px-10 sm:py-14" tabIndex={-1}>
+      <section aria-labelledby="recommended-title">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="status-dot" aria-hidden="true" />
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--success)]">
+            {isRecommended ? "Gói đề xuất cho bạn" : "Gói bạn đang xem"}
+          </p>
+          {isRecommended ? (
+            <span className="rounded-full bg-[var(--brand-soft)] px-3 py-1 text-xs font-semibold text-[var(--brand-dark)]">
+              Phù hợp nhất
+            </span>
+          ) : null}
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_13rem] lg:items-start">
+          <div>
+            <h2 id="recommended-title" className="font-display text-3xl font-semibold tracking-tight text-[var(--ink)] sm:text-4xl">
+              {selectedPackage.name}
+            </h2>
+            <p className="mt-4 max-w-3xl text-base leading-7 text-[var(--muted)]">
+              {selectedPackage.description}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-5 lg:text-right">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">Điểm phù hợp</p>
+            <p className="mt-2 text-4xl font-semibold text-[var(--brand-dark)]">
+              {Math.round(selectedResult.score)}
+              <span className="text-lg text-[var(--muted)]">/100</span>
+            </p>
+          </div>
+        </div>
+
+        <dl className="mt-8 grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-4">
+          <Metric label="Công suất" value={`${selectedPackage.capacityKwp} kWp`} />
+          <Metric
+            label="Sản lượng dự kiến"
+            value={formatKwhRange(
+              selectedResult.lowEstimate.adjustedGenerationKwh,
+              selectedResult.highEstimate.adjustedGenerationKwh,
+            )}
+          />
+          <Metric label="Diện tích mái cần" value={`${selectedPackage.requiredRoofAreaM2} m²`} />
+          <Metric
+            label="Loại hệ thống"
+            value={
+              selectedPackage.systemType === "hybrid"
+                ? `Hybrid${selectedPackage.batteryCapacityKwh > 0 ? ` · pin ${selectedPackage.batteryCapacityKwh} kWh` : ""}`
+                : "Hòa lưới"
+            }
+          />
+        </dl>
+      </section>
+
+      <section aria-labelledby="savings-title" className="mt-14">
+        <SectionHeading eyebrow="Hiệu quả hàng tháng" id="savings-title" title="Hóa đơn thay đổi thế nào?" />
+        <dl className="grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
+          <Metric label="Tiền điện hiện tại" value={formatVnd(result.inputSummary.monthlyBill)} />
+          <Metric label="Tiền điện sau khi lắp" value={formatVnd(selectedResult.billAfterSolarVnd)} />
+          <Metric accent label="Tiết kiệm mỗi tháng" value={formatVnd(selectedResult.monthlySavingsVnd)} />
+          <Metric label="Tiết kiệm mỗi năm" value={formatVnd(selectedResult.yearlySavingsVnd)} />
+          <Metric label="Tỷ lệ giảm hóa đơn" value={formatPercent(selectedResult.reductionPercent)} />
+          <Metric label="Điện mặt trời tự sử dụng" value={formatPercent(selectedResult.selfConsumptionRate * 100)} />
+        </dl>
+        <p className="mt-3 rounded-lg border-l-2 border-[var(--sun)] bg-[var(--warning-soft)] px-4 py-3 text-sm leading-6 text-[var(--warning-ink)]">
+          Điện sinh hoạt hộ gia đình · ước tính {formatKwh(selectedResult.estimatedMonthlyConsumptionKwh)}/tháng · hóa đơn trước và sau khi lắp đều được tính lại theo 5 bậc lũy tiến, chưa gồm VAT.
+        </p>
+      </section>
+
+      <section aria-labelledby="long-term-title" className="mt-14">
+        <SectionHeading eyebrow="Tầm nhìn 20 năm" id="long-term-title" title="Hoàn vốn và lợi ích dài hạn" />
+        <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr]">
+          <div className="rounded-2xl bg-[var(--ink)] p-6 text-[var(--paper)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--focus)]">Khoảng hoàn vốn dự kiến</p>
+            <p className="mt-4 text-4xl font-semibold leading-snug sm:text-5xl">
+              {formatPaybackRange(
+                selectedResult.lowEstimate.paybackYears,
+                selectedResult.highEstimate.paybackYears,
+              )}
+            </p>
+            <p className="mt-4 text-sm leading-6 text-[var(--line)]">
+              Khoảng được tính lại từ kịch bản sản lượng thấp và cao, không chỉ nhân hệ số vào thời gian hoàn vốn.
+            </p>
+          </div>
+          <dl className="grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3 lg:grid-cols-1">
+            <Metric label="Tiết kiệm sau 5 năm" value={formatVnd(selectedResult.longTermSavings.saving5YearsVnd)} />
+            <Metric label="Tiết kiệm sau 10 năm" value={formatVnd(selectedResult.longTermSavings.saving10YearsVnd)} />
+            <Metric label="Tiết kiệm sau 20 năm" value={formatVnd(selectedResult.longTermSavings.saving20YearsVnd)} />
+          </dl>
+        </div>
+        <p className="mt-3 text-sm leading-5 text-[var(--muted)]">
+          Chưa bao gồm biến động giá điện, suy giảm thiết bị và chi phí phát sinh.
+        </p>
+      </section>
+
+      <section aria-labelledby="cash-flow-title" className="mt-14">
+        <SectionHeading eyebrow="Dòng tiền tích lũy" id="cash-flow-title" title="Khi nào khoản đầu tư chuyển sang dương?" />
+        <CashFlowChart breakEvenYear={selectedResult.breakEvenYear} data={selectedResult.cashFlow} />
+      </section>
+
+      <section aria-labelledby="comparison-title" className="mt-14">
+        <SectionHeading eyebrow={`So sánh ${result.comparedPackages.length} phương án`} id="comparison-title" title="Đặt các gói lên cùng một mặt phẳng" />
+        <PackageComparison
+          onSelect={selectPackage}
+          packages={packages}
+          recommendedPackageId={recommendedPackageId}
+          results={result.comparedPackages}
+          selectedPackageId={selectedPackageId}
+        />
+      </section>
+
+      <section aria-labelledby="equipment-title" className="mt-14">
+        <SectionHeading eyebrow="Cấu hình thiết bị" id="equipment-title" title="Những gì có trong phương án" />
+        <div className="grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2">
+          {[
+            ["Tấm pin", selectedPackage.panelBrand, selectedPackage.panelModel],
+            ["Inverter", selectedPackage.inverterBrand, selectedPackage.inverterModel],
+          ].map(([label, brand, model]) => (
+            <article className="bg-[var(--paper)] p-5" key={label}>
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand)]">{label}</p>
+              <p className="mt-3 text-2xl font-semibold text-[var(--ink)]">{brand}</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">Model: {model}</p>
+            </article>
+          ))}
+          <article className="bg-[var(--paper)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand)]">Pin lưu trữ</p>
+            <p className="mt-3 text-2xl font-semibold text-[var(--ink)]">
+              {selectedPackage.batteryCapacityKwh > 0 ? `${selectedPackage.batteryCapacityKwh} kWh` : "Không bao gồm"}
+            </p>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              {selectedPackage.batteryCapacityKwh > 0
+                ? "Dùng điện mặt trời dư để cấp điện dự phòng."
+                : "Hệ thống ưu tiên sử dụng điện trực tiếp ban ngày."}
+            </p>
+          </article>
+          <article className="bg-[var(--paper)] p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand)]">Bảo hành thiết bị</p>
+            <p className="mt-3 text-2xl font-semibold text-[var(--ink)]">
+              Tấm pin {selectedPackage.panelWarrantyYears} năm
+            </p>
+            <p className="mt-1 text-sm text-[var(--muted)]">Inverter {selectedPackage.inverterWarrantyYears} năm</p>
+          </article>
+          <article className="bg-[var(--paper)] p-5 sm:col-span-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand)]">Vật tư đi kèm</p>
+            <p className="mt-3 text-sm leading-7 text-[var(--ink)]">{selectedPackage.equipmentSummary}</p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="insights-title" className="mt-14">
+        <SectionHeading eyebrow="Nhận xét theo dữ liệu" id="insights-title" title="Điều đáng chú ý ở phương án này" />
+        <div className="space-y-3">
+          {insights.length > 0 ? (
+            insights.map((insight) => (
+              <p className="flex gap-3 rounded-xl border border-[var(--line)] bg-[var(--admin-panel)] p-4 text-sm leading-7 text-[var(--ink)]" key={insight}>
+                <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[var(--brand)]" />
+                {insight}
+              </p>
+            ))
+          ) : (
+            <p className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4 text-sm leading-7 text-[var(--muted)]">
+              Phương án nằm trong giới hạn mái và nhu cầu đã cung cấp; chưa có lưu ý đặc biệt cần bổ sung.
+            </p>
+          )}
+        </div>
+      </section>
+
+      <aside aria-label="Lưu ý về kết quả ước tính" className="mt-14 rounded-xl border border-[var(--line-strong)] bg-[var(--admin-panel)] p-5">
+        <p className="text-xs font-bold uppercase tracking-[0.1em] text-[var(--warning-ink)]">Lưu ý bắt buộc</p>
+        <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
+          Kết quả là ước tính dựa trên thông tin khách hàng cung cấp, dữ liệu sản phẩm và các giả định tính toán hiện tại. Sản lượng và chi phí thực tế có thể thay đổi theo thời tiết, hướng mái, độ che bóng, kết cấu mái, biểu giá điện và điều kiện thi công. Báo giá chính thức được xác nhận sau khi khảo sát công trình.
+        </p>
+        <p className="mt-4 break-all border-t border-[var(--line)] pt-4 text-xs font-semibold text-[var(--muted)]">
+          Mã tính toán · {result.calculationId}
+        </p>
+      </aside>
+
+      <LeadForm
+        calculationId={result.calculationId}
+        packageId={recommendedPackageId}
+        packageName={recommendedPackage?.name}
+        settings={result.assumptions}
+      />
+    </div>
+  );
+}
