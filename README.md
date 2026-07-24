@@ -46,8 +46,8 @@ và tiếp nhận đăng ký khảo sát.
 ### Cài đặt
 
 ```bash
-git clone https://github.com/khongmanhpro/solar_team.git
-cd solar_team
+git clone https://github.com/khongmanhpro/solar_2026.git
+cd solar_2026
 npm install
 cp .env.example .env
 npm run db:migrate
@@ -62,6 +62,65 @@ Mở:
 
 Thông tin đăng nhập local mặc định lấy từ `.env`. Hãy đổi toàn bộ credential và
 session secret trước khi chạy trên môi trường thật.
+
+## Chạy bằng Docker
+
+Yêu cầu: [Docker](https://docs.docker.com/engine/install/) và
+[Docker Compose](https://docs.docker.com/compose/install/).
+
+### Chuẩn bị
+
+```bash
+git clone https://github.com/khongmanhpro/solar_2026.git
+cd solar_2026
+cp .env.example .env
+# Sửa .env: ADMIN_PASSWORD, ADMIN_SESSION_SECRET, NEXT_PUBLIC_APP_URL
+```
+
+### Build và chạy
+
+```bash
+# Build image
+docker compose build
+
+# Khởi động dịch vụ (port 3000)
+docker compose up -d
+
+# Nạp dữ liệu mẫu (chỉ chạy một lần đầu hoặc khi cần reset dữ liệu demo)
+docker compose run --rm seed
+```
+
+Sau đó mở:
+
+- Công cụ khách hàng: <http://localhost:3000>
+- Đăng nhập quản trị: <http://localhost:3000/admin/login>
+
+### Cập nhật sau này
+
+```bash
+git pull origin main
+docker compose build
+docker compose run --rm app node node_modules/prisma/build/index.js migrate deploy
+docker compose up -d
+```
+
+### Lưu ý với SQLite
+
+`docker-compose.yml` mount thư mục `./data` trên host vào `/data` trong
+container để giữ file `dev.db` khi container bị xóa. File database không được
+git commit vì đã có trong `.gitignore`. Trên VPS, hãy backup định kỳ thư mục
+`data/`.
+
+### Chạy trên VPS với domain
+
+Thay `NEXT_PUBLIC_APP_URL` trong `.env` thành domain thật, ví dụ:
+
+```env
+NEXT_PUBLIC_APP_URL=https://solar.example.com
+```
+
+Sau đó chạy `docker compose build` và `docker compose up -d`. Nginx hoặc bất kỳ
+reverse proxy nào chỉ cần forward đến `http://localhost:3000`.
 
 ## Biến môi trường
 

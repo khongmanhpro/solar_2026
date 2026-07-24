@@ -1,0 +1,38 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    container_name: solar-2026
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=file:/data/dev.db
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+
+  # One-off seed service for first run:
+  # docker compose run --rm seed
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    container_name: solar-2026-seed
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=file:/data/dev.db
+      - NODE_ENV=development
+    volumes:
+      - ./data:/data
+    command: ["node", "node_modules/prisma/build/index.js", "db", "seed"]
+    profiles:
+      - tools
