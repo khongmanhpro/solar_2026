@@ -15,6 +15,7 @@ export interface RecommendSolarPackagesParams {
   packages: readonly SolarPackage[];
   settings: CalculationSettings;
   provinceFactor: number;
+  allowUnapprovedTariffData?: boolean;
 }
 
 export function isPackageEligible(
@@ -25,7 +26,12 @@ export function isPackageEligible(
     return false;
   }
 
-  if (solarPackage.requiredRoofAreaM2 > input.roofAreaM2) {
+  // Unknown roof area is not silently converted to a guessed number. It keeps
+  // packages in comparison, while the snapshot/UI marks survey as required.
+  if (
+    input.roofAreaM2 !== null &&
+    solarPackage.requiredRoofAreaM2 > input.roofAreaM2
+  ) {
     return false;
   }
 
@@ -139,7 +145,7 @@ function compareScoredPackages(
     return firstPackage.displayOrder - secondPackage.displayOrder;
   }
 
-  return firstPackage.id.localeCompare(secondPackage.id);
+  return firstPackage.code.localeCompare(secondPackage.code);
 }
 
 export function recommendSolarPackages({
@@ -147,6 +153,7 @@ export function recommendSolarPackages({
   packages,
   settings,
   provinceFactor,
+  allowUnapprovedTariffData = false,
 }: RecommendSolarPackagesParams): SolarRecommendationResult {
   const eligiblePackages = filterEligiblePackages(packages, input);
   const packageById = new Map(
@@ -161,6 +168,7 @@ export function recommendSolarPackages({
           solarPackage,
           settings,
           provinceFactor,
+          allowUnapprovedTariffData,
         }),
       ),
     )

@@ -1,4 +1,5 @@
 import {
+  DataStatus as PrismaDataStatus,
   DaytimeUsageLevel as PrismaDaytimeUsageLevel,
   ElectricityType as PrismaElectricityType,
   LeadStatus as PrismaLeadStatus,
@@ -10,15 +11,18 @@ import {
 import type {
   AdminLeadDetail,
   CalculationSettings,
+  DataGovernanceMetadata,
   ElectricityType,
   LeadInput,
   LeadRecord,
   LeadStatus,
+  PersistedCalculationSnapshot,
   ProvinceFactor,
   SolarCalculationInput,
   SolarPackage,
   SolarSystemType,
 } from "@/types/solar";
+import type { DataStatus } from "@/types/data-governance";
 import type {
   CalculationSettingsUpdateData,
   ProvinceFactorData,
@@ -81,6 +85,22 @@ const domainLeadStatusByPrisma: Record<PrismaLeadStatus, LeadStatus> = {
   LOST: "lost",
 };
 
+const prismaDataStatusByDomain: Record<DataStatus, PrismaDataStatus> = {
+  demo: PrismaDataStatus.DEMO,
+  draft: PrismaDataStatus.DRAFT,
+  verified: PrismaDataStatus.VERIFIED,
+  expired: PrismaDataStatus.EXPIRED,
+  disabled: PrismaDataStatus.DISABLED,
+};
+
+const domainDataStatusByPrisma: Record<PrismaDataStatus, DataStatus> = {
+  DEMO: "demo",
+  DRAFT: "draft",
+  VERIFIED: "verified",
+  EXPIRED: "expired",
+  DISABLED: "disabled",
+};
+
 const domainDaytimeLevelByPrisma = {
   LOW: "low",
   MEDIUM: "medium",
@@ -93,8 +113,31 @@ type PrismaLeadRecord = Prisma.LeadGetPayload<Record<string, never>>;
 type PrismaCalculationSettingsRecord =
   Prisma.CalculationSettingGetPayload<Record<string, never>>;
 
+function mapDataGovernance(record: {
+  dataStatus: PrismaDataStatus;
+  dataVersion: string;
+  sourceReference: string | null;
+  dataOwner: string | null;
+  effectiveFrom: Date | null;
+  effectiveTo: Date | null;
+  approvedBy: string | null;
+  approvedAt: Date | null;
+}): DataGovernanceMetadata {
+  return {
+    dataStatus: domainDataStatusByPrisma[record.dataStatus],
+    dataVersion: record.dataVersion,
+    sourceReference: record.sourceReference,
+    dataOwner: record.dataOwner,
+    effectiveFrom: record.effectiveFrom?.toISOString() ?? null,
+    effectiveTo: record.effectiveTo?.toISOString() ?? null,
+    approvedBy: record.approvedBy,
+    approvedAt: record.approvedAt?.toISOString() ?? null,
+  };
+}
+
 function mapSolarPackage(record: PrismaSolarPackageRecord): SolarPackage {
   return {
+    ...mapDataGovernance(record),
     id: record.id,
     code: record.code,
     name: record.name,
@@ -119,6 +162,7 @@ function mapSolarPackage(record: PrismaSolarPackageRecord): SolarPackage {
 
 function mapProvinceFactor(record: PrismaProvinceFactorRecord): ProvinceFactor {
   return {
+    ...mapDataGovernance(record),
     id: record.id,
     code: record.code,
     name: record.name,
@@ -148,6 +192,7 @@ function mapCalculationSettings(
   record: PrismaCalculationSettingsRecord,
 ): CalculationSettings {
   return {
+    ...mapDataGovernance(record),
     averageElectricityPriceVndPerKwh:
       record.averageElectricityPriceVndPerKwh,
     batteryRoundTripEfficiency: record.batteryRoundTripEfficiency,
@@ -186,10 +231,15 @@ export class SolarPackageRepository {
   }
 
   async create(data: SolarPackageCreateData): Promise<SolarPackage> {
+    const { systemType, ...remainingData } = data;
     const record = await this.prisma.solarPackage.create({
       data: {
-        ...data,
-        systemType: prismaSystemTypeByDomain[data.systemType],
+        ...remainingData,
+        systemType: prismaSystemTypeByDomain[systemType],
+        dataStatus: PrismaDataStatus.DEMO,
+        dataVersion: "demo-package-unapproved",
+        approvedBy: null,
+        approvedAt: null,
       },
     });
     return mapSolarPackage(record);
@@ -204,6 +254,10 @@ export class SolarPackageRepository {
       where: { id },
       data: {
         ...remainingData,
+        dataStatus: PrismaDataStatus.DRAFT,
+        dataVersion: "draft-package-unapproved",
+        approvedBy: null,
+        approvedAt: null,
         ...(systemType
           ? { systemType: prismaSystemTypeByDomain[systemType] }
           : {}),
@@ -229,7 +283,13 @@ export class CalculationSettingsRepository {
   ): Promise<CalculationSettings> {
     const record = await this.prisma.calculationSetting.update({
       where: { id: "default" },
-      data,
+      data: {
+        ...data,
+        dataStatus: PrismaDataStatus.DRAFT,
+        dataVersion: "draft-calculation-assumptions-unapproved",
+        approvedBy: null,
+        approvedAt: null,
+      },
     });
     return mapCalculationSettings(record);
   }
@@ -254,7 +314,15 @@ export class ProvinceFactorRepository {
   }
 
   async create(data: ProvinceFactorData): Promise<ProvinceFactor> {
-    const record = await this.prisma.provinceFactor.create({ data });
+    const record = await this.prisma.provinceFactor.create({
+      data: {
+        ...data,
+        dataStatus: PrismaDataStatus.DEMO,
+        dataVersion: "demo-province-unapproved",
+        approvedBy: null,
+        approvedAt: null,
+      },
+    });
     return mapProvinceFactor(record);
   }
 
@@ -264,7 +332,13 @@ export class ProvinceFactorRepository {
   ): Promise<ProvinceFactor> {
     const record = await this.prisma.provinceFactor.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        dataStatus: PrismaDataStatus.DRAFT,
+        dataVersion: "draft-province-unapproved",
+        approvedBy: null,
+        approvedAt: null,
+      },
     });
     return mapProvinceFactor(record);
   }
@@ -273,23 +347,92 @@ export class ProvinceFactorRepository {
 export class CalculationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  private getUnlinkedRetentionDays(): number {
+    const configured = Number(process.env.CALCULATION_RETENTION_DAYS);
+    return Number.isInteger(configured) && configured >= 1 && configured <= 365
+      ? configured
+      : 30;
+  }
+
+  async purgeExpiredUnlinked(referenceTime = new Date()): Promise<number> {
+    const cutoff = new Date(
+      referenceTime.getTime() -
+        this.getUnlinkedRetentionDays() * 24 * 60 * 60 * 1_000,
+    );
+    const deleted = await this.prisma.calculation.deleteMany({
+      where: {
+        createdAt: { lt: cutoff },
+        leads: { none: {} },
+      },
+    });
+
+    return deleted.count;
+  }
+
   async create(
     input: SolarCalculationInput,
     recommendedPackageId: string | null,
-    result: unknown,
+    result: PersistedCalculationSnapshot,
   ) {
+    await this.purgeExpiredUnlinked(new Date(result.metadata.createdAt));
+
+    const { customerInput, normalizedInput, siteInput } = result.sourceSnapshot;
+    const bill = normalizedInput.bill;
+    const isReportedMoneyInput =
+      customerInput?.energy.method === "money" ||
+      (!customerInput && input.energyInputMethod === "legacy_money");
+    const reportedAmountVnd = isReportedMoneyInput
+      ? bill?.amountBasis === "total_payment"
+        ? bill.totalPaymentVnd?.value
+        : bill?.energyChargeBeforeVatVnd?.value
+      : undefined;
+    const inputMonthCount =
+      customerInput?.energy.observations.length ??
+      normalizedInput.observations.length;
+
     return this.prisma.calculation.create({
       data: {
+        inputContractVersion:
+          customerInput?.schemaVersion ?? input.inputContractVersion,
+        energyInputSource:
+          customerInput?.energy.method ?? input.energyInputMethod,
+        reportedAmountVnd:
+          reportedAmountVnd === undefined
+            ? null
+            : Math.round(reportedAmountVnd),
+        reportedAmountBasis:
+          isReportedMoneyInput ? (bill?.amountBasis ?? null) : null,
+        normalizedMonthlyConsumptionKwh:
+          normalizedInput.monthlyConsumptionKwh.value.expected,
+        consumptionLowerKwh:
+          normalizedInput.monthlyConsumptionKwh.value.lowerBound,
+        consumptionUpperKwh:
+          normalizedInput.monthlyConsumptionKwh.value.upperBound,
+        inputMonthCount:
+          inputMonthCount > 0 ? inputMonthCount : input.inputMonthCount,
         monthlyBill: input.monthlyBill,
         electricityType:
-          prismaElectricityTypeByDomain[input.electricityType],
-        province: input.province,
+          prismaElectricityTypeByDomain[
+            normalizedInput.electricityType.value
+          ],
+        province: siteInput.province.value,
         daytimeUsageLevel:
-          prismaDaytimeLevelByDomain[input.daytimeUsageLevel],
-        roofAreaM2: input.roofAreaM2,
-        backupRequired: input.backupRequired,
+          prismaDaytimeLevelByDomain[siteInput.daytimeUsageLevel.value],
+        roofAreaKnown: siteInput.roofAreaM2.value !== null,
+        roofAreaM2: siteInput.roofAreaM2.value,
+        backupRequired: siteInput.backupRequired.value,
+        essentialLoadWatts: siteInput.essentialLoadWatts.value,
+        backupHours: siteInput.backupHours.value,
         recommendedPackageId,
         resultJson: toJsonValue(result),
+        snapshotSchemaVersion: result.metadata.snapshotSchemaVersion,
+        algorithmVersion: result.metadata.algorithmVersion,
+        algorithmFingerprint: result.metadata.algorithmFingerprint,
+        dataVersion: result.metadata.dataVersion,
+        dataVersions: toJsonValue(result.metadata.dataVersions),
+        dataStatus:
+          prismaDataStatusByDomain[result.metadata.dataReadiness.overallStatus],
+        createdAt: new Date(result.metadata.createdAt),
       },
     });
   }

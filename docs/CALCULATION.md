@@ -3,37 +3,58 @@
 Tài liệu này mô tả đúng trạng thái thuật toán hiện tại. Đây là công cụ ước tính
 MVP, không phải mô phỏng thiết kế kỹ thuật hoặc báo giá chính thức.
 
-## Đầu vào
+## Đầu vào khách hàng và đầu vào engine
 
 | Field | Ý nghĩa |
 | --- | --- |
-| `monthlyBill` | Tiền điện trung bình trước VAT |
-| `electricityType` | Hiện chỉ có `residential` |
-| `province` | Mã tỉnh/thành để lấy hệ số sản lượng |
-| `daytimeUsageLevel` | `low`, `medium` hoặc `high` |
-| `roofAreaM2` | Diện tích mái khả dụng |
-| `backupRequired` | Có yêu cầu điện dự phòng hay không |
+| `energy.method` | `kwh`, `money` hoặc `invoice_ocr` |
+| `energy.observations` | 1–12 tháng dữ liệu cùng loại |
+| `site.province` | Mã tỉnh/thành để lấy dữ liệu sản lượng |
+| `site.daytimeBehavior` | Hành vi sử dụng thiết bị từ 8:00–17:00 |
+| `site.roof` | Diện tích đã biết hoặc trạng thái chưa biết |
+| `site.backup` | Nhu cầu dự phòng; tải/giờ chỉ có khi cần |
+
+Server chuẩn hóa request thành `monthlyConsumptionKwh`, tiền điện năng cơ sở
+trước VAT, mức dùng ban ngày và provenance. Engine không nhận file hóa đơn,
+tổng tiền mơ hồ hoặc confidence do client tự khai.
 
 ## Biểu giá và suy ngược kWh
 
-`src/lib/electricity-tariff.ts` tính tiền theo từng bậc:
+`data/electricity-tariffs.json` giữ registry bất biến; selector chọn đúng
+tariff/VAT theo kỳ, sau đó `src/lib/electricity-tariff.ts` tính tiền theo từng
+bậc:
 
 ```text
 chi phí bậc = kWh nằm trong bậc × đơn giá bậc
 hóa đơn trước VAT = tổng chi phí các bậc
 ```
 
-Khi đầu vào là tiền điện trước VAT, engine đi lần lượt qua từng bậc để suy ngược
-số kWh. Phép tính này đảo đúng hàm tính hóa đơn trong phạm vi biểu giá hệ thống,
-nhưng chưa xử lý VAT, số ngày ghi điện khác chuẩn, số hộ dùng chung hoặc phụ phí.
+Contract 2.1 tách tiền điện năng trước VAT, VAT và khoản khác. Phép tính xuôi và
+suy ngược dùng cùng tariff contract, cùng định mức số hộ và tỷ lệ
+`billingDays/referenceDays`. Khi khoản khác chưa biết, engine nhận khoảng
+`0..tổng thanh toán` và trả khoảng kWh; không biến điểm giữa thành chỉ số đo.
 
-Biểu giá hiện nằm trong `src/config/electricity-tariffs.ts` và phải được xác minh
-nguồn, ngày hiệu lực trước khi sử dụng thật.
+Khi khách nhập kWh, giá trị trung bình đi thẳng vào engine. Hệ thống tính tiền
+điện năng cơ sở theo chiều `kWh → tiền`; không gọi phép suy ngược. Tổng tiền phải
+thanh toán không bao giờ được coi là tiền trước VAT.
+
+Ba kỳ trở lên chỉ được coi là lịch sử có confidence cao khi các kỳ liên tiếp,
+có tháng hợp lệ và kỳ mới nhất không quá hai tháng trước. Dữ liệu cũ hoặc thiếu
+tháng không bị biến thành dữ liệu mới; hệ thống hạ confidence và ghi cảnh báo.
+
+Biểu giá đang có nguồn chính thức là 6 bậc QD1279. Bảng 5 bậc trong ảnh là
+candidate QD14 tương lai, `selectable=false` và không có ngày hiệu lực. VAT 8%
+chỉ được khai trong khoảng 01/07/2025–31/12/2026; ngoài khoảng này engine báo
+thiếu dữ liệu. Tariff/VAT vẫn chờ phê duyệt nội bộ và hóa đơn thật đối soát nên
+production tiếp tục chặn.
+
+Chi tiết nguồn, contract và checklist nằm tại
+[Biểu giá, VAT và suy ngược hóa đơn — Giai đoạn 2](./PHASE-2-TARIFF-ENGINE.md).
 
 ## Sản lượng và phụ tải
 
 ```text
-monthlyConsumptionKwh = inverseTariff(monthlyBill)
+monthlyConsumptionKwh = average(1..12 monthly kWh observations)
 daytimeDemandKwh = monthlyConsumptionKwh × daytimeUsageRatio
 adjustedGenerationKwh = baseMonthlyGenerationKwh × provinceFactor
 ```
@@ -72,13 +93,14 @@ suất nạp/xả, suy giảm hoặc dispatch theo giờ.
 
 ```text
 gridConsumptionAfterSolar = consumption - totalSolarUse
-billAfterSolar = tieredBill(gridConsumptionAfterSolar)
+billAfterSolar = tieredBill(gridConsumptionAfterSolar, sameTariffAndQuotaContext)
 monthlySavings = originalBill - billAfterSolar
 reductionPercent = monthlySavings / originalBill
 ```
 
 Engine chặn hóa đơn âm và không cho tiết kiệm vượt hóa đơn ban đầu. Điện dư hiện
-không tạo doanh thu.
+không tạo doanh thu. Với hóa đơn nhiều hộ hoặc kỳ đổi ngày, hóa đơn sau solar
+giữ nguyên version biểu giá, số hộ và tỷ lệ ngày đã dùng cho hóa đơn nền.
 
 ## Ba kịch bản
 
@@ -106,7 +128,7 @@ rate. Vì vậy thời gian hoàn vốn chỉ là ước tính đơn giản.
 Package không hợp lệ khi:
 
 - `active=false`.
-- Diện tích mái yêu cầu lớn hơn mái khách hàng.
+- Khách biết diện tích mái và diện tích package yêu cầu lớn hơn mái đó.
 - Khách cần dự phòng nhưng package không phải hybrid có pin.
 
 Score hiện tại:
@@ -119,6 +141,11 @@ score = generationFitScore × 50%
 
 Khi bằng điểm và khách không cần dự phòng, hòa lưới được ưu tiên. Kết quả trả tối
 đa ba package.
+
+Nếu khách không biết diện tích mái, hệ thống không lọc theo một diện tích giả.
+Kết quả phải ghi cần khảo sát và không được khẳng định package chắc chắn lắp
+được. Tải thiết yếu/số giờ Giai đoạn 1 chỉ được lưu để khảo sát; chưa dùng để
+hứa thời gian dự phòng khi thiếu thông số pin Giai đoạn 5.
 
 ## Nguyên tắc nâng cấp
 
@@ -142,3 +169,7 @@ Trước khi công bố cần có ca được kỹ sư phê duyệt bao phủ:
 - Dùng điện chủ yếu ban ngày và chủ yếu ban đêm.
 - Hòa lưới và hybrid.
 - So sánh dự báo với phần mềm kỹ thuật hoặc hệ thống đang vận hành.
+
+Quy tắc tolerance, trạng thái dữ liệu và bộ ca biên biểu giá candidate được mô
+tả tại [Accuracy charter Giai đoạn 0](./ACCURACY-ACCEPTANCE.md). Bộ ca hiện tại
+chỉ là engineering regression và chưa được coi là golden set đã qua ký duyệt.

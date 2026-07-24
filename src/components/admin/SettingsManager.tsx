@@ -186,7 +186,7 @@ export function SettingsManager({
         </div>
         <form className="space-y-8 p-5 sm:p-7" key={JSON.stringify(settings)} noValidate onSubmit={saveSettings}>
           <fieldset className="grid gap-5 md:grid-cols-2 xl:grid-cols-4"><legend className="mb-4 font-display text-xl font-semibold">Kinh tế & vòng đời</legend>
-            <ConfigField error={settingErrors.averageElectricityPriceVndPerKwh} hint="Giá dự phòng cho loại điện khác; điện sinh hoạt hiện dùng biểu giá 5 bậc." label="Giá điện quy đổi dự phòng" name="averageElectricityPriceVndPerKwh" step="1" value={settings.averageElectricityPriceVndPerKwh} />
+            <ConfigField error={settingErrors.averageElectricityPriceVndPerKwh} hint="Giá dự phòng cho phép tính legacy; điện sinh hoạt hiện dùng registry 6 bậc QD1279 có phiên bản." label="Giá điện quy đổi dự phòng" name="averageElectricityPriceVndPerKwh" step="1" value={settings.averageElectricityPriceVndPerKwh} />
             <ConfigField error={settingErrors.systemLifetimeYears} label="Vòng đời hệ thống (năm)" name="systemLifetimeYears" step="1" value={settings.systemLifetimeYears} />
             <ConfigField error={settingErrors.maintenanceRatePerYear} label="Chi phí bảo trì/năm" name="maintenanceRatePerYear" value={settings.maintenanceRatePerYear} />
             <ConfigField error={settingErrors.batteryDailyCycleFactor} label="Hệ số chu kỳ pin/ngày" name="batteryDailyCycleFactor" value={settings.batteryDailyCycleFactor} />

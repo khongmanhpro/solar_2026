@@ -32,6 +32,7 @@ Các sheet chính:
 
 Đề xuất trạng thái cho mọi bản ghi:
 
+- `DEMO`: dữ liệu mẫu hoặc chưa có bằng chứng nguồn.
 - `DRAFT`: đang nhập hoặc chưa có nguồn.
 - `VERIFIED`: đã đủ nguồn, người duyệt và ngày hiệu lực.
 - `EXPIRED`: hết hiệu lực.
@@ -55,9 +56,24 @@ Chỉ `VERIFIED` được phép dùng ở chế độ production.
 Các cột có tên biến trong ngoặc ở `GOI_SAN_PHAM` ánh xạ trực tiếp model
 `SolarPackage`. Settings có tên biến tương ứng `CalculationSetting`.
 
-Với cấu trúc hiện tại, dữ liệu có thể được nhập thủ công qua `/admin`. Import
-Excel tự động chưa được triển khai; khi bổ sung phải có bước preview, báo lỗi theo
-dòng và transaction để tránh nhập một phần.
+Riêng biểu giá/VAT được nạp từ `data/electricity-tariffs.json` và kiểm tra
+fail-fast khi build/runtime. Không sửa version cũ: mỗi thay đổi giá, ngày, nguồn,
+VAT hoặc làm tròn phải tạo record/version mới. Candidate chưa có quyết định giá
+phải để `effectivePeriod.from=null`, `selectable=false`. Quy trình chi tiết tại
+[`PHASE-2-TARIFF-ENGINE.md`](./PHASE-2-TARIFF-ENGINE.md) và
+[`data/README.md`](../data/README.md).
+
+Trang `/admin` hiện chỉ phục vụ chỉnh dữ liệu vận hành cũ. Bản ghi tạo mới được
+gắn `DEMO`; bất kỳ bản ghi nào bị sửa đều hạ xuống `DRAFT` và xóa phê duyệt. Vì
+phần quản trị không nằm trong roadmap khách hàng, trang này **không thể tự nâng
+dữ liệu lên `VERIFIED`**.
+
+Việc phát hành dữ liệu thật phải đi qua thay đổi được review (import/migration
+hoặc cấu hình versioned) và điền đủ `dataVersion`, `sourceReference`,
+`dataOwner`, `effectiveFrom`, `approvedBy`, `approvedAt`. Manifest còn phải lưu
+SHA-256 của đúng nội dung đã duyệt. Import Excel tự động chưa được triển khai;
+khi bổ sung phải có preview, báo lỗi theo dòng và transaction để tránh nhập một
+phần.
 
 ## Xác minh sau nhập
 
@@ -65,8 +81,9 @@ dòng và transaction để tránh nhập một phần.
 2. Tính các ca trong `CA_NGHIEM_THU`.
 3. So sánh package, sản lượng, tiết kiệm và hoàn vốn.
 4. Yêu cầu kỹ sư ký xác nhận kết quả.
-5. Chụp snapshot phiên bản dữ liệu và thuật toán.
-6. Chỉ sau đó mới bật dữ liệu cho khách hàng.
+5. Đối chiếu content hash với manifest và chạy test cổng production.
+6. Chụp snapshot phiên bản dữ liệu và thuật toán.
+7. Chỉ sau đó mới bật dữ liệu cho khách hàng.
 
 ## Dữ liệu khách hàng
 

@@ -5,21 +5,33 @@ Công cụ tiếng Việt giúp hộ gia đình ước tính gói điện mặt 
 Ứng dụng trả kết quả tiết kiệm, hóa đơn còn lại, thời gian hoàn vốn, so sánh gói
 và tiếp nhận đăng ký khảo sát.
 
-> **Trạng thái:** MVP chức năng đã hoàn thành qua Giai đoạn 9. Dữ liệu package,
-> thiết bị, hệ số tỉnh và thông tin doanh nghiệp hiện vẫn là dữ liệu mẫu. Không
-> sử dụng kết quả để cam kết thương mại trước khi nhập dữ liệu thật và nghiệm thu
-> theo [hướng dẫn dữ liệu](docs/DATA-ONBOARDING.md).
+> **Trạng thái:** MVP chức năng cũ đã hoàn thành qua Giai đoạn 9. Khung kỹ thuật
+> Giai đoạn 0, Giai đoạn 1 và phần kỹ thuật biểu giá/VAT Giai đoạn 2 của roadmap
+> độ chính xác đã được triển khai; usability, phê duyệt biểu giá/VAT và đối
+> soát hóa đơn thật vẫn chưa hoàn tất. Dữ liệu package,
+> thiết bị, hệ số tỉnh và thông tin doanh nghiệp vẫn là `DEMO`. Không sử dụng kết
+> quả để cam kết thương mại trước khi nhập dữ liệu thật và nghiệm thu theo
+> [hướng dẫn dữ liệu](docs/DATA-ONBOARDING.md).
+>
+> Các giai đoạn tiếp theo chỉ tập trung vào trải nghiệm và độ chính xác dành cho
+> khách hàng; phần quản trị hiện có được giữ nguyên nhưng không tiếp tục mở rộng.
 
 ## Tính năng
 
-- Biểu giá điện sinh hoạt 5 bậc, tính lũy tiến theo kWh trước VAT.
-- Suy ngược tiền điện trước VAT thành điện năng tiêu thụ ước tính.
+- Registry biểu giá có phiên bản: 6 bậc QD1279 hiện hành; candidate 5 bậc QD14
+  bị khóa cho đến khi có quyết định giá hiệu lực.
+- Nhập trực tiếp 1–12 tháng kWh, giữ lịch sử và provenance trong snapshot.
+- Biểu mẫu ba bước có xác nhận, hỗ trợ mái chưa biết và tải dự phòng có điều kiện.
+- Suy ngược tổng thanh toán qua tariff/VAT theo kỳ; tách khoản khác, hỗ trợ nhiều
+  hộ/kỳ đổi ngày và trả khoảng kWh khi khách không chắc thành phần hóa đơn.
 - Tính sản lượng, điện tự dùng, điện dư, hóa đơn còn lại và hoàn vốn.
 - Ba kịch bản sản lượng: thận trọng, tiêu chuẩn và thuận lợi.
 - Lọc gói theo diện tích mái, loại hệ thống và nhu cầu dự phòng.
 - Xếp hạng và so sánh tối đa ba gói.
 - Biểu đồ dòng tiền 0–20 năm và tiết kiệm 5/10/20 năm.
 - Form đăng ký khảo sát liên kết với snapshot kết quả tính toán.
+- Snapshot bất biến có algorithm/data version, content hash, provenance và
+  confidence; production từ chối dữ liệu chưa được xác minh.
 - Trang quản trị package, tỉnh/thành, cấu hình tính toán và lead.
 - Session quản trị ký HMAC, giới hạn đăng nhập sai và bảo vệ mutation theo origin.
 - Validation Zod, TypeScript strict, unit/integration/UI tests.
@@ -60,6 +72,7 @@ session secret trước khi chạy trên môi trường thật.
 | `ADMIN_PASSWORD` | Có | Mật khẩu quản trị; không dùng giá trị ví dụ ở production |
 | `ADMIN_SESSION_SECRET` | Production | Khóa ký session, tối thiểu 32 ký tự ngẫu nhiên |
 | `NEXT_PUBLIC_APP_URL` | Có | URL công khai của ứng dụng |
+| `CALCULATION_RETENTION_DAYS` | Không | Số ngày giữ calculation chưa gửi lead; mặc định `30`, chỉ nhận `1..365` |
 
 Không commit `.env`, database SQLite local, file khóa, build output hoặc dữ liệu
 khách hàng. Các nhóm file này đã được khai báo trong `.gitignore`.
@@ -77,6 +90,7 @@ npm run db:generate  # sinh Prisma Client
 npm run db:migrate   # tạo/áp dụng migration local
 npm run db:seed      # nạp dữ liệu mẫu
 npm run db:studio    # mở Prisma Studio
+npm run privacy:purge-calculations # xóa calculation quá hạn chưa có lead
 ```
 
 ## Kiến trúc
@@ -104,6 +118,16 @@ Các lớp chính:
 Luồng tính toán chi tiết được mô tả trong
 [docs/CALCULATION.md](docs/CALCULATION.md). Danh sách endpoint nằm tại
 [docs/API.md](docs/API.md).
+
+Ý nghĩa đầu vào, nguồn dữ liệu, confidence, snapshot và cổng chặn dữ liệu demo
+được chốt tại
+[hợp đồng dữ liệu Giai đoạn 0](docs/PHASE-0-DATA-CONTRACT.md).
+Luồng đầu vào tối giản và ranh giới tổng tiền/OCR được mô tả tại
+[đầu vào khách hàng Giai đoạn 1](docs/PHASE-1-CUSTOMER-INPUT.md). Registry,
+nguồn pháp lý và cổng duyệt nằm tại
+[biểu giá/VAT Giai đoạn 2](docs/PHASE-2-TARIFF-ENGINE.md). Phạm vi dữ liệu được
+lưu và quy tắc xóa calculation chưa gửi liên hệ nằm tại
+[chính sách dữ liệu khách hàng](docs/CUSTOMER-DATA-RETENTION.md).
 
 ## Database và seed
 
@@ -193,7 +217,9 @@ Test hiện bao phủ:
 ## Giới hạn hiện tại
 
 - Chỉ hỗ trợ điện sinh hoạt hộ gia đình.
-- Người dùng phải nhập phần tiền điện trước VAT.
+- Nhập kWh hoạt động trực tiếp. Tổng tiền hoạt động trong development/test với
+  nhãn dữ liệu chưa duyệt; production tiếp tục chặn đến khi biểu giá, VAT, quy
+  tắc làm tròn và hóa đơn tham chiếu được người phụ trách phê duyệt.
 - Sản lượng đang dùng `sản lượng nền × hệ số tỉnh`, chưa mô phỏng theo tọa độ,
   hướng mái, góc nghiêng, bóng che hoặc từng tháng.
 - Phụ tải ban ngày dùng ba tỷ lệ cấu hình, chưa mô phỏng theo giờ.
@@ -205,19 +231,31 @@ Test hiện bao phủ:
 ## Hướng phát triển ưu tiên
 
 1. Nhập và phê duyệt dữ liệu thật từ nhà cung cấp.
-2. Phiên bản hóa biểu giá, package, nguồn sản lượng và thuật toán.
-3. Hỗ trợ nhập kWh, tổng tiền sau VAT và tải hóa đơn có bước xác nhận OCR.
+2. Phê duyệt registry biểu giá/VAT và bộ golden invoices sau đối soát độc lập.
+3. Bổ sung tải hóa đơn có bước xác nhận OCR.
 4. Mô phỏng sản lượng 12 tháng và phụ tải theo giờ.
 5. Bổ sung confidence score và giải thích giả định trên kết quả.
 6. Nghiệm thu với hóa đơn và công trình đang vận hành.
-7. Hoàn thiện Giai đoạn 10 trong [ROADMAP.md](ROADMAP.md).
+7. Nghiệm thu và phát hành theo các cổng chất lượng trong
+   [roadmap khách hàng](ROADMAP.md).
 
 ## Tài liệu trong repository
 
-- [ROADMAP.md](ROADMAP.md): tiến độ và điều kiện hoàn thành từng giai đoạn.
+- [ROADMAP.md](ROADMAP.md): roadmap chuyên sâu chỉ dành cho hành trình khách
+  hàng, độ chính xác tính toán, OCR và cổng phát hành.
 - [prompt_codex_solar_mvp.md](prompt_codex_solar_mvp.md): đặc tả sản phẩm ban đầu.
 - [docs/API.md](docs/API.md): API public và admin.
 - [docs/CALCULATION.md](docs/CALCULATION.md): công thức và giới hạn tính toán.
+- [docs/PHASE-0-DATA-CONTRACT.md](docs/PHASE-0-DATA-CONTRACT.md): hợp đồng đầu
+  vào, nguồn dữ liệu, phiên bản và cổng production.
+- [docs/PHASE-1-CUSTOMER-INPUT.md](docs/PHASE-1-CUSTOMER-INPUT.md): request V2,
+  provenance, UX ba bước và đường nối tổng tiền/OCR.
+- [docs/PHASE-1-USABILITY-TEST.md](docs/PHASE-1-USABILITY-TEST.md): kịch bản đo
+  tỷ lệ hoàn tất và thời gian nhập liệu với người dùng thật.
+- [docs/PHASE-2-TARIFF-ENGINE.md](docs/PHASE-2-TARIFF-ENGINE.md): registry biểu
+  giá/VAT, hợp đồng suy ngược và checklist phê duyệt.
+- [docs/ACCURACY-ACCEPTANCE.md](docs/ACCURACY-ACCEPTANCE.md): ca regression,
+  tolerance và bảng ký duyệt chuyên môn.
 - [docs/DATA-ONBOARDING.md](docs/DATA-ONBOARDING.md): quy trình thay dữ liệu demo.
 
 ## License

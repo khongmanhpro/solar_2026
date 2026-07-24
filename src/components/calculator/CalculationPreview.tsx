@@ -1,21 +1,28 @@
 import { CalculationResults } from "@/components/calculator/CalculationResults";
+import { CalculationTrustPanel } from "@/components/calculator/CalculationTrustPanel";
 import { LeadForm } from "@/components/calculator/LeadForm";
+import { formatKwhRange } from "@/lib/formatters";
 import type { CalculationResponse, SolarPackage } from "@/types/solar";
 
 interface CalculationPreviewProps {
   result: CalculationResponse | null;
   packages: SolarPackage[];
   isSubmitting: boolean;
+  isStale?: boolean;
 }
 
 export function CalculationPreview({
   result,
   packages,
   isSubmitting,
+  isStale = false,
 }: CalculationPreviewProps) {
   const recommendation = result?.recommendedPackage ?? null;
 
-  if (isSubmitting) {
+  // Keep the last successful result visible while a revised draft is being
+  // recalculated. This prevents customers from losing the trusted comparison
+  // they were already reading when an update fails or takes longer than usual.
+  if (isSubmitting && !result) {
     return (
       <div className="flex min-h-[24rem] flex-col items-center justify-center rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-6 py-14 text-center" role="status">
         <div aria-hidden="true" className="solar-loader" />
@@ -30,17 +37,30 @@ export function CalculationPreview({
   }
 
   if (result && !recommendation) {
+    const unstableMoneyRecommendation =
+      result.recommendationStability?.evaluated === true &&
+      result.recommendationStability.stable === false;
+    const consumption = result.normalizedInput?.monthlyConsumptionKwh.value;
+
     return (
       <div id="ket-qua" className="rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-6 py-12 sm:px-10 sm:py-14" tabIndex={-1}>
+        <CalculationTrustPanel
+          metadata={result.metadata}
+          tariff={result.sourceSnapshot?.tariff}
+        />
         <div className="max-w-3xl">
           <span className="inline-flex w-fit rounded-full bg-[var(--warning-soft)] px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--warning-ink)]">
             Cần khảo sát thêm
           </span>
           <h2 className="mt-5 font-display text-3xl font-semibold tracking-tight text-[var(--ink)] sm:text-4xl">
-            Chưa có gói phù hợp hoàn toàn
+            {unstableMoneyRecommendation
+              ? "Cần thêm thông tin trước khi chọn gói"
+              : "Chưa có gói phù hợp hoàn toàn"}
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--muted)]">
-            Diện tích mái hoặc nhu cầu dự phòng hiện chưa khớp với các gói đang hoạt động. Kết quả tính toán đã được lưu để tư vấn viên kiểm tra phương án riêng.
+            {unstableMoneyRecommendation
+              ? `Tổng tiền hiện chỉ xác định được khoảng ${consumption ? formatKwhRange(consumption.lowerBound, consumption.upperBound) : "chưa đủ dữ liệu"}. Các biên chưa dẫn tới cùng một gói, nên hệ thống không tự chốt phương án có vẻ chính xác.`
+              : "Nhu cầu hiện chưa khớp hoàn toàn với các gói đang hoạt động. Kết quả tính toán đã được lưu để tư vấn viên kiểm tra phương án riêng; khả năng lắp đặt chỉ được xác nhận sau khảo sát mái."}
           </p>
         </div>
 
@@ -54,16 +74,30 @@ export function CalculationPreview({
           </p>
         </aside>
 
-        <LeadForm calculationId={result.calculationId} settings={result.assumptions} />
+        {isStale ? (
+          <aside
+            className="mt-8 rounded-xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]"
+            role="status"
+          >
+            <strong>Kết quả này đang theo thông tin cũ.</strong> Hãy cập nhật
+            phép tính trước khi đăng ký khảo sát hoặc liên hệ theo phương án.
+          </aside>
+        ) : (
+          <LeadForm calculationId={result.calculationId} settings={result.assumptions} />
+        )}
       </div>
     );
   }
 
   if (result && recommendation) {
+    const snapshotPackages = result.sourceSnapshot?.packages;
+    const packagesForCalculation = snapshotPackages ?? packages;
+
     return (
       <CalculationResults
+        isStale={isStale}
         key={result.calculationId}
-        packages={packages}
+        packages={packagesForCalculation}
         result={result}
       />
     );
@@ -77,14 +111,14 @@ export function CalculationPreview({
           Hoàn thành biểu mẫu để nhận phân tích
         </h2>
         <p className="mt-3 text-base leading-7 text-[var(--muted)]">
-          Sau khi bấm “Tính phương án phù hợp”, bạn sẽ thấy công suất đề xuất, tiết kiệm ước tính, thời gian hoàn vốn và so sánh các gói.
+          Sau khi bấm “Xác nhận và tính phương án”, bạn sẽ thấy công suất đề xuất, tiết kiệm ước tính, thời gian hoàn vốn và so sánh các gói.
         </p>
       </div>
 
       <div className="mt-10 grid gap-4 border-t border-[var(--line)] pt-8 sm:grid-cols-3">
         {[
           ["01", "Ước tính sản lượng"],
-          ["02", "Khớp với diện tích mái"],
+          ["02", "Kiểm tra nhu cầu và mái"],
           ["03", "Chọn phương án phù hợp"],
         ].map(([step, label]) => (
           <div key={step}>

@@ -1,0 +1,224 @@
+{
+  "schemaVersion": "1.0.0",
+  "registryVersion": "2026-07-22-draft.1",
+  "tariffs": [
+    {
+      "id": "vn-residential-qd1279-2025-05-10",
+      "version": "qd1279-2025-05-10-v1",
+      "electricityType": "residential",
+      "currency": "VND",
+      "unit": "kWh",
+      "status": "draft",
+      "approvalStatus": "requires_internal_approval",
+      "selectable": true,
+      "valueStatus": "official_source",
+      "effectivePeriod": {
+        "from": "2025-05-10",
+        "to": null
+      },
+      "sources": [
+        {
+          "kind": "official_document",
+          "title": "Quyết định 1279/QĐ-BCT về giá bán điện",
+          "authority": "Bộ Công Thương",
+          "documentNumber": "1279/QĐ-BCT",
+          "issuedOn": "2025-05-09",
+          "url": "https://vanban.chinhphu.vn/?classid=0&docid=213617&pageid=27160"
+        },
+        {
+          "kind": "official_web_page",
+          "title": "Retail electricity tariff under Decision 1279/QĐ-BCT",
+          "authority": "Tập đoàn Điện lực Việt Nam",
+          "documentNumber": "1279/QĐ-BCT",
+          "issuedOn": "2025-05-09",
+          "url": "https://en.evn.com.vn/d/en-US/news/RETAIL-ELECTRICITY-TARIFF-Decision-No-1279QD-BCT-dated-9-May-2025-of-Ministry-of-Industry-and-Trade-60-28-252"
+        }
+      ],
+      "notes": [
+        "Đơn giá là giá trước VAT theo nguồn chính thức.",
+        "Bản ghi vẫn là draft và phải được nghiệp vụ nội bộ phê duyệt trước khi dùng cho kết quả khách hàng.",
+        "Chính sách làm tròn hiện là quy ước kỹ thuật có phiên bản, chưa được xác nhận từ mẫu hóa đơn thực tế."
+      ],
+      "quotaPolicy": {
+        "baseBillingDays": 30,
+        "householdMultiplierSupported": true,
+        "billingDayProrationSupported": true
+      },
+      "roundingPolicy": {
+        "tierCharge": { "mode": "none" },
+        "energySubtotal": { "mode": "none" },
+        "vatAmount": { "mode": "half_up", "decimalPlaces": 0 },
+        "totalPayment": { "mode": "half_up", "decimalPlaces": 0 }
+      },
+      "tiers": [
+        {
+          "code": "tier-1",
+          "label": "Bậc 1",
+          "fromKwh": 0,
+          "toKwh": 50,
+          "unitPriceVndPerKwh": 1984
+        },
+        {
+          "code": "tier-2",
+          "label": "Bậc 2",
+          "fromKwh": 50,
+          "toKwh": 100,
+          "unitPriceVndPerKwh": 2050
+        },
+        {
+          "code": "tier-3",
+          "label": "Bậc 3",
+          "fromKwh": 100,
+          "toKwh": 200,
+          "unitPriceVndPerKwh": 2380
+        },
+        {
+          "code": "tier-4",
+          "label": "Bậc 4",
+          "fromKwh": 200,
+          "toKwh": 300,
+          "unitPriceVndPerKwh": 2998
+        },
+        {
+          "code": "tier-5",
+          "label": "Bậc 5",
+          "fromKwh": 300,
+          "toKwh": 400,
+          "unitPriceVndPerKwh": 3350
+        },
+        {
+          "code": "tier-6",
+          "label": "Bậc 6",
+          "fromKwh": 400,
+          "toKwh": null,
+          "unitPriceVndPerKwh": 3460
+        }
+      ]
+    },
+    {
+      "id": "vn-residential-qd14-five-tier-screenshot-candidate",
+      "version": "qd14-5-tier-screenshot-candidate-2025-05-29-v1",
+      "electricityType": "residential",
+      "currency": "VND",
+      "unit": "kWh",
+      "status": "pending",
+      "approvalStatus": "requires_internal_approval",
+      "selectable": false,
+      "valueStatus": "candidate_derived",
+      "effectivePeriod": {
+        "from": null,
+        "to": null
+      },
+      "sources": [
+        {
+          "kind": "official_document",
+          "title": "Quyết định 14/2025/QĐ-TTg về cơ cấu biểu giá bán lẻ điện",
+          "authority": "Thủ tướng Chính phủ",
+          "documentNumber": "14/2025/QĐ-TTg",
+          "issuedOn": "2025-05-29",
+          "url": "https://vanban.chinhphu.vn/?classid=0&docid=213782&pageid=27160"
+        },
+        {
+          "kind": "customer_screenshot",
+          "title": "Ảnh chụp bảng giá 5 bậc do người dùng cung cấp",
+          "authority": "Chưa xác minh",
+          "documentNumber": null,
+          "issuedOn": null,
+          "url": null
+        }
+      ],
+      "notes": [
+        "Quyết định 14 quy định cơ cấu 5 bậc nhưng thời điểm áp dụng phụ thuộc lần điều chỉnh giá bán lẻ điện bình quân tiếp theo.",
+        "effectivePeriod.from để null vì ngày 2025-05-29 là ngày ban hành, không phải ngày áp dụng mức giá trong ảnh.",
+        "Các mức giá bên dưới được chép từ ảnh người dùng, không phải quyết định giá chính thức đi kèm Quyết định 14.",
+        "Bản ghi bị khóa selectable=false cho đến khi có văn bản giá hiệu lực và phê duyệt nội bộ."
+      ],
+      "quotaPolicy": {
+        "baseBillingDays": 30,
+        "householdMultiplierSupported": true,
+        "billingDayProrationSupported": true
+      },
+      "roundingPolicy": {
+        "tierCharge": { "mode": "none" },
+        "energySubtotal": { "mode": "none" },
+        "vatAmount": { "mode": "half_up", "decimalPlaces": 0 },
+        "totalPayment": { "mode": "half_up", "decimalPlaces": 0 }
+      },
+      "tiers": [
+        {
+          "code": "tier-1",
+          "label": "Bậc 1",
+          "fromKwh": 0,
+          "toKwh": 100,
+          "unitPriceVndPerKwh": 1984
+        },
+        {
+          "code": "tier-2",
+          "label": "Bậc 2",
+          "fromKwh": 100,
+          "toKwh": 200,
+          "unitPriceVndPerKwh": 2380
+        },
+        {
+          "code": "tier-3",
+          "label": "Bậc 3",
+          "fromKwh": 200,
+          "toKwh": 400,
+          "unitPriceVndPerKwh": 2998
+        },
+        {
+          "code": "tier-4",
+          "label": "Bậc 4",
+          "fromKwh": 400,
+          "toKwh": 700,
+          "unitPriceVndPerKwh": 3571
+        },
+        {
+          "code": "tier-5",
+          "label": "Bậc 5",
+          "fromKwh": 700,
+          "toKwh": null,
+          "unitPriceVndPerKwh": 3967
+        }
+      ]
+    }
+  ],
+  "vatRules": [
+    {
+      "id": "vn-vat-electricity-8-percent-nq204",
+      "version": "vat-8-nq204-2025-07-01-v1",
+      "rateBps": 800,
+      "status": "draft",
+      "approvalStatus": "requires_internal_approval",
+      "selectable": true,
+      "effectivePeriod": {
+        "from": "2025-07-01",
+        "to": "2026-12-31"
+      },
+      "sources": [
+        {
+          "kind": "official_document",
+          "title": "Nghị quyết 204/2025/QH15 về giảm thuế giá trị gia tăng",
+          "authority": "Quốc hội",
+          "documentNumber": "204/2025/QH15",
+          "issuedOn": "2025-06-17",
+          "url": "https://vanban.chinhphu.vn/?classid=1&docid=214209&pageid=27160"
+        },
+        {
+          "kind": "official_document",
+          "title": "Nghị định 174/2025/NĐ-CP hướng dẫn giảm thuế giá trị gia tăng",
+          "authority": "Chính phủ",
+          "documentNumber": "174/2025/NĐ-CP",
+          "issuedOn": "2025-06-30",
+          "url": "https://vanban.chinhphu.vn/?classid=1&docid=214310&pageid=27160"
+        }
+      ],
+      "notes": [
+        "Áp dụng mức 8% trong khoảng ngày hiệu lực đã khai báo.",
+        "Ngoài khoảng này engine phải báo thiếu quy tắc, không tự suy đoán 8% hay 10%.",
+        "Bản ghi cần được nghiệp vụ nội bộ xác nhận phạm vi áp dụng cho hóa đơn điện trước khi phát hành cho khách hàng."
+      ],
+      "roundingRule": { "mode": "half_up", "decimalPlaces": 0 }
+    }
+  ]
+}

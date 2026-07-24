@@ -22,6 +22,14 @@ enum ElectricityType {
   RESIDENTIAL
 }
 
+enum DataStatus {
+  DEMO
+  DRAFT
+  VERIFIED
+  EXPIRED
+  DISABLED
+}
+
 enum LeadStatus {
   NEW
   CONTACTED
@@ -51,6 +59,14 @@ model SolarPackage {
   inverterWarrantyYears    Int
   active                   Boolean         @default(true)
   displayOrder             Int
+  dataStatus               DataStatus      @default(DEMO)
+  dataVersion              String          @default("demo-package-catalog-2026-07-20")
+  sourceReference          String?
+  dataOwner                String?
+  effectiveFrom            DateTime?
+  effectiveTo              DateTime?
+  approvedBy               String?
+  approvedAt               DateTime?
   createdAt                DateTime        @default(now())
   updatedAt                DateTime        @updatedAt
   calculations             Calculation[]
@@ -59,7 +75,7 @@ model SolarPackage {
 }
 
 model CalculationSetting {
-  id                               String   @id
+  id                               String     @id
   averageElectricityPriceVndPerKwh Int
   batteryRoundTripEfficiency       Float
   batteryDailyCycleFactor          Float
@@ -73,39 +89,73 @@ model CalculationSetting {
   zaloUrl                          String
   hotline                          String
   businessName                     String
-  createdAt                        DateTime @default(now())
-  updatedAt                        DateTime @updatedAt
+  dataStatus                       DataStatus @default(DEMO)
+  dataVersion                      String     @default("demo-calculation-assumptions-2026-07-20")
+  sourceReference                  String?
+  dataOwner                        String?
+  effectiveFrom                    DateTime?
+  effectiveTo                      DateTime?
+  approvedBy                       String?
+  approvedAt                       DateTime?
+  createdAt                        DateTime   @default(now())
+  updatedAt                        DateTime   @updatedAt
 }
 
 model ProvinceFactor {
-  id           String   @id @default(cuid())
-  code         String   @unique
-  name         String
-  factor       Float
-  active       Boolean  @default(true)
-  displayOrder Int
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String     @id @default(cuid())
+  code            String     @unique
+  name            String
+  factor          Float
+  active          Boolean    @default(true)
+  displayOrder    Int
+  dataStatus      DataStatus @default(DEMO)
+  dataVersion     String     @default("demo-province-factors-2026-07-20")
+  sourceReference String?
+  dataOwner       String?
+  effectiveFrom   DateTime?
+  effectiveTo     DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   @@index([active, displayOrder])
 }
 
 model Calculation {
-  id                   String            @id @default(cuid())
-  monthlyBill          Int
-  electricityType      ElectricityType   @default(RESIDENTIAL)
-  province             String
-  daytimeUsageLevel    DaytimeUsageLevel
-  roofAreaM2           Float
-  backupRequired       Boolean
-  recommendedPackageId String?
-  recommendedPackage   SolarPackage?     @relation(fields: [recommendedPackageId], references: [id], onDelete: SetNull)
-  resultJson           Json
-  createdAt            DateTime          @default(now())
-  leads                Lead[]
+  id                              String            @id @default(cuid())
+  inputContractVersion            String            @default("legacy-v1")
+  energyInputSource               String            @default("legacy_money")
+  reportedAmountVnd               Int?
+  reportedAmountBasis             String?
+  normalizedMonthlyConsumptionKwh Float?
+  consumptionLowerKwh             Float?
+  consumptionUpperKwh             Float?
+  inputMonthCount                 Int               @default(1)
+  monthlyBill                     Int
+  electricityType                 ElectricityType   @default(RESIDENTIAL)
+  province                        String
+  daytimeUsageLevel               DaytimeUsageLevel
+  roofAreaKnown                   Boolean           @default(true)
+  roofAreaM2                      Float?
+  backupRequired                  Boolean
+  essentialLoadWatts              Int?
+  backupHours                     Float?
+  recommendedPackageId            String?
+  recommendedPackage              SolarPackage?     @relation(fields: [recommendedPackageId], references: [id], onDelete: SetNull)
+  resultJson                      Json
+  snapshotSchemaVersion           String            @default("legacy-v1")
+  algorithmVersion                String            @default("legacy-unknown")
+  algorithmFingerprint            String            @default("legacy-unknown")
+  dataVersion                     String            @default("legacy-unknown")
+  dataVersions                    Json?
+  dataStatus                      DataStatus        @default(DEMO)
+  createdAt                       DateTime          @default(now())
+  leads                           Lead[]
 
   @@index([createdAt])
   @@index([recommendedPackageId])
+  @@index([dataStatus, createdAt])
 }
 
 model Lead {

@@ -2,6 +2,15 @@ import { z } from "zod";
 
 import { SOLAR_INPUT_LIMITS } from "@/config/defaults";
 import {
+  getCurrentBillingPeriod,
+  MIN_SUPPORTED_BILLING_PERIOD,
+} from "@/lib/billing-period";
+import {
+  CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION,
+  CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_0,
+  DAYTIME_BEHAVIORS,
+} from "@/types/customer-input";
+import {
   DAYTIME_USAGE_LEVELS,
   ELECTRICITY_TYPES,
   LEAD_STATUSES,
@@ -88,6 +97,306 @@ export const solarCalculationInputSchema = z
     backupRequired: booleanInputSchema,
   })
   .strict();
+
+const requiredObservationPeriodSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-(?:0[1-9]|1[0-2])$/, "Tháng phải theo định dạng YYYY-MM.")
+  .refine(
+    (period) => period >= MIN_SUPPORTED_BILLING_PERIOD,
+    `Kỳ hóa đơn phải từ ${MIN_SUPPORTED_BILLING_PERIOD} trở đi.`,
+  )
+  .refine(
+    (period) => period <= getCurrentBillingPeriod(),
+    "Kỳ hóa đơn không được nằm trong tương lai.",
+  );
+
+const observationPeriodSchema = requiredObservationPeriodSchema.optional();
+
+const customerKwhObservationSchema = z
+  .object({
+    period: observationPeriodSchema,
+    valueKwh: z
+      .number({ error: "Sản lượng điện phải là một số." })
+      .finite()
+      .positive("Sản lượng điện phải lớn hơn 0 kWh.")
+      .max(100_000, "Sản lượng điện vượt quá phạm vi hỗ trợ."),
+  })
+  .strict();
+
+const customerMoneyObservationSchema = z
+  .object({
+    period: observationPeriodSchema,
+    totalPaymentVnd: z
+      .number({ error: "Tổng tiền thanh toán phải là một số." })
+      .finite()
+      .positive("Tổng tiền thanh toán phải lớn hơn 0 đồng.")
+      .max(
+        SOLAR_INPUT_LIMITS.monthlyBill.max,
+        "Tổng tiền thanh toán vượt quá phạm vi hỗ trợ.",
+      ),
+  })
+  .strict();
+
+const customerMoneyObservationV2_1Schema = customerMoneyObservationSchema
+  .extend({ period: requiredObservationPeriodSchema })
+  .strict();
+
+const customerInvoiceObservationSchema = z
+  .object({
+    period: observationPeriodSchema,
+    valueKwh: z.number().finite().positive().max(100_000),
+    customerConfirmed: z.boolean(),
+  })
+  .strict();
+
+function requireUniqueObservationPeriods(
+  observations: readonly { period?: string }[],
+  context: z.RefinementCtx,
+): void {
+  const firstIndexByPeriod = new Map<string, number>();
+  observations.forEach((observation, index) => {
+    if (!observation.period) return;
+    if (firstIndexByPeriod.has(observation.period)) {
+      context.addIssue({
+        code: "custom",
+        path: [index, "period"],
+        message: `Tháng ${observation.period} đã được nhập trước đó.`,
+      });
+      return;
+    }
+    firstIndexByPeriod.set(observation.period, index);
+  });
+}
+
+const customerEnergyInputV2_0Schema = z.discriminatedUnion("method", [
+  z
+    .object({
+      method: z.literal("kwh"),
+      observations: z
+        .array(customerKwhObservationSchema)
+        .min(1, "Vui lòng nhập ít nhất một tháng điện năng.")
+        .max(12, "Chỉ hỗ trợ tối đa 12 tháng.")
+        .superRefine(requireUniqueObservationPeriods),
+    })
+    .strict(),
+  z
+    .object({
+      method: z.literal("money"),
+      amountBasis: z.literal("total_payment"),
+      observations: z
+        .array(customerMoneyObservationSchema)
+        .min(1, "Vui lòng nhập ít nhất một tháng tiền điện.")
+        .max(12, "Chỉ hỗ trợ tối đa 12 tháng.")
+        .superRefine(requireUniqueObservationPeriods),
+    })
+    .strict(),
+  z
+    .object({
+      method: z.literal("invoice_ocr"),
+      uploadId: z.string().trim().min(1).max(200),
+      extractionVersion: z.string().trim().min(1).max(100),
+      // Empty is intentional: until the trusted OCR pipeline exists the
+      // service returns a stable, explicit OCR_PIPELINE_NOT_AVAILABLE error.
+      observations: z
+        .array(customerInvoiceObservationSchema)
+        .max(12)
+        .superRefine(requireUniqueObservationPeriods),
+    })
+    .strict(),
+]);
+
+const moneyBillingContextSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("standard_single_household") }).strict(),
+  z
+    .object({
+      kind: z.literal("known"),
+      householdCount: z
+        .number({ error: "Số hộ dùng chung phải là một số." })
+        .int("Số hộ dùng chung phải là số nguyên.")
+        .min(1, "Số hộ dùng chung phải từ 1 trở lên.")
+        .max(100, "Số hộ dùng chung vượt quá phạm vi hỗ trợ."),
+      otherChargesVnd: z
+        .number({ error: "Khoản khác phải là một số." })
+        .finite()
+        .int("Khoản khác phải là số nguyên đồng.")
+        .min(0, "Khoản khác không được âm.")
+        .max(
+          SOLAR_INPUT_LIMITS.monthlyBill.max,
+          "Khoản khác vượt quá phạm vi hỗ trợ.",
+        ),
+      periodAdjustment: z.discriminatedUnion("kind", [
+        z.object({ kind: z.literal("standard") }).strict(),
+        z
+          .object({
+            kind: z.literal("custom"),
+            billingDays: z
+              .number({ error: "Số ngày ghi điện phải là một số." })
+              .int("Số ngày ghi điện phải là số nguyên.")
+              .min(1)
+              .max(366),
+            referenceDays: z
+              .number({ error: "Số ngày chuẩn phải là một số." })
+              .int("Số ngày chuẩn phải là số nguyên.")
+              .min(1)
+              .max(366),
+          })
+          .strict(),
+      ]),
+    })
+    .strict(),
+  z.object({ kind: z.literal("unknown") }).strict(),
+]);
+
+const customerEnergyInputSchema = z.discriminatedUnion("method", [
+  z
+    .object({
+      method: z.literal("kwh"),
+      observations: z
+        .array(customerKwhObservationSchema)
+        .min(1, "Vui lòng nhập ít nhất một tháng điện năng.")
+        .max(12, "Chỉ hỗ trợ tối đa 12 tháng.")
+        .superRefine(requireUniqueObservationPeriods),
+    })
+    .strict(),
+  z
+    .object({
+      method: z.literal("money"),
+      amountBasis: z.literal("total_payment"),
+      billingContext: moneyBillingContextSchema,
+      observations: z
+        .array(customerMoneyObservationV2_1Schema)
+        .min(1, "Vui lòng nhập ít nhất một tháng tiền điện.")
+        .max(12, "Chỉ hỗ trợ tối đa 12 tháng.")
+        .superRefine(requireUniqueObservationPeriods),
+    })
+    .strict()
+    .superRefine((energy, context) => {
+      if (energy.billingContext.kind !== "known") return;
+      const otherChargesVnd = energy.billingContext.otherChargesVnd;
+      energy.observations.forEach((observation, index) => {
+        if (otherChargesVnd >= observation.totalPaymentVnd) {
+          context.addIssue({
+            code: "custom",
+            path: ["observations", index, "totalPaymentVnd"],
+            message:
+              "Tổng thanh toán phải lớn hơn khoản khác để còn phần tiền điện năng.",
+          });
+        }
+      });
+    }),
+  z
+    .object({
+      method: z.literal("invoice_ocr"),
+      uploadId: z.string().trim().min(1).max(200),
+      extractionVersion: z.string().trim().min(1).max(100),
+      observations: z
+        .array(customerInvoiceObservationSchema)
+        .max(12)
+        .superRefine(requireUniqueObservationPeriods),
+    })
+    .strict(),
+]);
+
+const customerRoofInputSchema = z.discriminatedUnion("known", [
+  z.object({ known: z.literal(false) }).strict(),
+  z
+    .object({
+      known: z.literal(true),
+      areaM2: z
+        .number({ error: "Diện tích mái phải là một số." })
+        .finite()
+        .positive("Diện tích mái phải lớn hơn 0 m².")
+        .max(
+          SOLAR_INPUT_LIMITS.roofAreaM2.max,
+          "Diện tích mái không được vượt quá 10.000 m².",
+        ),
+    })
+    .strict(),
+]);
+
+const customerBackupInputSchema = z.discriminatedUnion("required", [
+  z.object({ required: z.literal(false) }).strict(),
+  z
+    .object({
+      required: z.literal(true),
+      essentialLoadWatts: z
+        .number()
+        .finite()
+        .int("Công suất tải phải là số nguyên watt.")
+        .positive()
+        .max(1_000_000)
+        .nullable(),
+      backupHours: z.number().finite().positive().max(168).nullable(),
+    })
+    .strict(),
+]);
+
+/** Customer-facing Phase 1 contract. Electricity type is intentionally not
+ * requested: this product scope currently supports residential tariffs only. */
+export const customerCalculationRequestV2Schema = z
+  .object({
+    schemaVersion: z.literal(CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION),
+    energy: customerEnergyInputSchema,
+    site: z
+      .object({
+        province: z
+          .string({ error: "Vui lòng chọn tỉnh hoặc thành phố." })
+          .trim()
+          .min(1, "Vui lòng chọn tỉnh hoặc thành phố."),
+        daytimeBehavior: z.enum(DAYTIME_BEHAVIORS, {
+          error: "Vui lòng chọn thói quen sử dụng điện ban ngày.",
+        }),
+        roof: customerRoofInputSchema,
+        backup: customerBackupInputSchema,
+      })
+      .strict(),
+  })
+  .strict();
+
+/** Compatibility parser for Phase 1 requests already stored or sent by an
+ * older client. Money requests on this version are parsed but rejected by the
+ * service because they do not state bill composition. */
+export const customerCalculationRequestV2_0Schema = z
+  .object({
+    schemaVersion: z.literal(
+      CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_0,
+    ),
+    energy: customerEnergyInputV2_0Schema,
+    site: z
+      .object({
+        province: z
+          .string({ error: "Vui lòng chọn tỉnh hoặc thành phố." })
+          .trim()
+          .min(1, "Vui lòng chọn tỉnh hoặc thành phố."),
+        daytimeBehavior: z.enum(DAYTIME_BEHAVIORS, {
+          error: "Vui lòng chọn thói quen sử dụng điện ban ngày.",
+        }),
+        roof: customerRoofInputSchema,
+        backup: customerBackupInputSchema,
+      })
+      .strict(),
+  })
+  .strict();
+
+/** Transitional legacy contract. Old callers must explicitly state that the
+ * amount is the pre-VAT energy charge; an ambiguous bare monthlyBill is not a
+ * valid public calculation request. */
+export const legacyCalculationRequestSchema = solarCalculationInputSchema
+  .extend({
+    inputContractVersion: z.literal("legacy-v1"),
+    billAmountBasis: z.literal("energy_charge_before_vat"),
+    customerConfirmed: z.literal(true),
+  })
+  .strict();
+
+/** Public API contract. Both branches are strict and have explicit amount
+ * semantics. */
+export const calculationRequestSchema = z.union([
+  customerCalculationRequestV2Schema,
+  customerCalculationRequestV2_0Schema,
+  legacyCalculationRequestSchema,
+]);
 
 export function normalizeVietnamesePhone(phone: string): string {
   const normalized = phone.replace(/[\s().-]/g, "");
@@ -245,6 +554,13 @@ export const leadStatusUpdateSchema = z
 export type SolarCalculationInputData = z.infer<
   typeof solarCalculationInputSchema
 >;
+export type LegacyCalculationRequestData = z.infer<
+  typeof legacyCalculationRequestSchema
+>;
+export type CustomerCalculationRequestV2Data = z.infer<
+  typeof customerCalculationRequestV2Schema
+>;
+export type CalculationRequestData = z.infer<typeof calculationRequestSchema>;
 export type LeadInputData = z.infer<typeof leadInputSchema>;
 export type SolarPackageCreateData = z.infer<typeof solarPackageCreateSchema>;
 export type SolarPackageUpdateData = z.infer<typeof solarPackageUpdateSchema>;

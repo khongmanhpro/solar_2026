@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "1.0.0",
+  "fixtureId": "vn-residential-qd1279-draft-2026-07-22",
+  "status": "DRAFT_REQUIRES_INTERNAL_APPROVAL",
+  "tariffVersion": "qd1279-2025-05-10-v1",
+  "scope": "ENERGY_CHARGE_BEFORE_VAT",
+  "currency": "VND",
+  "tolerances": {
+    "forwardBillVnd": 0,
+    "inverseConsumptionKwh": 1e-9,
+    "roundTripBillVnd": 0.000001
+  },
+  "review": {
+    "calculatedBy": "Engineering regression fixture from official tier rates",
+    "independentCalculationReference": null,
+    "domainReviewer": null,
+    "approvedAt": null
+  },
+  "notes": [
+    "Tier thresholds and rates are transcribed from Decision 1279/QD-BCT official sources.",
+    "The values exclude VAT and all non-energy charges.",
+    "Passing this fixture is not internal tariff, billing, tax, finance, or engineering approval."
+  ],
+  "cases": [
+    {
+      "id": "TARIFF-000-KWH",
+      "consumptionKwh": 0,
+      "expectedEnergyChargeBeforeVatVnd": 0
+    },
+    {
+      "id": "TARIFF-050-KWH",
+      "consumptionKwh": 50,
+      "expectedEnergyChargeBeforeVatVnd": 99200
+    },
+    {
+      "id": "TARIFF-051-KWH",
+      "consumptionKwh": 51,
+      "expectedEnergyChargeBeforeVatVnd": 101250
+    },
+    {
+      "id": "TARIFF-100-KWH",
+      "consumptionKwh": 100,
+      "expectedEnergyChargeBeforeVatVnd": 201700
+    },
+    {
+      "id": "TARIFF-101-KWH",
+      "consumptionKwh": 101,
+      "expectedEnergyChargeBeforeVatVnd": 204080
+    },
+    {
+      "id": "TARIFF-200-KWH",
+      "consumptionKwh": 200,
+      "expectedEnergyChargeBeforeVatVnd": 439700
+    },
+    {
+      "id": "TARIFF-201-KWH",
+      "consumptionKwh": 201,
+      "expectedEnergyChargeBeforeVatVnd": 442698
+    },
+    {
+      "id": "TARIFF-300-KWH",
+      "consumptionKwh": 300,
+      "expectedEnergyChargeBeforeVatVnd": 739500
+    },
+    {
+      "id": "TARIFF-301-KWH",
+      "consumptionKwh": 301,
+      "expectedEnergyChargeBeforeVatVnd": 742850
+    },
+    {
+      "id": "TARIFF-400-KWH",
+      "consumptionKwh": 400,
+      "expectedEnergyChargeBeforeVatVnd": 1074500
+    },
+    {
+      "id": "TARIFF-401-KWH",
+      "consumptionKwh": 401,
+      "expectedEnergyChargeBeforeVatVnd": 1077960
+    },
+    {
+      "id": "TARIFF-700-KWH",
+      "consumptionKwh": 700,
+      "expectedEnergyChargeBeforeVatVnd": 2112500
+    },
+    {
+      "id": "TARIFF-701-KWH",
+      "consumptionKwh": 701,
+      "expectedEnergyChargeBeforeVatVnd": 2115960
+    },
+    {
+      "id": "TARIFF-800-KWH",
+      "consumptionKwh": 800,
+      "expectedEnergyChargeBeforeVatVnd": 2458500
+    }
+  ]
+}

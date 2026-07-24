@@ -21,12 +21,18 @@ function createPackage(index: number): SolarPackage {
 describe("generateSolarInsights", () => {
   it("sinh nhận xét cho mức dùng ban ngày cao", () => {
     const input: SolarCalculationInput = {
+      inputContractVersion: "legacy-v1",
+      energyInputMethod: "legacy_money",
+      inputMonthCount: 1,
+      monthlyConsumptionKwh: 669.95239,
       monthlyBill: 2_000_000,
       electricityType: "residential",
       province: "ho-chi-minh",
       daytimeUsageLevel: "high",
       roofAreaM2: 25,
       backupRequired: false,
+      essentialLoadWatts: null,
+      backupHours: null,
     };
     const solarPackage = createPackage(1);
     const result = calculateSolarPackage({
@@ -43,12 +49,18 @@ describe("generateSolarInsights", () => {
 
   it("sinh nhận xét cho mái giới hạn, pin dự phòng và điện dư", () => {
     const input: SolarCalculationInput = {
+      inputContractVersion: "legacy-v1",
+      energyInputMethod: "legacy_money",
+      inputMonthCount: 1,
+      monthlyConsumptionKwh: 669.95239,
       monthlyBill: 2_000_000,
       electricityType: "residential",
       province: "ho-chi-minh",
       daytimeUsageLevel: "low",
       roofAreaM2: 18,
       backupRequired: true,
+      essentialLoadWatts: null,
+      backupHours: null,
     };
     const solarPackage = createPackage(3);
     const result = calculateSolarPackage({
@@ -71,12 +83,18 @@ describe("generateSolarInsights", () => {
 
   it("không sử dụng các cụm từ bị cấm", () => {
     const input: SolarCalculationInput = {
+      inputContractVersion: "legacy-v1",
+      energyInputMethod: "legacy_money",
+      inputMonthCount: 1,
+      monthlyConsumptionKwh: 669.95239,
       monthlyBill: 2_000_000,
       electricityType: "residential",
       province: "ho-chi-minh",
       daytimeUsageLevel: "low",
       roofAreaM2: 18,
       backupRequired: true,
+      essentialLoadWatts: null,
+      backupHours: null,
     };
     const solarPackage = createPackage(3);
     const result = calculateSolarPackage({

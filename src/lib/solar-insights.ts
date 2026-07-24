@@ -28,9 +28,15 @@ export function generateSolarInsights({
   }
 
   const roofUtilization =
-    input.roofAreaM2 > 0
+    input.roofAreaM2 !== null && input.roofAreaM2 > 0
       ? solarPackage.requiredRoofAreaM2 / input.roofAreaM2
       : 0;
+
+  if (input.roofAreaM2 === null) {
+    insights.push(
+      "Bạn chưa cung cấp diện tích mái. Gói đang hiển thị là phương án tham khảo theo nhu cầu điện, chưa xác nhận có thể lắp trên mái thực tế.",
+    );
+  }
 
   if (
     roofUtilization >= CALCULATION_CONSTANTS.roofConstraintInsightThreshold
@@ -42,7 +48,7 @@ export function generateSolarInsights({
 
   if (input.backupRequired && solarPackage.systemType === "hybrid") {
     insights.push(
-      "Bạn chọn nhu cầu điện dự phòng nên hệ thống ưu tiên inverter hybrid và pin lưu trữ.",
+      "Bạn chọn nhu cầu điện dự phòng nên hệ thống ưu tiên inverter hybrid và pin lưu trữ. Dung lượng pin chỉ là tham khảo cho đến khi xác nhận tải thiết yếu và số giờ cần dùng.",
     );
   }
 

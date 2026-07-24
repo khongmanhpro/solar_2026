@@ -1,3 +1,14 @@
+import type {
+  CustomerCalculationRequest,
+  EnergyInputSource,
+  NormalizedEnergyInput,
+} from "@/types/customer-input";
+import type {
+  CalculationSourceSnapshot,
+  CalculationVersionMetadata,
+  DataStatus,
+} from "@/types/data-governance";
+
 export const DAYTIME_USAGE_LEVELS = ["low", "medium", "high"] as const;
 export type DaytimeUsageLevel = (typeof DAYTIME_USAGE_LEVELS)[number];
 
@@ -26,15 +37,41 @@ export const LEAD_STATUSES = [
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
 export interface SolarCalculationInput {
+  inputContractVersion: string;
+  energyInputMethod: EnergyInputSource | "legacy_money";
+  inputMonthCount: number;
+  monthlyConsumptionKwh: number;
+  /** Baseline energy charge before VAT used by the calculation engine. */
   monthlyBill: number;
+  /** Selected tariff contract for bill-after-solar calculations. Older
+   * snapshots may omit these fields and use the legacy current tariff. */
+  electricityTariffVersion?: string;
+  tariffBillingContext?: {
+    householdQuotaMultiplier: number;
+    billingDays?: number;
+    referenceDays?: number;
+  } | null;
   electricityType: ElectricityType;
   province: string;
   daytimeUsageLevel: DaytimeUsageLevel;
-  roofAreaM2: number;
+  roofAreaM2: number | null;
   backupRequired: boolean;
+  essentialLoadWatts: number | null;
+  backupHours: number | null;
 }
 
-export interface SolarPackage {
+export interface DataGovernanceMetadata {
+  dataStatus: DataStatus;
+  dataVersion: string;
+  sourceReference: string | null;
+  dataOwner: string | null;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null;
+}
+
+export interface SolarPackage extends DataGovernanceMetadata {
   id: string;
   code: string;
   name: string;
@@ -58,7 +95,7 @@ export interface SolarPackage {
 
 export type SolarPackageSeed = Omit<SolarPackage, "id">;
 
-export interface CalculationSettings {
+export interface CalculationSettings extends DataGovernanceMetadata {
   averageElectricityPriceVndPerKwh: number;
   batteryRoundTripEfficiency: number;
   batteryDailyCycleFactor: number;
@@ -74,7 +111,7 @@ export interface CalculationSettings {
   businessName: string;
 }
 
-export interface ProvinceFactor {
+export interface ProvinceFactor extends DataGovernanceMetadata {
   id: string;
   code: string;
   name: string;
@@ -144,6 +181,14 @@ export interface SolarRecommendationResult {
   comparedPackages: PackageCalculationResult[];
   inputSummary: SolarCalculationInput;
   assumptions: CalculationSettings;
+  recommendationStability?: {
+    evaluated: boolean;
+    stable: boolean;
+    lowerConsumptionPackageId: string | null;
+    expectedConsumptionPackageId: string | null;
+    upperConsumptionPackageId: string | null;
+    reason: string;
+  };
 }
 
 export interface LeadInput {
@@ -178,7 +223,7 @@ export interface AdminLeadDetail extends LeadRecord {
     electricityType: ElectricityType;
     province: string;
     daytimeUsageLevel: DaytimeUsageLevel;
-    roofAreaM2: number;
+    roofAreaM2: number | null;
     backupRequired: boolean;
     recommendedPackageName: string | null;
     createdAt: Date;
@@ -188,4 +233,28 @@ export interface AdminLeadDetail extends LeadRecord {
 
 export interface CalculationResponse extends SolarRecommendationResult {
   calculationId: string;
+  metadata: CalculationVersionMetadata;
+  normalizedInput: NormalizedEnergyInput;
+  sourceSnapshot: CalculationSourceSnapshot<
+    SolarPackage,
+    CalculationSettings,
+    ProvinceFactor
+  >;
 }
+
+export interface CalculationSnapshot extends SolarRecommendationResult {
+  metadata: CalculationVersionMetadata;
+  sourceSnapshot: CalculationSourceSnapshot<
+    SolarPackage,
+    CalculationSettings,
+    ProvinceFactor
+  >;
+}
+
+export interface PreparedCalculationInput {
+  input: SolarCalculationInput;
+  normalizedInput: NormalizedEnergyInput;
+  customerInput: CustomerCalculationRequest | null;
+}
+
+export type PersistedCalculationSnapshot = CalculationSnapshot;

@@ -1,8 +1,10 @@
 import { CALCULATION_CONSTANTS } from "@/config/defaults";
+import { ELECTRICITY_TARIFF_REGISTRY } from "@/config/electricity-tariffs";
 import {
   calculateElectricityBill,
-  estimateElectricityConsumptionFromBill,
+  calculateElectricityEnergyCharge,
 } from "@/lib/electricity-tariff";
+import { selectElectricityTariffByVersion } from "@/lib/tariff-selection";
 import type {
   CalculationScenarioResult,
   CalculationSettings,
@@ -19,6 +21,7 @@ export interface CalculateSolarPackageParams {
   solarPackage: SolarPackage;
   settings: CalculationSettings;
   provinceFactor: number;
+  allowUnapprovedTariffData?: boolean;
 }
 
 interface CalculateScenarioParams {
@@ -27,6 +30,9 @@ interface CalculateScenarioParams {
   daytimeDemandKwh: number;
   monthlyBill: number;
   electricityType: SolarCalculationInput["electricityType"];
+  electricityTariffVersion?: string;
+  tariffBillingContext?: SolarCalculationInput["tariffBillingContext"];
+  allowUnapprovedTariffData: boolean;
   solarPackage: SolarPackage;
   settings: CalculationSettings;
 }
@@ -56,7 +62,13 @@ function assertCalculationInputs({
   provinceFactor,
 }: CalculateSolarPackageParams): void {
   assertNonNegativeFinite(input.monthlyBill, "monthlyBill");
-  assertNonNegativeFinite(input.roofAreaM2, "roofAreaM2");
+  assertNonNegativeFinite(
+    input.monthlyConsumptionKwh,
+    "monthlyConsumptionKwh",
+  );
+  if (input.roofAreaM2 !== null) {
+    assertNonNegativeFinite(input.roofAreaM2, "roofAreaM2");
+  }
   assertNonNegativeFinite(solarPackage.priceVnd, "package.priceVnd");
   assertNonNegativeFinite(
     solarPackage.baseMonthlyGenerationKwh,
@@ -120,6 +132,9 @@ function calculateScenario({
   daytimeDemandKwh,
   monthlyBill,
   electricityType,
+  electricityTariffVersion,
+  tariffBillingContext,
+  allowUnapprovedTariffData,
   solarPackage,
   settings,
 }: CalculateScenarioParams): CalculationScenarioResult {
@@ -165,10 +180,21 @@ function calculateScenario({
     estimatedMonthlyConsumptionKwh - totalSolarUseKwh,
   );
 
-  const tieredBillAfterSolarVnd = calculateElectricityBill(
-    electricityType,
-    gridConsumptionAfterSolarKwh,
-  );
+  const tieredBillAfterSolarVnd =
+    electricityTariffVersion && tariffBillingContext
+      ? calculateElectricityEnergyCharge({
+          tariff: selectElectricityTariffByVersion(
+            ELECTRICITY_TARIFF_REGISTRY,
+            electricityTariffVersion,
+            { allowUnapproved: allowUnapprovedTariffData },
+          ),
+          consumptionKwh: gridConsumptionAfterSolarKwh,
+          context: tariffBillingContext,
+        }).energyChargeBeforeVatVnd
+      : calculateElectricityBill(
+          electricityType,
+          gridConsumptionAfterSolarKwh,
+        );
   const billAfterSolarVnd = clamp(tieredBillAfterSolarVnd, 0, monthlyBill);
   const monthlySavingsVnd = Math.max(0, monthlyBill - billAfterSolarVnd);
   const reductionPercent = clamp(
@@ -242,14 +268,13 @@ export function calculateSolarPackage({
   solarPackage,
   settings,
   provinceFactor,
+  allowUnapprovedTariffData = false,
 }: CalculateSolarPackageParams): UnscoredPackageCalculationResult {
   assertCalculationInputs({ input, solarPackage, settings, provinceFactor });
 
-  const estimatedMonthlyConsumptionKwh =
-    estimateElectricityConsumptionFromBill(
-      input.electricityType,
-      input.monthlyBill,
-    );
+  // The service has already normalized the public request. In particular,
+  // direct kWh input must never pass through a bill-to-kWh inverse here.
+  const estimatedMonthlyConsumptionKwh = input.monthlyConsumptionKwh;
   const daytimeUsageRatio = getDaytimeUsageRatio(
     input.daytimeUsageLevel,
     settings,
@@ -264,6 +289,9 @@ export function calculateSolarPackage({
     daytimeDemandKwh,
     monthlyBill: input.monthlyBill,
     electricityType: input.electricityType,
+    electricityTariffVersion: input.electricityTariffVersion,
+    tariffBillingContext: input.tariffBillingContext,
+    allowUnapprovedTariffData,
     solarPackage,
     settings,
   };

@@ -69,7 +69,6 @@ export function LeadForm({
     if (openedTracked.current) return;
     openedTracked.current = true;
     trackEvent("survey_form_opened", {
-      calculationId,
       packageId,
     });
   }, [calculationId, packageId]);
@@ -129,8 +128,6 @@ export function LeadForm({
       setLeadId(createdLead.id);
       setStatus("success");
       trackEvent("survey_submitted", {
-        calculationId,
-        leadId: createdLead.id,
         packageId,
       });
       window.requestAnimationFrame(() => {
@@ -349,7 +346,7 @@ export function LeadForm({
             href={settings.zaloUrl}
             rel="noopener noreferrer"
             target="_blank"
-            onClick={() => trackEvent("zalo_clicked", { calculationId, packageId })}
+            onClick={() => trackEvent("zalo_clicked", { packageId })}
           >
             <span>Tư vấn qua Zalo</span>
             <span aria-hidden="true">↗</span>

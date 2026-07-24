@@ -4,11 +4,17 @@ import {
   DEFAULT_CALCULATION_SETTINGS,
   DEFAULT_SOLAR_PACKAGES,
 } from "@/config/defaults";
+import { QD1279_RESIDENTIAL_TARIFF } from "@/config/electricity-tariffs";
 import {
   calculateSolarPackage,
   createCashFlow,
   findBreakEvenYear,
 } from "@/lib/solar-calculator";
+import {
+  calculateElectricityBill,
+  calculateElectricityEnergyCharge,
+  estimateElectricityConsumptionFromBill,
+} from "@/lib/electricity-tariff";
 import type {
   CalculationSettings,
   SolarCalculationInput,
@@ -20,12 +26,21 @@ const defaultSettings: CalculationSettings = {
 };
 
 const standardInput: SolarCalculationInput = {
+  inputContractVersion: "legacy-v1",
+  energyInputMethod: "legacy_money",
+  inputMonthCount: 1,
+  monthlyConsumptionKwh: estimateElectricityConsumptionFromBill(
+    "residential",
+    2_000_000,
+  ),
   monthlyBill: 2_000_000,
   electricityType: "residential",
   province: "ho-chi-minh",
   daytimeUsageLevel: "high",
   roofAreaM2: 25,
   backupRequired: false,
+  essentialLoadWatts: null,
+  backupHours: null,
 };
 
 function createPackage(
@@ -46,6 +61,23 @@ function createPackage(
 }
 
 describe("calculateSolarPackage", () => {
+  it("dùng kWh chuẩn hóa trực tiếp dù số tiền nền không tương ứng", () => {
+    const result = calculateSolarPackage({
+      input: {
+        ...standardInput,
+        energyInputMethod: "kwh",
+        monthlyConsumptionKwh: 500,
+        monthlyBill: 1,
+      },
+      solarPackage: createPackage(1),
+      settings: defaultSettings,
+      provinceFactor: 1,
+    });
+
+    expect(result.estimatedMonthlyConsumptionKwh).toBe(500);
+    expect(result.daytimeDemandKwh).toBe(375);
+  });
+
   it("tính đúng ca mẫu không có pin cho gói 3 kWp", () => {
     const result = calculateSolarPackage({
       input: standardInput,
@@ -54,18 +86,37 @@ describe("calculateSolarPackage", () => {
       provinceFactor: 1,
     });
 
-    expect(result.estimatedMonthlyConsumptionKwh).toBeCloseTo(669.9524, 4);
-    expect(result.daytimeDemandKwh).toBeCloseTo(502.4643, 4);
+    const expectedConsumption = standardInput.monthlyConsumptionKwh;
+    const expectedBillAfterSolar = calculateElectricityBill(
+      "residential",
+      expectedConsumption - 360,
+    );
+    const expectedSavings = 2_000_000 - expectedBillAfterSolar;
+
+    expect(result.estimatedMonthlyConsumptionKwh).toBe(expectedConsumption);
+    expect(result.daytimeDemandKwh).toBeCloseTo(
+      expectedConsumption * 0.75,
+      10,
+    );
     expect(result.adjustedGenerationKwh).toBe(360);
     expect(result.directSolarUseKwh).toBe(360);
     expect(result.batteryUseKwh).toBe(0);
     expect(result.totalSolarUseKwh).toBe(360);
-    expect(result.gridConsumptionAfterSolarKwh).toBeCloseTo(309.9524, 4);
-    expect(result.monthlySavingsVnd).toBeCloseTo(1_233_962.72, 2);
-    expect(result.billAfterSolarVnd).toBeCloseTo(766_037.28, 2);
-    expect(result.reductionPercent).toBeCloseTo(61.6981, 4);
-    expect(result.paybackMonths).toBeCloseTo(24.3119, 4);
-    expect(result.paybackYears).toBeCloseTo(2.026, 4);
+    expect(result.gridConsumptionAfterSolarKwh).toBeCloseTo(
+      expectedConsumption - 360,
+      10,
+    );
+    expect(result.monthlySavingsVnd).toBeCloseTo(expectedSavings, 10);
+    expect(result.billAfterSolarVnd).toBeCloseTo(expectedBillAfterSolar, 10);
+    expect(result.reductionPercent).toBeCloseTo(
+      (expectedSavings / 2_000_000) * 100,
+      10,
+    );
+    expect(result.paybackMonths).toBeCloseTo(30_000_000 / expectedSavings, 10);
+    expect(result.paybackYears).toBeCloseTo(
+      30_000_000 / expectedSavings / 12,
+      10,
+    );
     expect(result.selfConsumptionRate).toBe(1);
   });
 
@@ -127,6 +178,47 @@ describe("calculateSolarPackage", () => {
     expect(result.batteryUseKwh).toBe(0);
   });
 
+  it("giữ cùng định mức nhiều hộ và kỳ đổi ngày khi tính hóa đơn sau solar", () => {
+    const context = {
+      householdQuotaMultiplier: 2,
+      billingDays: 35,
+      referenceDays: 30,
+    };
+    const beforeSolar = calculateElectricityEnergyCharge({
+      tariff: QD1279_RESIDENTIAL_TARIFF,
+      consumptionKwh: 700,
+      context,
+    }).energyChargeBeforeVatVnd;
+    const expectedAfterSolar = calculateElectricityEnergyCharge({
+      tariff: QD1279_RESIDENTIAL_TARIFF,
+      consumptionKwh: 600,
+      context,
+    }).energyChargeBeforeVatVnd;
+    const result = calculateSolarPackage({
+      input: {
+        ...standardInput,
+        monthlyConsumptionKwh: 700,
+        monthlyBill: beforeSolar,
+        electricityTariffVersion: QD1279_RESIDENTIAL_TARIFF.version,
+        tariffBillingContext: context,
+        daytimeUsageLevel: "high",
+      },
+      solarPackage: createPackage(1, {
+        baseMonthlyGenerationKwh: 100,
+      }),
+      settings: defaultSettings,
+      provinceFactor: 1,
+      allowUnapprovedTariffData: true,
+    });
+
+    expect(result.gridConsumptionAfterSolarKwh).toBe(600);
+    expect(result.billAfterSolarVnd).toBeCloseTo(expectedAfterSolar, 10);
+    expect(result.monthlySavingsVnd).toBeCloseTo(
+      beforeSolar - expectedAfterSolar,
+      10,
+    );
+  });
+
   it("trả hoàn vốn null khi không tạo ra tiết kiệm", () => {
     const result = calculateSolarPackage({
       input: standardInput,
@@ -163,18 +255,28 @@ describe("calculateSolarPackage", () => {
     });
 
     expect(result.lowEstimate.adjustedGenerationKwh).toBe(324);
-    expect(result.lowEstimate.monthlySavingsVnd).toBeCloseTo(1_126_034.72, 2);
-    expect(result.lowEstimate.billAfterSolarVnd).toBeCloseTo(873_965.28, 2);
+    const lowBillAfter = calculateElectricityBill(
+      "residential",
+      standardInput.monthlyConsumptionKwh - 324,
+    );
+    const lowSavings = 2_000_000 - lowBillAfter;
+    expect(result.lowEstimate.monthlySavingsVnd).toBeCloseTo(lowSavings, 10);
+    expect(result.lowEstimate.billAfterSolarVnd).toBeCloseTo(lowBillAfter, 10);
     expect(result.lowEstimate.paybackMonths).toBeCloseTo(
-      30_000_000 / 1_126_034.721926631,
+      30_000_000 / lowSavings,
       10,
     );
 
     expect(result.highEstimate.adjustedGenerationKwh).toBe(378);
-    expect(result.highEstimate.monthlySavingsVnd).toBeCloseTo(1_287_926.72, 2);
-    expect(result.highEstimate.billAfterSolarVnd).toBeCloseTo(712_073.28, 2);
+    const highBillAfter = calculateElectricityBill(
+      "residential",
+      standardInput.monthlyConsumptionKwh - 378,
+    );
+    const highSavings = 2_000_000 - highBillAfter;
+    expect(result.highEstimate.monthlySavingsVnd).toBeCloseTo(highSavings, 10);
+    expect(result.highEstimate.billAfterSolarVnd).toBeCloseTo(highBillAfter, 10);
     expect(result.highEstimate.paybackMonths).toBeCloseTo(
-      30_000_000 / 1_287_926.721926631,
+      30_000_000 / highSavings,
       10,
     );
   });
@@ -218,21 +320,21 @@ describe("calculateSolarPackage", () => {
     });
     expect(result.cashFlow[20]?.year).toBe(20);
     expect(result.cashFlow[20]?.cumulativeCashFlowVnd).toBeCloseTo(
-      266_151_053.26,
-      2,
+      -30_000_000 + result.yearlySavingsVnd * 20,
+      10,
     );
     expect(result.breakEvenYear).toBe(3);
     expect(result.longTermSavings.saving5YearsVnd).toBeCloseTo(
-      74_037_763.32,
-      2,
+      result.yearlySavingsVnd * 5,
+      10,
     );
     expect(result.longTermSavings.saving10YearsVnd).toBeCloseTo(
-      148_075_526.63,
-      2,
+      result.yearlySavingsVnd * 10,
+      10,
     );
     expect(result.longTermSavings.saving20YearsVnd).toBeCloseTo(
-      296_151_053.26,
-      2,
+      result.yearlySavingsVnd * 20,
+      10,
     );
   });
 

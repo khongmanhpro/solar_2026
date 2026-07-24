@@ -1,5 +1,11 @@
 export type AnalyticsEventName =
   | "calculator_started"
+  | "calculator_method_selected"
+  | "calculator_step_viewed"
+  | "calculator_step_completed"
+  | "calculator_review_viewed"
+  | "calculator_input_changed_after_result"
+  | "calculation_blocked"
   | "calculation_completed"
   | "package_selected"
   | "survey_form_opened"

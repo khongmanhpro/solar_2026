@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { CashFlowChart } from "@/components/calculator/CashFlowChart";
+import { CalculationTrustPanel } from "@/components/calculator/CalculationTrustPanel";
 import { LeadForm } from "@/components/calculator/LeadForm";
 import { PackageComparison } from "@/components/calculator/PackageComparison";
 import { trackEvent } from "@/lib/analytics";
@@ -23,6 +24,7 @@ import type {
 interface CalculationResultsProps {
   result: CalculationResponse;
   packages: SolarPackage[];
+  isStale?: boolean;
 }
 
 interface MetricProps {
@@ -80,30 +82,115 @@ function findResult(
   return results.find((item) => item.packageId === packageId) ?? null;
 }
 
-export function CalculationResults({ result, packages }: CalculationResultsProps) {
+function StaleResultNotice() {
+  return (
+    <aside
+      className="mb-8 rounded-xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]"
+      role="status"
+    >
+      <strong>Kết quả này đang theo thông tin cũ.</strong> Hãy xác nhận và cập
+      nhật phép tính trước khi đăng ký khảo sát hoặc liên hệ theo phương án.
+    </aside>
+  );
+}
+
+function MoneyConversionNotice({ result }: { result: CalculationResponse }) {
+  if (result.normalizedInput?.source !== "money") return null;
+
+  const consumption = result.normalizedInput.monthlyConsumptionKwh.value;
+  const bill = result.normalizedInput.bill;
+  const exact =
+    result.normalizedInput.moneyConversions?.every(
+      (conversion) => conversion.exact,
+    ) === true;
+
+  return (
+    <aside className="mb-8 rounded-xl border border-[var(--line-strong)] bg-[var(--admin-panel)] p-5" aria-labelledby="money-conversion-title">
+      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--brand)]">
+        Tổng tiền → mức dùng điện
+      </p>
+      <h3 className="mt-2 text-lg font-semibold text-[var(--ink)]" id="money-conversion-title">
+        {exact ? formatKwh(consumption.expected) : formatKwhRange(consumption.lowerBound, consumption.upperBound)}
+      </h3>
+      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+        {exact
+          ? "Khoảng quy đổi hẹp vì bạn đã xác nhận số hộ, kỳ ghi điện và khoản khác trong hóa đơn."
+          : "Đây là khoảng bảo thủ vì thành phần hóa đơn chưa chắc chắn. Công cụ không coi điểm giữa là số điện đã đo và không tự chốt gói từ khoảng này."}
+      </p>
+      <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+        <div>
+          <dt className="text-[var(--muted)]">Tổng đã thanh toán TB</dt>
+          <dd className="mt-1 font-semibold text-[var(--ink)]">
+            {bill?.totalPaymentVnd ? formatVnd(bill.totalPaymentVnd.value) : "Chưa xác định"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[var(--muted)]">Tiền điện trước VAT TB</dt>
+          <dd className="mt-1 font-semibold text-[var(--ink)]">
+            {bill?.energyChargeBeforeVatEstimateVnd
+              ? formatVnd(bill.energyChargeBeforeVatEstimateVnd.value.expected)
+              : "Chưa xác định"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[var(--muted)]">VAT theo kỳ</dt>
+          <dd className="mt-1 font-semibold text-[var(--ink)]">
+            {bill?.vatRate ? `${bill.vatRate.value * 100}%` : "Xem chi tiết từng kỳ"}
+          </dd>
+        </div>
+      </dl>
+    </aside>
+  );
+}
+
+export function CalculationResults({
+  result,
+  packages,
+  isStale = false,
+}: CalculationResultsProps) {
+  const snapshotPackages = result.sourceSnapshot?.packages;
+  const packagesForCalculation = snapshotPackages ?? packages;
   const recommendedPackageId = result.recommendedPackage?.packageId ?? "";
-  const recommendedPackage = findPackage(packages, recommendedPackageId);
+  const recommendedPackage = findPackage(
+    packagesForCalculation,
+    recommendedPackageId,
+  );
   const [selectedPackageId, setSelectedPackageId] = useState(recommendedPackageId);
   const selectedResult = findResult(result.comparedPackages, selectedPackageId);
-  const selectedPackage = findPackage(packages, selectedPackageId);
+  const selectedPackage = findPackage(
+    packagesForCalculation,
+    selectedPackageId,
+  );
 
   if (!selectedResult || !selectedPackage || !result.recommendedPackage) {
     return (
       <div id="ket-qua" className="rounded-2xl border border-[var(--danger-line)] bg-[var(--danger-soft)] p-6 text-[var(--danger)]">
+        <CalculationTrustPanel
+          metadata={result.metadata}
+          tariff={result.sourceSnapshot?.tariff}
+        />
         <h2 className="font-display text-2xl font-semibold tracking-tight">Thiếu dữ liệu gói sản phẩm</h2>
         <p className="mt-2 text-sm leading-6">
           Kết quả đã được tính nhưng thông tin gói không còn trong danh sách đang hoạt động. Hãy tính lại để nhận dữ liệu mới nhất.
         </p>
-        <LeadForm
-          calculationId={result.calculationId}
-          packageId={result.recommendedPackage?.packageId}
-          settings={result.assumptions}
-        />
+        {isStale ? (
+          <StaleResultNotice />
+        ) : (
+          <LeadForm
+            calculationId={result.calculationId}
+            packageId={result.recommendedPackage?.packageId}
+            settings={result.assumptions}
+          />
+        )}
       </div>
     );
   }
 
   const isRecommended = selectedPackageId === recommendedPackageId;
+  const isProductionReady =
+    result.metadata?.dataReadiness.readyForProduction === true;
+  const roofAreaUnknown = result.inputSummary.roofAreaM2 === null;
+  const usedDirectKwh = result.inputSummary.energyInputMethod === "kwh";
   const insights = generateSolarInsights({
     input: result.inputSummary,
     solarPackage: selectedPackage,
@@ -113,7 +200,6 @@ export function CalculationResults({ result, packages }: CalculationResultsProps
   function selectPackage(packageId: string) {
     setSelectedPackageId(packageId);
     trackEvent("package_selected", {
-      calculationId: result.calculationId,
       packageId,
       isRecommended: packageId === recommendedPackageId,
     });
@@ -122,15 +208,34 @@ export function CalculationResults({ result, packages }: CalculationResultsProps
 
   return (
     <div id="ket-qua" className="rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-6 py-10 sm:px-10 sm:py-14" tabIndex={-1}>
+      <CalculationTrustPanel
+        metadata={result.metadata}
+        tariff={result.sourceSnapshot?.tariff}
+      />
+
+      {isStale ? <StaleResultNotice /> : null}
+
+      <MoneyConversionNotice result={result} />
+
+      {roofAreaUnknown ? (
+        <aside className="mb-8 rounded-xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]" role="note">
+          <strong>Chưa có diện tích mái.</strong> Gói bên dưới chỉ được xếp theo nhu cầu điện và không khẳng định mái đủ chỗ hoặc có thể thi công. Cần khảo sát mái trước khi chốt phương án.
+        </aside>
+      ) : null}
+
       <section aria-labelledby="recommended-title">
         <div className="flex flex-wrap items-center gap-3">
           <span className="status-dot" aria-hidden="true" />
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--success)]">
-            {isRecommended ? "Gói đề xuất cho bạn" : "Gói bạn đang xem"}
+            {isRecommended
+              ? isProductionReady
+                ? "Gói đề xuất cho bạn"
+                : "Phương án demo đang xếp hạng"
+              : "Gói bạn đang xem"}
           </p>
           {isRecommended ? (
             <span className="rounded-full bg-[var(--brand-soft)] px-3 py-1 text-xs font-semibold text-[var(--brand-dark)]">
-              Phù hợp nhất
+              {isProductionReady ? "Phù hợp nhất" : "Kết quả thử nghiệm"}
             </span>
           ) : null}
         </div>
@@ -177,7 +282,10 @@ export function CalculationResults({ result, packages }: CalculationResultsProps
       <section aria-labelledby="savings-title" className="mt-14">
         <SectionHeading eyebrow="Hiệu quả hàng tháng" id="savings-title" title="Hóa đơn thay đổi thế nào?" />
         <dl className="grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
-          <Metric label="Tiền điện hiện tại" value={formatVnd(result.inputSummary.monthlyBill)} />
+          <Metric
+            label={usedDirectKwh ? "Tiền điện quy đổi hiện tại" : "Tiền điện hiện tại"}
+            value={formatVnd(result.inputSummary.monthlyBill)}
+          />
           <Metric label="Tiền điện sau khi lắp" value={formatVnd(selectedResult.billAfterSolarVnd)} />
           <Metric accent label="Tiết kiệm mỗi tháng" value={formatVnd(selectedResult.monthlySavingsVnd)} />
           <Metric label="Tiết kiệm mỗi năm" value={formatVnd(selectedResult.yearlySavingsVnd)} />
@@ -185,7 +293,7 @@ export function CalculationResults({ result, packages }: CalculationResultsProps
           <Metric label="Điện mặt trời tự sử dụng" value={formatPercent(selectedResult.selfConsumptionRate * 100)} />
         </dl>
         <p className="mt-3 rounded-lg border-l-2 border-[var(--sun)] bg-[var(--warning-soft)] px-4 py-3 text-sm leading-6 text-[var(--warning-ink)]">
-          Điện sinh hoạt hộ gia đình · ước tính {formatKwh(selectedResult.estimatedMonthlyConsumptionKwh)}/tháng · hóa đơn trước và sau khi lắp đều được tính lại theo 5 bậc lũy tiến, chưa gồm VAT.
+          Điện sinh hoạt hộ gia đình · {usedDirectKwh ? "kWh được nhập trực tiếp" : "kWh được ước tính từ dữ liệu hóa đơn"} · {formatKwh(selectedResult.estimatedMonthlyConsumptionKwh)}/tháng · tiền điện trước và sau khi lắp đều được tính theo biểu giá trong phiên tính, chưa gồm VAT.
         </p>
       </section>
 
@@ -224,7 +332,7 @@ export function CalculationResults({ result, packages }: CalculationResultsProps
         <SectionHeading eyebrow={`So sánh ${result.comparedPackages.length} phương án`} id="comparison-title" title="Đặt các gói lên cùng một mặt phẳng" />
         <PackageComparison
           onSelect={selectPackage}
-          packages={packages}
+          packages={packagesForCalculation}
           recommendedPackageId={recommendedPackageId}
           results={result.comparedPackages}
           selectedPackageId={selectedPackageId}
@@ -297,12 +405,14 @@ export function CalculationResults({ result, packages }: CalculationResultsProps
         </p>
       </aside>
 
-      <LeadForm
-        calculationId={result.calculationId}
-        packageId={recommendedPackageId}
-        packageName={recommendedPackage?.name}
-        settings={result.assumptions}
-      />
+      {isStale ? null : (
+        <LeadForm
+          calculationId={result.calculationId}
+          packageId={recommendedPackageId}
+          packageName={recommendedPackage?.name}
+          settings={result.assumptions}
+        />
+      )}
     </div>
   );
 }

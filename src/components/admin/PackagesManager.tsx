@@ -6,12 +6,13 @@ import { SYSTEM_TYPE_LABELS } from "@/config/admin";
 import { ApiClientError, requestJson } from "@/lib/api-client";
 import { formatVnd } from "@/lib/formatters";
 import { solarPackageCreateSchema } from "@/lib/validations";
+import type { SolarPackageCreateData } from "@/lib/validations";
 import type { SolarPackage } from "@/types/solar";
 
 type EditorState = { mode: "new" } | { mode: "edit"; id: string } | null;
 type FieldErrors = Record<string, string>;
 
-const EMPTY_PACKAGE: Omit<SolarPackage, "id"> = {
+const EMPTY_PACKAGE: SolarPackageCreateData = {
   code: "",
   name: "",
   description: "",

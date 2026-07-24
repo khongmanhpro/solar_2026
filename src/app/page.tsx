@@ -17,15 +17,15 @@ export default function Home() {
           </h1>
 
           <p className="mt-6 max-w-2xl text-base leading-7 text-[var(--muted)] sm:text-lg sm:leading-8">
-            Dựa trên hóa đơn điện, khu vực lắp đặt và thói quen sử dụng ban ngày. Kết quả hiển thị minh bạch, không cần số điện thoại.
+            Chỉ cần số kWh trên hóa đơn, khu vực lắp đặt và vài lựa chọn dễ hiểu. Kết quả hiển thị minh bạch, không cần số điện thoại.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
             <span className="rounded-full border border-[var(--line-strong)] bg-[var(--paper)] px-4 py-1.5 text-sm font-medium text-[var(--muted)]">
-              06 thông số
+              03 bước ngắn
             </span>
             <span className="rounded-full border border-[var(--line-strong)] bg-[var(--paper)] px-4 py-1.5 text-sm font-medium text-[var(--muted)]">
-              ~ 2 phút
+              ~ 1 phút
             </span>
             <span className="rounded-full border border-[var(--line)] bg-[var(--brand-soft)] px-4 py-1.5 text-sm font-semibold text-[var(--brand-dark)]">
               Không cần số điện thoại
@@ -39,7 +39,7 @@ export default function Home() {
           {[
             ["Minh bạch", "Hiển thị giả định thay vì hứa hẹn tuyệt đối."],
             ["Riêng tư", "Xem kết quả trước, chưa cần để lại liên hệ."],
-            ["Có cơ sở", "Đối chiếu gói, diện tích và nhu cầu dự phòng."],
+            ["Có cơ sở", "Nêu rõ dữ liệu đã biết, điều đang giả định và phần cần khảo sát."],
           ].map(([title, description]) => (
             <div className="bg-[var(--paper)] p-6" key={title}>
               <p className="font-display text-lg font-semibold text-[var(--ink)]">{title}</p>
