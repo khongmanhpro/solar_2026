@@ -623,14 +623,16 @@ export function CalculatorForm({
             <select
               aria-describedby={errors.province ? "province-error province-help" : "province-help"}
               aria-invalid={Boolean(errors.province)}
-              className={fieldClassName}
-              disabled={isSubmitting}
+              className={`${fieldClassName} ${provinces.length === 0 ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+              disabled={isSubmitting || provinces.length === 0}
               id="province"
               name="province"
               onChange={(event) => onChange("province", event.target.value)}
               value={values.province}
             >
-              <option value="">Chọn khu vực lắp đặt</option>
+              <option value="">
+                {provinces.length === 0 ? "Chưa có dữ liệu tỉnh/thành" : "Chọn khu vực lắp đặt"}
+              </option>
               {provinces.map((province) => (
                 <option key={province.id} value={province.code}>
                   {province.name}

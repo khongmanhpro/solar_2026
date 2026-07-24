@@ -651,6 +651,16 @@ export function SolarCalculator() {
         </div>
       ) : null}
 
+      {resourceState === "ready" && (provinces.length === 0 || packages.length === 0) ? (
+        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm text-[var(--warning-ink)] sm:flex-row sm:items-center sm:justify-between" role="alert">
+          <span>
+            Danh sách tỉnh/thành hoặc gói điện mặt trời chưa có dữ liệu. Hãy chạy{' '}
+            <code className="rounded bg-[var(--paper)] px-1 py-0.5 font-mono text-xs">docker compose run --rm seed</code>{' '}
+            hoặc thêm dữ liệu trong trang quản trị.
+          </span>
+        </div>
+      ) : null}
+
       <div className="calculator-shell overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] shadow-[0_20px_60px_var(--shadow)]">
         <div className="mx-auto max-w-4xl p-6 sm:p-10 lg:p-14">
           <div className="mb-8 flex items-start justify-between gap-4">
