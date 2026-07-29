@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatCustomerPackageName,
   formatKwh,
   formatKwhRange,
   formatPaybackRange,
@@ -10,6 +11,17 @@ import {
 } from "@/lib/formatters";
 
 describe("formatters", () => {
+  it("ẩn hậu tố quản trị khỏi tên gói hiển thị cho khách", () => {
+    expect(
+      formatCustomerPackageName(
+        "Hybrid 1 pha 6 kW + pin 16,07 kWh — Thử nghiệm",
+      ),
+    ).toBe("Hybrid 1 pha 6 kW + pin 16,07 kWh");
+    expect(formatCustomerPackageName("Gói hòa lưới 5 kWp")).toBe(
+      "Gói hòa lưới 5 kWp",
+    );
+  });
+
   it("định dạng tiền Việt Nam không có phần thập phân", () => {
     const formatted = formatVnd(2_000_000);
     expect(formatted).toContain("2.000.000");

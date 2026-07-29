@@ -91,6 +91,15 @@ const alternativePackage = {
   displayOrder: 2,
 };
 
+const trialPackage = {
+  ...solarPackage,
+  id: "trial-package",
+  code: "GT-1P-5K-R730",
+  name: "Gói thị trường — Thử nghiệm",
+  dataStatus: "draft",
+  dataVersion: "market-data-trial-fixture-v1",
+};
+
 const standardScenario = {
   adjustedGenerationKwh: 388.8,
   solarSurplusKwh: 88.8,
@@ -302,6 +311,26 @@ describe("SolarCalculator", () => {
     expect(screen.queryByLabelText("Tỉnh hoặc thành phố lắp đặt")).toBeNull();
   });
 
+  it("hiển thị cảnh báo giá dễ hiểu mà không lộ nhãn quản trị", async () => {
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/api/provinces")) return jsonResponse([province]);
+      if (url.endsWith("/api/packages")) return jsonResponse([trialPackage]);
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    render(<SolarCalculator />);
+
+    expect(
+      await screen.findByText(
+        "Thông tin giá và cấu hình của 1 gói điện mặt trời",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText(/sai số dự kiến ±15%/)).toBeTruthy();
+    expect(screen.queryByText(/thử nghiệm/i)).toBeNull();
+    expect(screen.queryByText(/market-data-trial-fixture-v1/)).toBeNull();
+  });
+
   it("gửi hợp đồng V2 từ kWh trực tiếp, giữ null cho dữ liệu chưa biết và giữ mã calculation", async () => {
     const user = userEvent.setup();
     render(<SolarCalculator />);
@@ -329,6 +358,8 @@ describe("SolarCalculator", () => {
     expect(screen.getAllByText(/calculation-123/).length).toBeGreaterThan(0);
     expect(screen.getByText(/kWh được nhập trực tiếp/)).toBeTruthy();
     expect(screen.getByText(/Chưa có diện tích mái/)).toBeTruthy();
+    expect(screen.queryByText("Phiên bản thuật toán")).toBeNull();
+    expect(screen.queryByText("Phiên bản dữ liệu")).toBeNull();
 
     await waitFor(() => {
       const fetchMock = vi.mocked(fetch);

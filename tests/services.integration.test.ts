@@ -194,6 +194,72 @@ describe("service integration", () => {
     });
   });
 
+  it("chỉ dùng catalog trial trong development khi bật cờ", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("TRIAL_MARKET_DATA_ENABLED", "true");
+    const source = DEFAULT_SOLAR_PACKAGES[1];
+    await prisma.solarPackage.create({
+      data: {
+        id: "trial-package",
+        ...source,
+        code: "TRIAL-FIT-3KWP",
+        name: "Gói thử nghiệm từ workbook",
+        dataStatus: PrismaDataStatus.DRAFT,
+        dataVersion: "market-data-trial-fixture-v1",
+        sourceReference: "workbook:test; trial-only",
+        systemType: PrismaSolarSystemType.GRID_TIED,
+      },
+    });
+
+    const result = await services.calculations.create(validCalculationInput);
+
+    expect(result.sourceSnapshot.packages).toHaveLength(1);
+    expect(result.sourceSnapshot.packages[0]).toMatchObject({
+      id: "trial-package",
+      dataStatus: "draft",
+      dataVersion: "market-data-trial-fixture-v1",
+    });
+    expect(result.sourceSnapshot.dataManifest.packageCatalog.version).toBe(
+      "market-data-trial-fixture-v1",
+    );
+    expect(result.metadata.dataVersions.packageCatalog).toMatch(
+      /^market-data-trial-fixture-v1\+sha256\./,
+    );
+    expect(result.recommendedPackage?.packageId).toBe("trial-package");
+  });
+
+  it("cho phép catalog preview trên VPS production khi bật đủ hai cờ", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("TRIAL_MARKET_DATA_ENABLED", "true");
+    vi.stubEnv("PUBLIC_PREVIEW_MODE_ENABLED", "true");
+    const source = DEFAULT_SOLAR_PACKAGES[1];
+    await prisma.solarPackage.create({
+      data: {
+        id: "public-preview-package",
+        ...source,
+        code: "PUBLIC-PREVIEW-FIT-3KWP",
+        name: "Gói preview từ workbook",
+        dataStatus: PrismaDataStatus.DRAFT,
+        dataVersion: "market-data-trial-public-preview-v1",
+        sourceReference: "workbook:test; public-preview",
+        systemType: PrismaSolarSystemType.GRID_TIED,
+      },
+    });
+
+    const result = await services.calculations.create(validCalculationInput);
+
+    expect(result.sourceSnapshot.packages).toHaveLength(1);
+    expect(result.sourceSnapshot.packages[0]).toMatchObject({
+      id: "public-preview-package",
+      dataStatus: "draft",
+      dataVersion: "market-data-trial-public-preview-v1",
+    });
+    expect(result.metadata.dataReadiness.readyForProduction).toBe(false);
+    expect(result.recommendedPackage?.packageId).toBe(
+      "public-preview-package",
+    );
+  });
+
   it("vẫn lưu calculation khi không có package phù hợp", async () => {
     const result = await services.calculations.create({
       ...validCalculationInput,

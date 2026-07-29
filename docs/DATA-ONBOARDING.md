@@ -71,9 +71,16 @@ dữ liệu lên `VERIFIED`**.
 Việc phát hành dữ liệu thật phải đi qua thay đổi được review (import/migration
 hoặc cấu hình versioned) và điền đủ `dataVersion`, `sourceReference`,
 `dataOwner`, `effectiveFrom`, `approvedBy`, `approvedAt`. Manifest còn phải lưu
-SHA-256 của đúng nội dung đã duyệt. Import Excel tự động chưa được triển khai;
-khi bổ sung phải có preview, báo lỗi theo dòng và transaction để tránh nhập một
-phần.
+SHA-256 của đúng nội dung đã duyệt. Đường kiểm định Excel ứng viên đã có qua
+`data:validate`, `data:preview` và `data:build-candidate`. Ba lệnh này chỉ tạo
+bundle JSON có hash, chưa ghi database. `data:import-draft` chỉ được phép đi
+tiếp khi toàn bộ gói đủ trường của engine; lệnh tự chặn nhập một phần, yêu cầu
+cờ xác nhận, từ chối ghi đè mã hiện có, rồi mới backup và mở transaction.
+
+Workbook thị trường ngày 29/07/2026 hiện chỉ đủ làm candidate: có cấu hình thiết
+bị và một phần báo giá nhà cung cấp, nhưng giá gói vẫn là ước lượng, VAT/BOM/
+sản lượng vùng/phê duyệt còn thiếu. Không được đổi nhãn candidate này thành dữ
+liệu production chỉ vì parse thành công.
 
 ## Xác minh sau nhập
 

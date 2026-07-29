@@ -1,5 +1,4 @@
 import { CalculationResults } from "@/components/calculator/CalculationResults";
-import { CalculationTrustPanel } from "@/components/calculator/CalculationTrustPanel";
 import { LeadForm } from "@/components/calculator/LeadForm";
 import { formatKwhRange } from "@/lib/formatters";
 import type { CalculationResponse, SolarPackage } from "@/types/solar";
@@ -44,10 +43,6 @@ export function CalculationPreview({
 
     return (
       <div id="ket-qua" className="rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-6 py-12 sm:px-10 sm:py-14" tabIndex={-1}>
-        <CalculationTrustPanel
-          metadata={result.metadata}
-          tariff={result.sourceSnapshot?.tariff}
-        />
         <div className="max-w-3xl">
           <span className="inline-flex w-fit rounded-full bg-[var(--warning-soft)] px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--warning-ink)]">
             Cần khảo sát thêm

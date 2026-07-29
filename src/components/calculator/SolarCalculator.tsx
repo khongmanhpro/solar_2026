@@ -12,6 +12,7 @@ import {
   type EnergyObservationFormValue,
 } from "@/components/calculator/CalculatorForm";
 import { CalculationPreview } from "@/components/calculator/CalculationPreview";
+import { TRIAL_PACKAGE_DATA_VERSION_PREFIX } from "@/config/trial-market-data";
 import { ApiClientError, requestJson } from "@/lib/api-client";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -344,6 +345,9 @@ export function SolarCalculator() {
   const [hasChangesSinceResult, setHasChangesSinceResult] = useState(false);
   const startedTracked = useRef(false);
   const staleChangeTracked = useRef(false);
+  const trialCatalogVersion = packages.find((item) =>
+    item.dataVersion.startsWith(TRIAL_PACKAGE_DATA_VERSION_PREFIX),
+  )?.dataVersion;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -649,6 +653,22 @@ export function SolarCalculator() {
             Thử tải lại
           </button>
         </div>
+      ) : null}
+
+      {resourceState === "ready" && trialCatalogVersion ? (
+        <aside
+          className="mb-5 rounded-2xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-5 text-sm leading-6 text-[var(--warning-ink)]"
+          role="note"
+        >
+          <p className="font-display text-lg font-semibold">
+            Thông tin giá và cấu hình của {packages.length} gói điện mặt trời
+          </p>
+          <p className="mt-2">
+            Giá là ước lượng V1 với sai số dự kiến ±15%. Sản lượng và diện tích
+            mái còn dùng giả định có ghi nguồn; kết quả không phải báo giá và
+            bắt buộc được khảo sát kỹ thuật trước khi tư vấn hoặc ký hợp đồng.
+          </p>
+        </aside>
       ) : null}
 
       {resourceState === "ready" && (provinces.length === 0 || packages.length === 0) ? (

@@ -289,9 +289,16 @@ describe("cổng dữ liệu calculation", () => {
   });
 
   it("bật cổng VERIFIED bắt buộc trong production", () => {
-    expect(shouldRequireVerifiedCalculationData("production")).toBe(true);
-    expect(shouldRequireVerifiedCalculationData("development")).toBe(false);
-    expect(shouldRequireVerifiedCalculationData("test")).toBe(false);
+    expect(shouldRequireVerifiedCalculationData("production", false)).toBe(
+      true,
+    );
+    expect(shouldRequireVerifiedCalculationData("production", true)).toBe(
+      false,
+    );
+    expect(shouldRequireVerifiedCalculationData("development", false)).toBe(
+      false,
+    );
+    expect(shouldRequireVerifiedCalculationData("test", false)).toBe(false);
   });
 });
 

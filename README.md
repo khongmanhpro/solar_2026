@@ -75,6 +75,9 @@ git clone https://github.com/khongmanhpro/solar_2026.git
 cd solar_2026
 cp .env.example .env
 # Sửa .env: ADMIN_PASSWORD, ADMIN_SESSION_SECRET, NEXT_PUBLIC_APP_URL
+# Với bản dùng thử trên VPS, bật thêm hai cờ:
+# TRIAL_MARKET_DATA_ENABLED=true
+# PUBLIC_PREVIEW_MODE_ENABLED=true
 ```
 
 ### Build và chạy
@@ -83,11 +86,11 @@ cp .env.example .env
 # Build image
 docker compose build
 
-# Khởi động dịch vụ (port 3000)
-docker compose up -d
-
-# Nạp dữ liệu mẫu (chỉ chạy một lần đầu hoặc khi cần reset dữ liệu demo)
+# Nạp/cập nhật dữ liệu. Khi bật public preview, seed sẽ upsert 14 gói thị trường.
 docker compose run --rm seed
+
+# Khởi động dịch vụ (port 3000); entrypoint tự chạy migration.
+docker compose up -d
 ```
 
 Sau đó mở:
@@ -98,9 +101,11 @@ Sau đó mở:
 ### Cập nhật sau này
 
 ```bash
+cp data/dev.db data/dev.db.backup-before-update
 git pull origin main
 docker compose build
 docker compose run --rm app node node_modules/prisma/build/index.js migrate deploy
+docker compose run --rm seed
 docker compose up -d
 ```
 
@@ -117,10 +122,14 @@ Thay `NEXT_PUBLIC_APP_URL` trong `.env` thành domain thật, ví dụ:
 
 ```env
 NEXT_PUBLIC_APP_URL=https://solar.example.com
+TRIAL_MARKET_DATA_ENABLED=true
+PUBLIC_PREVIEW_MODE_ENABLED=true
 ```
 
-Sau đó chạy `docker compose build` và `docker compose up -d`. Nginx hoặc bất kỳ
-reverse proxy nào chỉ cần forward đến `http://localhost:3000`.
+Hai cờ preview là xác nhận có chủ đích rằng VPS đang phục vụ dữ liệu DRAFT có
+giá ước lượng. Nếu thiếu một trong hai cờ, production sẽ tiếp tục chặn dữ liệu
+chưa duyệt. Sau đó chạy build, seed và khởi động như hướng dẫn trên. Nginx hoặc
+bất kỳ reverse proxy nào chỉ cần forward đến `http://localhost:3000`.
 
 ## Biến môi trường
 
@@ -132,6 +141,8 @@ reverse proxy nào chỉ cần forward đến `http://localhost:3000`.
 | `ADMIN_SESSION_SECRET` | Production | Khóa ký session, tối thiểu 32 ký tự ngẫu nhiên |
 | `NEXT_PUBLIC_APP_URL` | Có | URL công khai của ứng dụng |
 | `CALCULATION_RETENTION_DAYS` | Không | Số ngày giữ calculation chưa gửi lead; mặc định `30`, chỉ nhận `1..365` |
+| `TRIAL_MARKET_DATA_ENABLED` | Preview | Cho phép chọn catalog 14 gói DRAFT |
+| `PUBLIC_PREVIEW_MODE_ENABLED` | VPS preview | Cho phép production phục vụ dữ liệu chưa VERIFIED; mặc định tắt |
 
 Không commit `.env`, database SQLite local, file khóa, build output hoặc dữ liệu
 khách hàng. Các nhóm file này đã được khai báo trong `.gitignore`.
@@ -200,6 +211,7 @@ npm run db:seed
 Seed hiện tạo:
 
 - 4 gói điện mặt trời mẫu.
+- 14 gói thị trường DRAFT khi bật `TRIAL_MARKET_DATA_ENABLED=true`.
 - 8 hệ số tỉnh/thành mẫu.
 - 1 bộ cấu hình tính toán mặc định.
 
@@ -316,6 +328,8 @@ Test hiện bao phủ:
 - [docs/ACCURACY-ACCEPTANCE.md](docs/ACCURACY-ACCEPTANCE.md): ca regression,
   tolerance và bảng ký duyệt chuyên môn.
 - [docs/DATA-ONBOARDING.md](docs/DATA-ONBOARDING.md): quy trình thay dữ liệu demo.
+- [docs/REAL-DATA-IMPLEMENTATION-ROADMAP.md](docs/REAL-DATA-IMPLEMENTATION-ROADMAP.md): kế hoạch tuần tự đưa dữ liệu thật qua kiểm định và phát hành.
+- [docs/MARKET-DATA-IMPACT-REPORT.md](docs/MARKET-DATA-IMPACT-REPORT.md): kết quả kiểm định workbook thị trường, phạm vi dữ liệu đã chuẩn hóa và các cổng còn chặn production.
 
 ## License
 

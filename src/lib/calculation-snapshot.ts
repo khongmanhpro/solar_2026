@@ -3,6 +3,7 @@ import {
   CALCULATION_SNAPSHOT_SCHEMA_VERSION,
   CURRENT_DATA_MANIFEST,
 } from "@/config/data-governance";
+import { TRIAL_PACKAGE_DATA_VERSION_PREFIX } from "@/config/trial-market-data";
 import {
   CALCULATION_CONSTANTS,
   RECOMMENDATION_CONSTANTS,
@@ -18,6 +19,7 @@ import {
   versionWithFingerprint,
 } from "@/lib/stable-fingerprint";
 import type {
+  CalculationDataManifest,
   CalculationSourceSnapshot,
   CalculationVersionMetadata,
   RequiredDatasetKey,
@@ -55,6 +57,42 @@ export type CalculationDatasetFingerprints = Record<
   RequiredDatasetKey,
   string
 >;
+
+function createSnapshotDataManifest(
+  packages: SolarPackage[],
+): CalculationDataManifest {
+  const manifest = structuredClone(
+    CURRENT_DATA_MANIFEST,
+  ) as CalculationDataManifest;
+  const firstPackage = packages[0];
+  const usesOneTrialCatalog =
+    firstPackage !== undefined &&
+    firstPackage.dataVersion.startsWith(TRIAL_PACKAGE_DATA_VERSION_PREFIX) &&
+    packages.every(
+      (solarPackage) => solarPackage.dataVersion === firstPackage.dataVersion,
+    );
+
+  if (!usesOneTrialCatalog) return manifest;
+
+  manifest.packageCatalog = {
+    key: "packageCatalog",
+    version: firstPackage.dataVersion,
+    status: "draft",
+    sourceReference:
+      firstPackage.sourceReference ?? "Danh mục gói thử nghiệm cục bộ",
+    owner: firstPackage.dataOwner ?? "Kinh doanh + kỹ thuật — chưa duyệt",
+    effectiveFrom: firstPackage.effectiveFrom,
+    effectiveTo: firstPackage.effectiveTo,
+    approvedBy: null,
+    approvedAt: null,
+    expectedContentHash: null,
+    notes: [
+      "Danh mục gói thử nghiệm được dựng từ workbook thị trường; giá là ước lượng V1 và bắt buộc khảo sát trước khi tư vấn hoặc báo giá.",
+    ],
+  };
+
+  return manifest;
+}
 
 function withoutGovernance<T extends DataGovernanceMetadata>(
   value: T,
@@ -382,7 +420,7 @@ export function createCalculationSourceSnapshot({
       calculation: { ...CALCULATION_CONSTANTS },
       recommendation: { ...RECOMMENDATION_CONSTANTS },
     },
-    dataManifest: structuredClone(CURRENT_DATA_MANIFEST),
+    dataManifest: createSnapshotDataManifest(packages),
   };
 }
 

@@ -12,6 +12,10 @@ export function formatVnd(value: number): string {
   return viCurrencyFormatter.format(value);
 }
 
+export function formatCustomerPackageName(name: string): string {
+  return name.replace(/\s+—\s+Thử nghiệm$/iu, "");
+}
+
 export function formatKwh(value: number): string {
   return `${viNumberFormatter.format(value)} kWh`;
 }

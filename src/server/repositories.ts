@@ -23,6 +23,10 @@ import type {
   SolarSystemType,
 } from "@/types/solar";
 import type { DataStatus } from "@/types/data-governance";
+import {
+  isTrialMarketDataEnabled,
+  TRIAL_PACKAGE_DATA_VERSION_PREFIX,
+} from "@/config/trial-market-data";
 import type {
   CalculationSettingsUpdateData,
   ProvinceFactorData,
@@ -218,8 +222,34 @@ export class SolarPackageRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async list(activeOnly = false): Promise<SolarPackage[]> {
+    if (activeOnly) {
+      const trialEnabled = isTrialMarketDataEnabled();
+      if (trialEnabled) {
+        const trialRecords = await this.prisma.solarPackage.findMany({
+          where: {
+            active: true,
+            dataVersion: {
+              startsWith: TRIAL_PACKAGE_DATA_VERSION_PREFIX,
+            },
+          },
+          orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+        });
+        if (trialRecords.length > 0) return trialRecords.map(mapSolarPackage);
+      }
+
+      const stableRecords = await this.prisma.solarPackage.findMany({
+        where: {
+          active: true,
+          dataVersion: {
+            not: { startsWith: TRIAL_PACKAGE_DATA_VERSION_PREFIX },
+          },
+        },
+        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+      });
+      return stableRecords.map(mapSolarPackage);
+    }
+
     const records = await this.prisma.solarPackage.findMany({
-      where: activeOnly ? { active: true } : undefined,
       orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
     });
     return records.map(mapSolarPackage);

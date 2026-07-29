@@ -1,4 +1,9 @@
-import { formatKwh, formatPaybackYears, formatVnd } from "@/lib/formatters";
+import {
+  formatCustomerPackageName,
+  formatKwh,
+  formatPaybackYears,
+  formatVnd,
+} from "@/lib/formatters";
 import type { PackageCalculationResult, SolarPackage } from "@/types/solar";
 
 interface PackageComparisonProps {
@@ -69,7 +74,7 @@ export function PackageComparison({
               ) : null}
             </div>
             <h4 className="mt-3 text-2xl font-semibold leading-snug text-[var(--ink)]">
-              {solarPackage.name}
+              {formatCustomerPackageName(solarPackage.name)}
             </h4>
             <p className="mt-3 text-3xl font-semibold text-[var(--brand-dark)]">
               {formatVnd(solarPackage.priceVnd)}

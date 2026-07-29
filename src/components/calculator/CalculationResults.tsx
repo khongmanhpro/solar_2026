@@ -3,11 +3,11 @@
 import { useState } from "react";
 
 import { CashFlowChart } from "@/components/calculator/CashFlowChart";
-import { CalculationTrustPanel } from "@/components/calculator/CalculationTrustPanel";
 import { LeadForm } from "@/components/calculator/LeadForm";
 import { PackageComparison } from "@/components/calculator/PackageComparison";
 import { trackEvent } from "@/lib/analytics";
 import {
+  formatCustomerPackageName,
   formatKwh,
   formatKwhRange,
   formatPaybackRange,
@@ -165,10 +165,6 @@ export function CalculationResults({
   if (!selectedResult || !selectedPackage || !result.recommendedPackage) {
     return (
       <div id="ket-qua" className="rounded-2xl border border-[var(--danger-line)] bg-[var(--danger-soft)] p-6 text-[var(--danger)]">
-        <CalculationTrustPanel
-          metadata={result.metadata}
-          tariff={result.sourceSnapshot?.tariff}
-        />
         <h2 className="font-display text-2xl font-semibold tracking-tight">Thiếu dữ liệu gói sản phẩm</h2>
         <p className="mt-2 text-sm leading-6">
           Kết quả đã được tính nhưng thông tin gói không còn trong danh sách đang hoạt động. Hãy tính lại để nhận dữ liệu mới nhất.
@@ -187,8 +183,6 @@ export function CalculationResults({
   }
 
   const isRecommended = selectedPackageId === recommendedPackageId;
-  const isProductionReady =
-    result.metadata?.dataReadiness.readyForProduction === true;
   const roofAreaUnknown = result.inputSummary.roofAreaM2 === null;
   const usedDirectKwh = result.inputSummary.energyInputMethod === "kwh";
   const insights = generateSolarInsights({
@@ -208,11 +202,6 @@ export function CalculationResults({
 
   return (
     <div id="ket-qua" className="rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-6 py-10 sm:px-10 sm:py-14" tabIndex={-1}>
-      <CalculationTrustPanel
-        metadata={result.metadata}
-        tariff={result.sourceSnapshot?.tariff}
-      />
-
       {isStale ? <StaleResultNotice /> : null}
 
       <MoneyConversionNotice result={result} />
@@ -227,15 +216,11 @@ export function CalculationResults({
         <div className="flex flex-wrap items-center gap-3">
           <span className="status-dot" aria-hidden="true" />
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--success)]">
-            {isRecommended
-              ? isProductionReady
-                ? "Gói đề xuất cho bạn"
-                : "Phương án demo đang xếp hạng"
-              : "Gói bạn đang xem"}
+            {isRecommended ? "Gói đề xuất cho bạn" : "Gói bạn đang xem"}
           </p>
           {isRecommended ? (
             <span className="rounded-full bg-[var(--brand-soft)] px-3 py-1 text-xs font-semibold text-[var(--brand-dark)]">
-              {isProductionReady ? "Phù hợp nhất" : "Kết quả thử nghiệm"}
+              Phù hợp nhất
             </span>
           ) : null}
         </div>
@@ -243,7 +228,7 @@ export function CalculationResults({
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_13rem] lg:items-start">
           <div>
             <h2 id="recommended-title" className="font-display text-3xl font-semibold tracking-tight text-[var(--ink)] sm:text-4xl">
-              {selectedPackage.name}
+              {formatCustomerPackageName(selectedPackage.name)}
             </h2>
             <p className="mt-4 max-w-3xl text-base leading-7 text-[var(--muted)]">
               {selectedPackage.description}
@@ -409,7 +394,11 @@ export function CalculationResults({
         <LeadForm
           calculationId={result.calculationId}
           packageId={recommendedPackageId}
-          packageName={recommendedPackage?.name}
+          packageName={
+            recommendedPackage
+              ? formatCustomerPackageName(recommendedPackage.name)
+              : undefined
+          }
           settings={result.assumptions}
         />
       )}

@@ -11,7 +11,16 @@ import {
   DEFAULT_PROVINCES,
   DEFAULT_SOLAR_PACKAGES,
 } from "../src/config/defaults";
+import {
+  isTrialMarketDataEnabled,
+  TRIAL_PACKAGE_DATA_VERSION_PREFIX,
+} from "../src/config/trial-market-data";
+import {
+  buildTrialMarketRelease,
+  type MarketDataCandidateBundle,
+} from "../src/lib/market-data-import";
 import type { DataGovernanceMetadata } from "../src/types/solar";
+import marketDataCandidate from "../data/market-data-candidate.json";
 
 const prisma = new PrismaClient();
 
@@ -34,6 +43,10 @@ function toPrismaSystemType(systemType: "grid-tied" | "hybrid") {
   return systemType === "grid-tied"
     ? SolarSystemType.GRID_TIED
     : SolarSystemType.HYBRID;
+}
+
+function trialDate(value: string | null): Date | null {
+  return value ? new Date(`${value}T00:00:00.000Z`) : null;
 }
 
 async function seedSettings() {
@@ -73,6 +86,48 @@ async function seedPackages() {
   }
 }
 
+async function seedTrialPackages() {
+  if (!isTrialMarketDataEnabled()) return;
+
+  const release = buildTrialMarketRelease(
+    marketDataCandidate as unknown as MarketDataCandidateBundle,
+  );
+
+  for (const solarPackage of release.packages) {
+    const existing = await prisma.solarPackage.findUnique({
+      where: { code: solarPackage.code },
+      select: { dataVersion: true },
+    });
+    if (
+      existing &&
+      !existing.dataVersion.startsWith(TRIAL_PACKAGE_DATA_VERSION_PREFIX)
+    ) {
+      throw new Error(
+        `Không ghi đè gói ${solarPackage.code} vì record hiện tại không thuộc catalog preview.`,
+      );
+    }
+
+    const data = {
+      ...solarPackage,
+      systemType: toPrismaSystemType(solarPackage.systemType),
+      active: true,
+      dataStatus: PrismaDataStatus.DRAFT,
+      dataVersion: release.dataVersion,
+      dataOwner: "Dữ liệu preview — kinh doanh + kỹ thuật",
+      effectiveFrom: trialDate(solarPackage.effectiveFrom),
+      effectiveTo: trialDate(solarPackage.effectiveTo),
+      approvedBy: null,
+      approvedAt: null,
+    };
+
+    await prisma.solarPackage.upsert({
+      where: { code: solarPackage.code },
+      create: data,
+      update: data,
+    });
+  }
+}
+
 async function seedProvinces() {
   for (const province of DEFAULT_PROVINCES) {
     const existing = await prisma.provinceFactor.findUnique({
@@ -98,6 +153,7 @@ async function main() {
 
   await seedSettings();
   await seedPackages();
+  await seedTrialPackages();
   await seedProvinces();
 
   const [packageCount, provinceCount, settingCount] = await Promise.all([

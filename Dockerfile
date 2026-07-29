@@ -37,8 +37,16 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/data ./data
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
+
+# The app does not use next/image. Remove Sharp and its bundled libvips from the
+# runtime image until Next.js supports the patched Sharp 0.35 line.
+RUN rm -rf node_modules/sharp node_modules/@img
 
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh

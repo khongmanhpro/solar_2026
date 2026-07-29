@@ -1,4 +1,5 @@
 import { CURRENT_DATA_MANIFEST } from "@/config/data-governance";
+import { isPublicPreviewModeEnabled } from "@/config/trial-market-data";
 import type {
   CalculationDataManifest,
   DataReadinessIssue,
@@ -311,6 +312,7 @@ export function assessCalculationDataReadiness({
 
 export function shouldRequireVerifiedCalculationData(
   environment = process.env.NODE_ENV,
+  publicPreviewModeEnabled = isPublicPreviewModeEnabled(),
 ): boolean {
-  return environment === "production";
+  return environment === "production" && !publicPreviewModeEnabled;
 }

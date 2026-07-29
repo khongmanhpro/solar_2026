@@ -33,6 +33,11 @@ services:
       - NODE_ENV=development
     volumes:
       - ./data:/data
-    command: ["node", "node_modules/prisma/build/index.js", "db", "seed"]
+    command:
+      - sh
+      - -c
+      - >-
+        node node_modules/prisma/build/index.js migrate deploy &&
+        node node_modules/prisma/build/index.js db seed
     profiles:
       - tools

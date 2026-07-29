@@ -15,6 +15,7 @@
 # Prisma local databases
 /prisma/*.db
 /prisma/*.db-journal
+/prisma/*.db.*
 
 # generated Prisma client
 /src/generated/prisma
