@@ -140,6 +140,7 @@ bất kỳ reverse proxy nào chỉ cần forward đến `http://localhost:3000`
 | `ADMIN_PASSWORD` | Có | Mật khẩu quản trị; không dùng giá trị ví dụ ở production |
 | `ADMIN_SESSION_SECRET` | Production | Khóa ký session, tối thiểu 32 ký tự ngẫu nhiên |
 | `NEXT_PUBLIC_APP_URL` | Có | URL công khai của ứng dụng |
+| `APP_PORT` | Không | Cổng công khai của Docker; mặc định `3000`, VPS hiện tại dùng `3456` |
 | `CALCULATION_RETENTION_DAYS` | Không | Số ngày giữ calculation chưa gửi lead; mặc định `30`, chỉ nhận `1..365` |
 | `TRIAL_MARKET_DATA_ENABLED` | Preview | Cho phép chọn catalog 14 gói DRAFT |
 | `PUBLIC_PREVIEW_MODE_ENABLED` | VPS preview | Cho phép production phục vụ dữ liệu chưa VERIFIED; mặc định tắt |
