@@ -211,13 +211,21 @@ npm run db:seed
 
 Seed hiện tạo:
 
-- 4 gói điện mặt trời mẫu.
-- 14 gói thị trường DRAFT khi bật `TRIAL_MARKET_DATA_ENABLED=true`.
+- 7 gói tham khảo cố định cho hộ gia đình, gồm hòa lưới và hybrid.
+- 4 gói mẫu kỹ thuật cũ vẫn được giữ trong test/di trú tương thích.
+- 14 gói thị trường DRAFT khi bật `TRIAL_MARKET_DATA_ENABLED=true`; catalog này
+  chỉ phục vụ đối chiếu nội bộ, không hiện thay cho 7 gói tham khảo nếu catalog
+  tham khảo đã được seed.
 - 8 hệ số tỉnh/thành mẫu.
 - 1 bộ cấu hình tính toán mặc định.
 
 Các giá trị seed chỉ phục vụ phát triển và kiểm thử. Trang quản trị cho phép sửa
 package, settings và hệ số tỉnh mà không thay đổi source code.
+
+Khung gói chuẩn, BOM và các rủi ro rút ra từ báo giá mẫu xem tại
+[checklist gói chuẩn](docs/STANDARD-PACKAGE-RISK-CHECKLIST.md). Validator gói
+chuẩn sẽ chặn các lỗi số tấm/công suất, pin, diện tích mái, tổng BOM và giá
+không khớp; các điểm chưa đủ căn cứ sẽ được giữ thành cảnh báo để khảo sát.
 
 ## Dữ liệu thật và mẫu Excel
 

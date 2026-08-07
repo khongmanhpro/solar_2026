@@ -15,6 +15,7 @@ export interface RecommendSolarPackagesParams {
   packages: readonly SolarPackage[];
   settings: CalculationSettings;
   provinceFactor: number;
+  provinceMonthlyYieldKwhPerKwp?: readonly number[] | null;
   allowUnapprovedTariffData?: boolean;
 }
 
@@ -23,6 +24,13 @@ export function isPackageEligible(
   input: SolarCalculationInput,
 ): boolean {
   if (!solarPackage.active) {
+    return false;
+  }
+
+  if (
+    input.electricalPhase !== null &&
+    solarPackage.electricalPhase !== input.electricalPhase
+  ) {
     return false;
   }
 
@@ -153,6 +161,7 @@ export function recommendSolarPackages({
   packages,
   settings,
   provinceFactor,
+  provinceMonthlyYieldKwhPerKwp,
   allowUnapprovedTariffData = false,
 }: RecommendSolarPackagesParams): SolarRecommendationResult {
   const eligiblePackages = filterEligiblePackages(packages, input);
@@ -168,6 +177,7 @@ export function recommendSolarPackages({
           solarPackage,
           settings,
           provinceFactor,
+          provinceMonthlyYieldKwhPerKwp,
           allowUnapprovedTariffData,
         }),
       ),

@@ -8,7 +8,9 @@ import {
 import {
   CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION,
   CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_0,
+  CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_1,
   DAYTIME_BEHAVIORS,
+  ELECTRICAL_PHASES,
 } from "@/types/customer-input";
 import {
   DAYTIME_USAGE_LEVELS,
@@ -56,6 +58,7 @@ export const solarCalculationInputSchema = z
     electricityType: z.enum(ELECTRICITY_TYPES, {
       error: "Vui lòng chọn loại điện đang sử dụng.",
     }),
+    electricalPhase: z.enum(ELECTRICAL_PHASES).nullable().optional().default(null),
     monthlyBill: requiredNumber(
       "Vui lòng nhập tiền điện trung bình mỗi tháng.",
       "Giá trị tiền điện không hợp lệ.",
@@ -332,25 +335,41 @@ const customerBackupInputSchema = z.discriminatedUnion("required", [
     .strict(),
 ]);
 
-/** Customer-facing Phase 1 contract. Electricity type is intentionally not
- * requested: this product scope currently supports residential tariffs only. */
+const customerSiteInputSchema = z
+  .object({
+    province: z
+      .string({ error: "Vui lòng chọn tỉnh hoặc thành phố." })
+      .trim()
+      .min(1, "Vui lòng chọn tỉnh hoặc thành phố."),
+    daytimeBehavior: z.enum(DAYTIME_BEHAVIORS, {
+      error: "Vui lòng chọn thói quen sử dụng điện ban ngày.",
+    }),
+    roof: customerRoofInputSchema,
+    backup: customerBackupInputSchema,
+  })
+  .strict();
+
+/** Current customer contract. Electrical phase is explicitly selected. */
 export const customerCalculationRequestV2Schema = z
   .object({
     schemaVersion: z.literal(CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION),
     energy: customerEnergyInputSchema,
-    site: z
-      .object({
-        province: z
-          .string({ error: "Vui lòng chọn tỉnh hoặc thành phố." })
-          .trim()
-          .min(1, "Vui lòng chọn tỉnh hoặc thành phố."),
-        daytimeBehavior: z.enum(DAYTIME_BEHAVIORS, {
-          error: "Vui lòng chọn thói quen sử dụng điện ban ngày.",
+    site: customerSiteInputSchema
+      .extend({
+        electricalPhase: z.enum(ELECTRICAL_PHASES, {
+          error: "Vui lòng chọn loại điện 1 pha hoặc 3 pha.",
         }),
-        roof: customerRoofInputSchema,
-        backup: customerBackupInputSchema,
       })
       .strict(),
+  })
+  .strict();
+
+/** Compatibility parser for Phase 2.1 requests before phase was collected. */
+export const customerCalculationRequestV2_1Schema = z
+  .object({
+    schemaVersion: z.literal(CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_1),
+    energy: customerEnergyInputSchema,
+    site: customerSiteInputSchema,
   })
   .strict();
 
@@ -363,19 +382,7 @@ export const customerCalculationRequestV2_0Schema = z
       CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_0,
     ),
     energy: customerEnergyInputV2_0Schema,
-    site: z
-      .object({
-        province: z
-          .string({ error: "Vui lòng chọn tỉnh hoặc thành phố." })
-          .trim()
-          .min(1, "Vui lòng chọn tỉnh hoặc thành phố."),
-        daytimeBehavior: z.enum(DAYTIME_BEHAVIORS, {
-          error: "Vui lòng chọn thói quen sử dụng điện ban ngày.",
-        }),
-        roof: customerRoofInputSchema,
-        backup: customerBackupInputSchema,
-      })
-      .strict(),
+    site: customerSiteInputSchema,
   })
   .strict();
 
@@ -394,6 +401,7 @@ export const legacyCalculationRequestSchema = solarCalculationInputSchema
  * semantics. */
 export const calculationRequestSchema = z.union([
   customerCalculationRequestV2Schema,
+  customerCalculationRequestV2_1Schema,
   customerCalculationRequestV2_0Schema,
   legacyCalculationRequestSchema,
 ]);
@@ -464,6 +472,7 @@ const solarPackageFields = {
     .positive("Sản lượng cơ sở phải lớn hơn 0."),
   requiredRoofAreaM2: z.number().min(5, "Diện tích mái yêu cầu tối thiểu là 5 m²."),
   systemType: z.enum(SOLAR_SYSTEM_TYPES),
+  electricalPhase: z.enum(ELECTRICAL_PHASES),
   batteryCapacityKwh: z.number().min(0, "Dung lượng pin không được âm."),
   equipmentSummary: z.string().trim().min(1).max(2_000),
   panelBrand: z.string().trim().min(1).max(100),
@@ -559,6 +568,9 @@ export type LegacyCalculationRequestData = z.infer<
 >;
 export type CustomerCalculationRequestV2Data = z.infer<
   typeof customerCalculationRequestV2Schema
+>;
+export type CustomerCalculationRequestV2_1Data = z.infer<
+  typeof customerCalculationRequestV2_1Schema
 >;
 export type CalculationRequestData = z.infer<typeof calculationRequestSchema>;
 export type LeadInputData = z.infer<typeof leadInputSchema>;

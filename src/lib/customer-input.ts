@@ -8,6 +8,7 @@ import {
   CONFIDENCE_LEVELS,
   CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION,
   CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_0,
+  CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_1,
   ENERGY_OBSERVATION_KINDS,
   ENERGY_INPUT_SOURCES,
   INPUT_FIELD_ORIGINS,
@@ -16,6 +17,7 @@ import {
   type ConfidenceLevel,
   type CustomerCalculationRequest,
   type CustomerCalculationRequestV2,
+  type CustomerCalculationRequestV2_1,
   type CustomerMoneyBillingContext,
   type DaytimeBehavior,
   type InputConfidenceReport,
@@ -588,8 +590,17 @@ function isCustomerRequest(
   return (
     "schemaVersion" in input &&
     (input.schemaVersion === CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION ||
+      input.schemaVersion === CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_1 ||
       input.schemaVersion === CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_0)
   );
+}
+
+function selectedElectricalPhase(
+  request: CustomerCalculationRequest,
+): SolarCalculationInput["electricalPhase"] {
+  return request.schemaVersion === CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION
+    ? request.site.electricalPhase
+    : null;
 }
 
 function average(values: readonly number[]): number {
@@ -809,7 +820,7 @@ function createMoneyConversion(
 }
 
 function prepareMoneyCalculationInput(
-  request: CustomerCalculationRequestV2,
+  request: CustomerCalculationRequestV2 | CustomerCalculationRequestV2_1,
   allowUnapprovedTariffData: boolean,
 ): PreparedCalculationInput {
   if (request.energy.method !== "money") {
@@ -932,6 +943,7 @@ function prepareMoneyCalculationInput(
     electricityTariffVersion: projectionTariff.version,
     tariffBillingContext: projectionBillingContext,
     electricityType: "residential",
+    electricalPhase: selectedElectricalPhase(request),
     province: request.site.province,
     daytimeUsageLevel:
       daytimeUsageLevelByBehavior[request.site.daytimeBehavior],
@@ -1117,6 +1129,7 @@ export function prepareCalculationInput(
       electricityTariffVersion: tariff.version,
       tariffBillingContext,
       electricityType: request.electricityType,
+      electricalPhase: null,
       province: request.province,
       daytimeUsageLevel: request.daytimeUsageLevel,
       roofAreaM2: request.roofAreaM2,
@@ -1133,7 +1146,7 @@ export function prepareCalculationInput(
   }
 
   if (
-    request.schemaVersion === CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION &&
+    request.schemaVersion !== CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_0 &&
     request.energy.method === "money"
   ) {
     return prepareMoneyCalculationInput(
@@ -1179,6 +1192,7 @@ export function prepareCalculationInput(
     electricityTariffVersion: tariff.version,
     tariffBillingContext,
     electricityType: "residential",
+    electricalPhase: selectedElectricalPhase(request),
     province: request.site.province,
     daytimeUsageLevel:
       daytimeUsageLevelByBehavior[request.site.daytimeBehavior],

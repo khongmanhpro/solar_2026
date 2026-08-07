@@ -66,6 +66,7 @@ const solarPackage = {
   baseMonthlyGenerationKwh: 360,
   requiredRoofAreaM2: 18,
   systemType: "grid-tied",
+  electricalPhase: "single-phase",
   batteryCapacityKwh: 0,
   equipmentSummary: "Tấm pin và inverter",
   panelBrand: "Solar",
@@ -203,6 +204,7 @@ async function completeSimpleHomeStep(
   await user.click(
     screen.getByRole("radio", { name: /Hầu như không có người ở nhà/ }),
   );
+  await user.click(screen.getByRole("radio", { name: "Điện 1 pha" }));
   await user.click(
     screen.getByRole("radio", { name: "Không biết diện tích mái" }),
   );
@@ -293,6 +295,24 @@ describe("SolarCalculator", () => {
     expect(screen.getByText("Vui lòng chọn nhu cầu điện dự phòng.")).toBeTruthy();
   });
 
+  it("yêu cầu chọn pha điện và focus radio pha đầu tiên", async () => {
+    const user = userEvent.setup();
+    render(<SolarCalculator />);
+
+    await screen.findByRole("radio", { name: /Nhập số điện/ });
+    await user.click(screen.getByRole("radio", { name: /Nhập số điện/ }));
+    await user.type(screen.getByLabelText("Số điện trên hóa đơn"), "450");
+    await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    await user.selectOptions(screen.getByLabelText("Tỉnh hoặc thành phố lắp đặt"), province.code);
+    await user.click(screen.getByRole("radio", { name: /Có người ở nhà một phần ngày/ }));
+    await user.click(screen.getByRole("radio", { name: "Không biết diện tích mái" }));
+    await user.click(screen.getByRole("radio", { name: "Không cần" }));
+    await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
+
+    expect(screen.getByText("Vui lòng chọn điện 1 pha hoặc điện 3 pha.")).toBeTruthy();
+    expect(document.activeElement?.getAttribute("name")).toBe("electricalPhase");
+  });
+
   it("chặn kỳ hóa đơn tương lai ngay tại bước điện năng", async () => {
     const user = userEvent.setup();
     render(<SolarCalculator />);
@@ -344,14 +364,22 @@ describe("SolarCalculator", () => {
 
     await user.selectOptions(screen.getByLabelText("Tỉnh hoặc thành phố lắp đặt"), province.code);
     await user.click(screen.getByRole("radio", { name: /Có người ở nhà một phần ngày/ }));
+    await user.click(screen.getByRole("radio", { name: "Điện 3 pha" }));
     await user.click(screen.getByRole("radio", { name: "Không biết diện tích mái" }));
     await user.click(screen.getByRole("radio", { name: "Có, cần dự phòng" }));
-    expect(screen.getByLabelText("Tổng công suất thiết bị thiết yếu")).toBeTruthy();
+    expect(screen.queryByLabelText("Tổng công suất thiết bị thiết yếu")).toBeNull();
+    await user.click(screen.getByRole("button", { name: /^Gia đình/ }));
+    expect(screen.getByText(/Đã chọn: Tủ lạnh, Đèn trong nhà, Wi-Fi \/ camera, Quạt, Tivi/)).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
 
     expect(await screen.findByRole("heading", { name: "Kiểm tra trước khi tính" })).toBeTruthy();
     expect(screen.getByText(/Trung bình 500 kWh\/tháng/)).toBeTruthy();
     expect(screen.getByText(/Chưa biết — cần khảo sát/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        (_content, element) => element?.textContent === "Hệ thống điện: Điện 3 pha",
+      ),
+    ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Xác nhận và tính phương án" }));
 
     await screen.findAllByText(solarPackage.name);
@@ -428,7 +456,7 @@ describe("SolarCalculator", () => {
       .mocked(fetch)
       .mock.calls.find(([input]) => String(input).endsWith("/api/calculations"));
     expect(JSON.parse(String(calculationCall?.[1]?.body))).toMatchObject({
-      schemaVersion: "2.1.0",
+      schemaVersion: "2.2.0",
       energy: {
         method: "kwh",
         observations: [{ valueKwh: 450 }, { valueKwh: 550 }],
@@ -436,10 +464,11 @@ describe("SolarCalculator", () => {
       site: {
         province: province.code,
         daytimeBehavior: "some_daytime_use",
+        electricalPhase: "three-phase",
         roof: { known: false },
         backup: {
           required: true,
-          essentialLoadWatts: null,
+          essentialLoadWatts: 530,
           backupHours: null,
         },
       },
@@ -495,7 +524,7 @@ describe("SolarCalculator", () => {
       .mocked(fetch)
       .mock.calls.find(([input]) => String(input).endsWith("/api/calculations"));
     expect(JSON.parse(String(calculationCall?.[1]?.body))).toMatchObject({
-      schemaVersion: "2.1.0",
+      schemaVersion: "2.2.0",
       energy: {
         method: "money",
         amountBasis: "total_payment",
@@ -610,6 +639,7 @@ describe("SolarCalculator", () => {
     await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
     await user.selectOptions(screen.getByLabelText("Tỉnh hoặc thành phố lắp đặt"), province.code);
     await user.click(screen.getByRole("radio", { name: /Thường có người ở nhà/ }));
+    await user.click(screen.getByRole("radio", { name: "Điện 1 pha" }));
     await user.click(screen.getByRole("radio", { name: "Không biết diện tích mái" }));
     await user.click(screen.getByRole("radio", { name: "Không cần" }));
     await user.click(screen.getByRole("button", { name: "Tiếp tục" }));

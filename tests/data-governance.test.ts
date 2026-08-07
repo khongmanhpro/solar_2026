@@ -41,6 +41,7 @@ const input: SolarCalculationInput = {
   monthlyConsumptionKwh: 669.95239,
   monthlyBill: 2_000_000,
   electricityType: "residential",
+  electricalPhase: null,
   province: "ho-chi-minh",
   daytimeUsageLevel: "high",
   roofAreaM2: 30,
@@ -83,6 +84,13 @@ function createSourceSnapshot(
 }
 
 const checkedAt = new Date("2026-07-22T00:00:00.000Z");
+
+describe("calculation version identity", () => {
+  it("bumps snapshot and algorithm identifiers for electrical-phase behavior", () => {
+    expect(CALCULATION_SNAPSHOT_SCHEMA_VERSION).toBe("2.4.0");
+    expect(CALCULATION_ALGORITHM_VERSION).toBe("2.3.0-pvgis");
+  });
+});
 
 function verifiedGovernance(
   key: keyof CalculationDataManifest,
@@ -161,7 +169,7 @@ describe("cổng dữ liệu calculation", () => {
       REQUIRED_DATASET_KEYS.filter((key) => key !== "electricityTariff").every(
         (key) => CURRENT_DATA_MANIFEST[key].status === "demo",
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("chỉ cho VERIFIED khi mọi nguồn có đủ hiệu lực và phê duyệt", () => {
@@ -316,6 +324,7 @@ describe("snapshot và phiên bản calculation", () => {
     expect(sourceSnapshot.normalizedInput.tariffVersion).toBe(
       getCurrentResidentialTariffVersion(),
     );
+    expect(sourceSnapshot.siteInput).not.toHaveProperty("electricalPhase");
     expect(metadata.dataVersions.electricityTariff).toMatch(
       /^electricity-tariff-registry-2026-07-22-draft\.1\+sha256\.[a-f0-9]{64}$/,
     );

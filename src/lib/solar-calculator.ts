@@ -21,6 +21,7 @@ export interface CalculateSolarPackageParams {
   solarPackage: SolarPackage;
   settings: CalculationSettings;
   provinceFactor: number;
+  provinceMonthlyYieldKwhPerKwp?: readonly number[] | null;
   allowUnapprovedTariffData?: boolean;
 }
 
@@ -53,6 +54,25 @@ function assertUnitInterval(value: number, name: string): void {
   if (value > 1) {
     throw new RangeError(`${name} phải nằm trong khoảng từ 0 đến 1.`);
   }
+}
+
+function averageMonthlyYield(
+  monthlyYieldKwhPerKwp: readonly number[] | null | undefined,
+): number | null {
+  if (
+    !monthlyYieldKwhPerKwp ||
+    monthlyYieldKwhPerKwp.length !== 12 ||
+    monthlyYieldKwhPerKwp.some(
+      (value) => !Number.isFinite(value) || value < 0,
+    )
+  ) {
+    return null;
+  }
+
+  return (
+    monthlyYieldKwhPerKwp.reduce((total, value) => total + value, 0) /
+    monthlyYieldKwhPerKwp.length
+  );
 }
 
 function assertCalculationInputs({
@@ -268,6 +288,7 @@ export function calculateSolarPackage({
   solarPackage,
   settings,
   provinceFactor,
+  provinceMonthlyYieldKwhPerKwp,
   allowUnapprovedTariffData = false,
 }: CalculateSolarPackageParams): UnscoredPackageCalculationResult {
   assertCalculationInputs({ input, solarPackage, settings, provinceFactor });
@@ -281,8 +302,13 @@ export function calculateSolarPackage({
   );
   const daytimeDemandKwh =
     estimatedMonthlyConsumptionKwh * daytimeUsageRatio;
+  const pvgisAverageMonthlyYield = averageMonthlyYield(
+    provinceMonthlyYieldKwhPerKwp,
+  );
   const adjustedGenerationKwh =
-    solarPackage.baseMonthlyGenerationKwh * provinceFactor;
+    pvgisAverageMonthlyYield === null
+      ? solarPackage.baseMonthlyGenerationKwh * provinceFactor
+      : solarPackage.capacityKwp * pvgisAverageMonthlyYield;
 
   const commonScenarioParams = {
     estimatedMonthlyConsumptionKwh,

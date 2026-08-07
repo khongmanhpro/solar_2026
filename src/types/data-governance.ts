@@ -1,6 +1,7 @@
 import type {
   ConfidenceLevel,
   CustomerCalculationRequest,
+  ElectricalPhase,
   NormalizedEnergyInput,
   ProvenancedValue,
 } from "@/types/customer-input";
@@ -91,6 +92,8 @@ export interface CalculationSourceSnapshot<TPackage, TSettings, TProvince> {
   siteInput: {
     province: ProvenancedValue<string>;
     daytimeUsageLevel: ProvenancedValue<"low" | "medium" | "high">;
+    /** Omitted for legacy contracts that did not collect electrical phase. */
+    electricalPhase?: ProvenancedValue<ElectricalPhase>;
     roofAreaM2: ProvenancedValue<number | null>;
     backupRequired: ProvenancedValue<boolean>;
     essentialLoadWatts: ProvenancedValue<number | null>;

@@ -338,6 +338,17 @@ export function createCalculationSourceSnapshot({
             : "Mức sử dụng ban ngày là tự khai báo theo ba lựa chọn của luồng cũ.",
         ],
       },
+      ...(input.electricalPhase
+        ? {
+            electricalPhase: {
+              value: input.electricalPhase,
+              origin: "customer" as const,
+              confidence: "high" as const,
+              customerConfirmed: true,
+              reasons: ["Khách hàng đã chọn loại điện tại công trình."],
+            },
+          }
+        : {}),
       roofAreaM2: {
         value: input.roofAreaM2,
         origin: "customer",

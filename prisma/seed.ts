@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import {
   DataStatus as PrismaDataStatus,
+  ElectricalPhase as PrismaElectricalPhase,
   PrismaClient,
   SolarSystemType,
 } from "@prisma/client";
@@ -9,8 +10,12 @@ import {
 import {
   DEFAULT_CALCULATION_SETTINGS,
   DEFAULT_PROVINCES,
-  DEFAULT_SOLAR_PACKAGES,
 } from "../src/config/defaults";
+import {
+  CUSTOMER_REFERENCE_PACKAGES,
+} from "../src/config/customer-reference-packages";
+import { assertReferencePackageOwnership } from "../src/lib/customer-reference-package-seed";
+import { STANDARD_PACKAGE_CATALOG } from "../src/config/standard-package-catalog";
 import {
   isTrialMarketDataEnabled,
   TRIAL_PACKAGE_DATA_VERSION_PREFIX,
@@ -20,6 +25,7 @@ import {
   type MarketDataCandidateBundle,
 } from "../src/lib/market-data-import";
 import type { DataGovernanceMetadata } from "../src/types/solar";
+import { validateStandardPackageCatalog } from "../src/lib/standard-package-validation";
 import marketDataCandidate from "../data/market-data-candidate.json";
 
 const prisma = new PrismaClient();
@@ -43,6 +49,14 @@ function toPrismaSystemType(systemType: "grid-tied" | "hybrid") {
   return systemType === "grid-tied"
     ? SolarSystemType.GRID_TIED
     : SolarSystemType.HYBRID;
+}
+
+function toPrismaElectricalPhase(
+  electricalPhase: "single-phase" | "three-phase",
+) {
+  return electricalPhase === "single-phase"
+    ? PrismaElectricalPhase.SINGLE_PHASE
+    : PrismaElectricalPhase.THREE_PHASE;
 }
 
 function trialDate(value: string | null): Date | null {
@@ -69,20 +83,44 @@ async function seedSettings() {
 }
 
 async function seedPackages() {
-  for (const solarPackage of DEFAULT_SOLAR_PACKAGES) {
+  const validation = validateStandardPackageCatalog(
+    CUSTOMER_REFERENCE_PACKAGES.map((solarPackage) => ({
+      id: solarPackage.code,
+      ...solarPackage,
+    })),
+    STANDARD_PACKAGE_CATALOG,
+  );
+  if (!validation.valid) {
+    throw new Error(
+      `Catalog gói chuẩn không hợp lệ:\n${validation.errors
+        .map((item) => `${item.packageCode}: ${item.message}`)
+        .join("\n")}`,
+    );
+  }
+  if (validation.warnings.length > 0) {
+    console.warn(
+      `Catalog gói chuẩn có ${validation.warnings.length} cảnh báo cần khảo sát/duyệt trước khi chốt báo giá.`,
+    );
+  }
+
+  for (const solarPackage of CUSTOMER_REFERENCE_PACKAGES) {
     const existing = await prisma.solarPackage.findUnique({
       where: { code: solarPackage.code },
-      select: { dataStatus: true },
+      select: { dataVersion: true },
     });
-    if (existing) continue;
+    assertReferencePackageOwnership(solarPackage.code, existing?.dataVersion);
 
     const data = {
       ...solarPackage,
       ...toPrismaDemoGovernance(solarPackage),
       systemType: toPrismaSystemType(solarPackage.systemType),
+      electricalPhase: toPrismaElectricalPhase(solarPackage.electricalPhase),
     };
-
-    await prisma.solarPackage.create({ data });
+    await prisma.solarPackage.upsert({
+      where: { code: solarPackage.code },
+      create: data,
+      update: data,
+    });
   }
 }
 
@@ -110,6 +148,7 @@ async function seedTrialPackages() {
     const data = {
       ...solarPackage,
       systemType: toPrismaSystemType(solarPackage.systemType),
+      electricalPhase: toPrismaElectricalPhase(solarPackage.electricalPhase),
       active: true,
       dataStatus: PrismaDataStatus.DRAFT,
       dataVersion: release.dataVersion,

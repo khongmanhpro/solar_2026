@@ -1,0 +1,380 @@
+[
+  {
+    "code": "an-giang",
+    "name": "An Giang",
+    "lat": 10.5,
+    "lon": 105.166667
+  },
+  {
+    "code": "ba-ria-vung-tau",
+    "name": "Bà Rịa - Vũng Tàu",
+    "lat": 10.583333,
+    "lon": 107.25
+  },
+  {
+    "code": "binh-duong",
+    "name": "Bình Dương",
+    "lat": 11.166667,
+    "lon": 106.666667
+  },
+  {
+    "code": "binh-phuoc",
+    "name": "Bình Phước",
+    "lat": 11.75,
+    "lon": 106.916667
+  },
+  {
+    "code": "binh-thuan",
+    "name": "Bình Thuận",
+    "lat": 10.933333,
+    "lon": 108.1
+  },
+  {
+    "code": "binh-dinh",
+    "name": "Bình Định",
+    "lat": 14.166667,
+    "lon": 109
+  },
+  {
+    "code": "bac-lieu",
+    "name": "Bạc Liêu",
+    "lat": 9.25,
+    "lon": 105.75
+  },
+  {
+    "code": "bac-giang",
+    "name": "Bắc Giang",
+    "lat": 21.333333,
+    "lon": 106.333333
+  },
+  {
+    "code": "bac-kan",
+    "name": "Bắc Kạn",
+    "lat": 22.166667,
+    "lon": 105.833333
+  },
+  {
+    "code": "bac-ninh",
+    "name": "Bắc Ninh",
+    "lat": 21.083333,
+    "lon": 106.166667
+  },
+  {
+    "code": "ben-tre",
+    "name": "Bến Tre",
+    "lat": 10.166667,
+    "lon": 106.5
+  },
+  {
+    "code": "cao-bang",
+    "name": "Cao Bằng",
+    "lat": 22.666667,
+    "lon": 106
+  },
+  {
+    "code": "ca-mau",
+    "name": "Cà Mau",
+    "lat": 9.083333,
+    "lon": 105.083333
+  },
+  {
+    "code": "can-tho",
+    "name": "Cần Thơ",
+    "lat": 10.033333,
+    "lon": 105.783333
+  },
+  {
+    "code": "gia-lai",
+    "name": "Gia Lai",
+    "lat": 13.75,
+    "lon": 108.25
+  },
+  {
+    "code": "ha-giang",
+    "name": "Hà Giang",
+    "lat": 22.75,
+    "lon": 105
+  },
+  {
+    "code": "ha-nam",
+    "name": "Hà Nam",
+    "lat": 20.583333,
+    "lon": 106
+  },
+  {
+    "code": "ha-noi",
+    "name": "Hà Nội",
+    "lat": 21.028472,
+    "lon": 105.854167
+  },
+  {
+    "code": "ha-tinh",
+    "name": "Hà Tĩnh",
+    "lat": 18.333333,
+    "lon": 105.9
+  },
+  {
+    "code": "hoa-binh",
+    "name": "Hòa Bình",
+    "lat": 20.333333,
+    "lon": 105.25
+  },
+  {
+    "code": "hung-yen",
+    "name": "Hưng Yên",
+    "lat": 20.833333,
+    "lon": 106.083333
+  },
+  {
+    "code": "hai-duong",
+    "name": "Hải Dương",
+    "lat": 20.916667,
+    "lon": 106.333333
+  },
+  {
+    "code": "hai-phong",
+    "name": "Hải Phòng",
+    "lat": 20.865139,
+    "lon": 106.683833
+  },
+  {
+    "code": "hau-giang",
+    "name": "Hậu Giang",
+    "lat": 9.783333,
+    "lon": 105.466667
+  },
+  {
+    "code": "ho-chi-minh",
+    "name": "Hồ Chí Minh",
+    "lat": 10.776889,
+    "lon": 106.700806
+  },
+  {
+    "code": "khanh-hoa",
+    "name": "Khánh Hòa",
+    "lat": 12.25,
+    "lon": 109.2
+  },
+  {
+    "code": "kien-giang",
+    "name": "Kiên Giang",
+    "lat": 10,
+    "lon": 105.166667
+  },
+  {
+    "code": "kon-tum",
+    "name": "Kon Tum",
+    "lat": 14.75,
+    "lon": 107.916667
+  },
+  {
+    "code": "lai-chau",
+    "name": "Lai Châu",
+    "lat": 22,
+    "lon": 103
+  },
+  {
+    "code": "long-an",
+    "name": "Long An",
+    "lat": 10.666667,
+    "lon": 106.166667
+  },
+  {
+    "code": "lao-cai",
+    "name": "Lào Cai",
+    "lat": 22.333333,
+    "lon": 104
+  },
+  {
+    "code": "lam-dong",
+    "name": "Lâm Đồng",
+    "lat": 11.95,
+    "lon": 108.433333
+  },
+  {
+    "code": "lang-son",
+    "name": "Lạng Sơn",
+    "lat": 21.75,
+    "lon": 106.5
+  },
+  {
+    "code": "nam-dinh",
+    "name": "Nam Định",
+    "lat": 20.25,
+    "lon": 106.25
+  },
+  {
+    "code": "nghe-an",
+    "name": "Nghệ An",
+    "lat": 19.333333,
+    "lon": 104.833333
+  },
+  {
+    "code": "ninh-binh",
+    "name": "Ninh Bình",
+    "lat": 20.25,
+    "lon": 105.833333
+  },
+  {
+    "code": "ninh-thuan",
+    "name": "Ninh Thuận",
+    "lat": 11.75,
+    "lon": 108.833333
+  },
+  {
+    "code": "phu-tho",
+    "name": "Phú Thọ",
+    "lat": 21.333333,
+    "lon": 105.166667
+  },
+  {
+    "code": "phu-yen",
+    "name": "Phú Yên",
+    "lat": 13.166667,
+    "lon": 109.166667
+  },
+  {
+    "code": "quang-binh",
+    "name": "Quảng Bình",
+    "lat": 17.5,
+    "lon": 106.333333
+  },
+  {
+    "code": "quang-nam",
+    "name": "Quảng Nam",
+    "lat": 15.583333,
+    "lon": 107.916667
+  },
+  {
+    "code": "quang-ngai",
+    "name": "Quảng Ngãi",
+    "lat": 15,
+    "lon": 108.666667
+  },
+  {
+    "code": "quang-ninh",
+    "name": "Quảng Ninh",
+    "lat": 21.25,
+    "lon": 107.333333
+  },
+  {
+    "code": "quang-tri",
+    "name": "Quảng Trị",
+    "lat": 16.75,
+    "lon": 107
+  },
+  {
+    "code": "soc-trang",
+    "name": "Sóc Trăng",
+    "lat": 9.666667,
+    "lon": 105.833333
+  },
+  {
+    "code": "son-la",
+    "name": "Sơn La",
+    "lat": 21.166667,
+    "lon": 104
+  },
+  {
+    "code": "thanh-hoa",
+    "name": "Thanh Hóa",
+    "lat": 20,
+    "lon": 105.5
+  },
+  {
+    "code": "thai-binh",
+    "name": "Thái Bình",
+    "lat": 20.5,
+    "lon": 106.333333
+  },
+  {
+    "code": "thai-nguyen",
+    "name": "Thái Nguyên",
+    "lat": 21.666667,
+    "lon": 105.833333
+  },
+  {
+    "code": "thua-thien-hue",
+    "name": "Thừa Thiên Huế",
+    "lat": 16.333333,
+    "lon": 107.583333
+  },
+  {
+    "code": "tien-giang",
+    "name": "Tiền Giang",
+    "lat": 10.416667,
+    "lon": 106.166667
+  },
+  {
+    "code": "tra-vinh",
+    "name": "Trà Vinh",
+    "lat": 9.833333,
+    "lon": 106.25
+  },
+  {
+    "code": "tuyen-quang",
+    "name": "Tuyên Quang",
+    "lat": 21.823056,
+    "lon": 105.214444
+  },
+  {
+    "code": "tay-ninh",
+    "name": "Tây Ninh",
+    "lat": 11.333333,
+    "lon": 106.166667
+  },
+  {
+    "code": "vinh-long",
+    "name": "Vĩnh Long",
+    "lat": 10.166667,
+    "lon": 106
+  },
+  {
+    "code": "vinh-phuc",
+    "name": "Vĩnh Phúc",
+    "lat": 21.3,
+    "lon": 105.6
+  },
+  {
+    "code": "yen-bai",
+    "name": "Yên Bái",
+    "lat": 21.5,
+    "lon": 104.666667
+  },
+  {
+    "code": "dien-bien",
+    "name": "Điện Biên",
+    "lat": 21.383333,
+    "lon": 103.016667
+  },
+  {
+    "code": "da-nang",
+    "name": "Đà Nẵng",
+    "lat": 16.066667,
+    "lon": 108.233333
+  },
+  {
+    "code": "dak-lak",
+    "name": "Đắk Lắk",
+    "lat": 12.666667,
+    "lon": 108.05
+  },
+  {
+    "code": "dak-nong",
+    "name": "Đắk Nông",
+    "lat": 11.983333,
+    "lon": 107.7
+  },
+  {
+    "code": "dong-nai",
+    "name": "Đồng Nai",
+    "lat": 11.116667,
+    "lon": 107.183333
+  },
+  {
+    "code": "dong-thap",
+    "name": "Đồng Tháp",
+    "lat": 10.666667,
+    "lon": 105.666667
+  }
+]

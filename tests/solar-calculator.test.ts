@@ -35,6 +35,7 @@ const standardInput: SolarCalculationInput = {
   ),
   monthlyBill: 2_000_000,
   electricityType: "residential",
+  electricalPhase: null,
   province: "ho-chi-minh",
   daytimeUsageLevel: "high",
   roofAreaM2: 25,
@@ -244,6 +245,18 @@ describe("calculateSolarPackage", () => {
     });
 
     expect(result.adjustedGenerationKwh).toBeCloseTo(316.8, 10);
+  });
+
+  it("ưu tiên sản lượng kWh/kWp theo 12 tháng từ PVGIS khi đã đồng bộ", () => {
+    const result = calculateSolarPackage({
+      input: standardInput,
+      solarPackage: createPackage(1),
+      settings: defaultSettings,
+      provinceFactor: 0.88,
+      provinceMonthlyYieldKwhPerKwp: Array(12).fill(100),
+    });
+
+    expect(result.adjustedGenerationKwh).toBeCloseTo(300, 10);
   });
 
   it("tính lại đầy đủ kịch bản thấp và cao", () => {

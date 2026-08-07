@@ -60,6 +60,7 @@ function attachMoneyRecommendationStability(params: {
   packages: Parameters<typeof recommendSolarPackages>[0]["packages"];
   settings: Parameters<typeof recommendSolarPackages>[0]["settings"];
   provinceFactor: number;
+  provinceMonthlyYieldKwhPerKwp?: readonly number[] | null;
   allowUnapprovedTariffData: boolean;
 }): SolarRecommendationResult {
   const {
@@ -69,6 +70,7 @@ function attachMoneyRecommendationStability(params: {
     packages,
     settings,
     provinceFactor,
+    provinceMonthlyYieldKwhPerKwp,
     allowUnapprovedTariffData,
   } = params;
   const allConversionsExact =
@@ -79,6 +81,7 @@ function attachMoneyRecommendationStability(params: {
     packages,
     settings,
     provinceFactor,
+    provinceMonthlyYieldKwhPerKwp,
     allowUnapprovedTariffData,
   });
   const upperRecommendation = recommendSolarPackages({
@@ -86,6 +89,7 @@ function attachMoneyRecommendationStability(params: {
     packages,
     settings,
     provinceFactor,
+    provinceMonthlyYieldKwhPerKwp,
     allowUnapprovedTariffData,
   });
   const lowerId = lowerRecommendation.recommendedPackage?.packageId ?? null;
@@ -255,6 +259,7 @@ export class CalculationService {
       packages,
       settings,
       provinceFactor: province.factor,
+      provinceMonthlyYieldKwhPerKwp: province.monthlyYieldKwhPerKwp,
       allowUnapprovedTariffData,
     });
     if (prepared.normalizedInput.moneyConversions?.length) {
@@ -265,6 +270,7 @@ export class CalculationService {
         packages,
         settings,
         provinceFactor: province.factor,
+        provinceMonthlyYieldKwhPerKwp: province.monthlyYieldKwhPerKwp,
         allowUnapprovedTariffData,
       });
     }

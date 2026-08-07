@@ -6,6 +6,7 @@ import path from "node:path";
 
 import {
   DataStatus as PrismaDataStatus,
+  ElectricalPhase as PrismaElectricalPhase,
   PrismaClient,
   SolarSystemType,
 } from "@prisma/client";
@@ -141,6 +142,10 @@ if (!command || !workbookPath || !["validate", "preview", "preview-trial", "buil
                 item.systemType === "hybrid"
                   ? SolarSystemType.HYBRID
                   : SolarSystemType.GRID_TIED,
+              electricalPhase:
+                item.phase === "three-phase"
+                  ? PrismaElectricalPhase.THREE_PHASE
+                  : PrismaElectricalPhase.SINGLE_PHASE,
               batteryCapacityKwh: item.batteryNominalKwh,
               equipmentSummary: item.equipmentSummary,
               panelBrand: item.panelBrand,
@@ -230,6 +235,10 @@ if (!command || !workbookPath || !["validate", "preview", "preview-trial", "buil
               item.systemType === "hybrid"
                 ? SolarSystemType.HYBRID
                 : SolarSystemType.GRID_TIED,
+            electricalPhase:
+              item.electricalPhase === "three-phase"
+                ? PrismaElectricalPhase.THREE_PHASE
+                : PrismaElectricalPhase.SINGLE_PHASE,
             batteryCapacityKwh: item.batteryCapacityKwh,
             equipmentSummary: item.equipmentSummary,
             panelBrand: item.panelBrand,

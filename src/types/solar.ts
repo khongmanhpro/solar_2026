@@ -1,5 +1,6 @@
 import type {
   CustomerCalculationRequest,
+  ElectricalPhase,
   EnergyInputSource,
   NormalizedEnergyInput,
 } from "@/types/customer-input";
@@ -8,6 +9,8 @@ import type {
   CalculationVersionMetadata,
   DataStatus,
 } from "@/types/data-governance";
+
+export type { ElectricalPhase } from "@/types/customer-input";
 
 export const DAYTIME_USAGE_LEVELS = ["low", "medium", "high"] as const;
 export type DaytimeUsageLevel = (typeof DAYTIME_USAGE_LEVELS)[number];
@@ -52,6 +55,7 @@ export interface SolarCalculationInput {
     referenceDays?: number;
   } | null;
   electricityType: ElectricityType;
+  electricalPhase: ElectricalPhase | null;
   province: string;
   daytimeUsageLevel: DaytimeUsageLevel;
   roofAreaM2: number | null;
@@ -81,6 +85,7 @@ export interface SolarPackage extends DataGovernanceMetadata {
   baseMonthlyGenerationKwh: number;
   requiredRoofAreaM2: number;
   systemType: SolarSystemType;
+  electricalPhase: ElectricalPhase;
   batteryCapacityKwh: number;
   equipmentSummary: string;
   panelBrand: string;
@@ -116,12 +121,21 @@ export interface ProvinceFactor extends DataGovernanceMetadata {
   code: string;
   name: string;
   factor: number;
+  latitude?: number | null;
+  longitude?: number | null;
+  monthlyYieldKwhPerKwp?: number[] | null;
   active: boolean;
   displayOrder: number;
 }
 
-export type ProvinceFactorSeed = Omit<ProvinceFactor, "id" | "active"> & {
+export type ProvinceFactorSeed = Omit<
+  ProvinceFactor,
+  "id" | "active" | "latitude" | "longitude" | "monthlyYieldKwhPerKwp"
+> & {
   active?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  monthlyYieldKwhPerKwp?: number[] | null;
 };
 
 export interface CalculationScenarioResult {
@@ -211,6 +225,7 @@ export interface AdminLeadRecord extends LeadRecord {
   calculation: {
     monthlyBill: number;
     electricityType: ElectricityType;
+    electricalPhase: ElectricalPhase | null;
     province: string;
     recommendedPackageName: string | null;
     createdAt: Date;
@@ -221,6 +236,7 @@ export interface AdminLeadDetail extends LeadRecord {
   calculation: {
     monthlyBill: number;
     electricityType: ElectricityType;
+    electricalPhase: ElectricalPhase | null;
     province: string;
     daytimeUsageLevel: DaytimeUsageLevel;
     roofAreaM2: number | null;

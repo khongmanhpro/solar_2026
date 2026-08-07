@@ -12,6 +12,11 @@ import {
   type EnergyObservationFormValue,
 } from "@/components/calculator/CalculatorForm";
 import { CalculationPreview } from "@/components/calculator/CalculationPreview";
+import {
+  calculateBackupDeviceWatts,
+  type BackupDeviceId,
+} from "@/config/backup-devices";
+import { CUSTOMER_REFERENCE_PACKAGE_DATA_VERSION } from "@/config/customer-reference-packages";
 import { TRIAL_PACKAGE_DATA_VERSION_PREFIX } from "@/config/trial-market-data";
 import { ApiClientError, requestJson } from "@/lib/api-client";
 import { trackEvent } from "@/lib/analytics";
@@ -39,9 +44,12 @@ const INITIAL_VALUES: CalculatorFormValues = {
   moneyReferenceDays: "",
   province: "",
   daytimeBehavior: "",
+  electricalPhase: "",
   roofKnown: "",
   roofAreaM2: "",
   backupRequired: "",
+  backupDeviceIds: [],
+  backupInputMode: "devices",
   essentialLoadWatts: "",
   backupHours: "",
 };
@@ -181,6 +189,9 @@ function validateHomeStep(values: CalculatorFormValues): CalculatorFormErrors {
   if (!values.daytimeBehavior) {
     errors.daytimeBehavior = "Vui lòng chọn thói quen sử dụng điện ban ngày.";
   }
+  if (!values.electricalPhase) {
+    errors.electricalPhase = "Vui lòng chọn điện 1 pha hoặc điện 3 pha.";
+  }
   if (!values.roofKnown) {
     errors.roofKnown = "Vui lòng chọn có biết diện tích mái hay không.";
   }
@@ -222,6 +233,7 @@ function toRequest(values: CalculatorFormValues): CustomerCalculationRequestV2 |
     (values.energyMethod === "money" &&
       values.energyObservations.some((observation) => !observation.period)) ||
     !values.daytimeBehavior ||
+    !values.electricalPhase ||
     !values.roofKnown ||
     !values.backupRequired
   ) {
@@ -277,6 +289,7 @@ function toRequest(values: CalculatorFormValues): CustomerCalculationRequestV2 |
     site: {
       province: values.province,
       daytimeBehavior: values.daytimeBehavior,
+      electricalPhase: values.electricalPhase,
       roof:
         values.roofKnown === "true"
           ? { known: true, areaM2: Number(values.roofAreaM2) }
@@ -323,6 +336,7 @@ function apiPathToFormField(path: string): string | null {
   }
   if (path === "site.province") return "province";
   if (path === "site.daytimeBehavior") return "daytimeBehavior";
+  if (path === "site.electricalPhase") return "electricalPhase";
   if (path === "site.roof" || path === "site.roof.known") return "roofKnown";
   if (path === "site.roof.areaM2") return "roofAreaM2";
   if (path === "site.backup" || path === "site.backup.required") return "backupRequired";
@@ -348,6 +362,9 @@ export function SolarCalculator() {
   const trialCatalogVersion = packages.find((item) =>
     item.dataVersion.startsWith(TRIAL_PACKAGE_DATA_VERSION_PREFIX),
   )?.dataVersion;
+  const referenceCatalogLoaded = packages.some(
+    (item) => item.dataVersion === CUSTOMER_REFERENCE_PACKAGE_DATA_VERSION,
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -396,6 +413,8 @@ export function SolarCalculator() {
         const next = { ...current, [field]: value } as CalculatorFormValues;
         if (field === "roofKnown" && value === "false") next.roofAreaM2 = "";
         if (field === "backupRequired" && value === "false") {
+          next.backupDeviceIds = [];
+          next.backupInputMode = "devices";
           next.essentialLoadWatts = "";
           next.backupHours = "";
         }
@@ -413,6 +432,42 @@ export function SolarCalculator() {
         return next;
       });
       setErrors((current) => ({ ...current, [field]: undefined }));
+      setServerError(null);
+    },
+    [registerInteraction],
+  );
+
+  const handleBackupDevicesChange = useCallback(
+    (deviceIds: BackupDeviceId[]) => {
+      registerInteraction();
+      setValues((current) => ({
+        ...current,
+        backupDeviceIds: deviceIds,
+        backupInputMode: "devices",
+        essentialLoadWatts: calculateBackupDeviceWatts(deviceIds)
+          ? String(calculateBackupDeviceWatts(deviceIds))
+          : "",
+      }));
+      setErrors((current) => ({ ...current, essentialLoadWatts: undefined }));
+      setServerError(null);
+    },
+    [registerInteraction],
+  );
+
+  const handleBackupInputModeChange = useCallback(
+    (mode: "devices" | "manual") => {
+      registerInteraction();
+      setValues((current) => ({
+        ...current,
+        backupInputMode: mode,
+        essentialLoadWatts:
+          mode === "devices"
+            ? calculateBackupDeviceWatts(current.backupDeviceIds)
+              ? String(calculateBackupDeviceWatts(current.backupDeviceIds))
+              : ""
+            : current.essentialLoadWatts,
+      }));
+      setErrors((current) => ({ ...current, essentialLoadWatts: undefined }));
       setServerError(null);
     },
     [registerInteraction],
@@ -528,6 +583,7 @@ export function SolarCalculator() {
             : null,
         roofKnown: values.roofKnown === "true",
         backupRequired: values.backupRequired === "true",
+        electricalPhase: values.electricalPhase || null,
       });
     }
   }
@@ -598,6 +654,7 @@ export function SolarCalculator() {
         observationCount: values.energyObservations.length,
         billingContext:
           values.energyMethod === "money" ? values.moneyBillingContext : null,
+        electricalPhase: values.electricalPhase,
       });
 
       window.requestAnimationFrame(() => {
@@ -655,18 +712,20 @@ export function SolarCalculator() {
         </div>
       ) : null}
 
-      {resourceState === "ready" && trialCatalogVersion ? (
+      {resourceState === "ready" && (trialCatalogVersion || referenceCatalogLoaded) ? (
         <aside
           className="mb-5 rounded-2xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-5 text-sm leading-6 text-[var(--warning-ink)]"
           role="note"
         >
           <p className="font-display text-lg font-semibold">
-            Thông tin giá và cấu hình của {packages.length} gói điện mặt trời
+            {referenceCatalogLoaded
+              ? `${packages.length} gói tham khảo cho hộ gia đình`
+              : `Thông tin giá và cấu hình của ${packages.length} gói điện mặt trời`}
           </p>
           <p className="mt-2">
-            Giá là ước lượng V1 với sai số dự kiến ±15%. Sản lượng và diện tích
-            mái còn dùng giả định có ghi nguồn; kết quả không phải báo giá và
-            bắt buộc được khảo sát kỹ thuật trước khi tư vấn hoặc ký hợp đồng.
+            {referenceCatalogLoaded
+              ? "Các gói được cấu hình sẵn để khách dễ tham khảo. Giá, sản lượng và thiết bị chính thức sẽ được xác nhận lại sau khi khảo sát mái và hệ thống điện tại công trình."
+              : "Giá là ước lượng V1 với sai số dự kiến ±15%. Sản lượng và diện tích mái còn dùng giả định có ghi nguồn; kết quả không phải báo giá và bắt buộc được khảo sát kỹ thuật trước khi tư vấn hoặc ký hợp đồng."}
           </p>
         </aside>
       ) : null}
@@ -721,6 +780,8 @@ export function SolarCalculator() {
               values={values}
               onAddObservation={handleAddObservation}
               onBack={() => goToStep(Math.max(1, currentStep - 1) as CalculatorStep)}
+              onBackupDevicesChange={handleBackupDevicesChange}
+              onBackupInputModeChange={handleBackupInputModeChange}
               onChange={handleChange}
               onEnergyMethodChange={handleEnergyMethodChange}
               onGoToStep={goToStep}

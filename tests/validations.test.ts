@@ -5,6 +5,8 @@ import {
   calculationRequestSchema,
   calculationSettingsSchema,
   customerCalculationRequestV2Schema,
+  customerCalculationRequestV2_0Schema,
+  customerCalculationRequestV2_1Schema,
   leadInputSchema,
   leadStatusUpdateSchema,
   legacyCalculationRequestSchema,
@@ -14,7 +16,7 @@ import {
 } from "@/lib/validations";
 
 const validCustomerCalculationInput = {
-  schemaVersion: "2.1.0",
+  schemaVersion: "2.2.0",
   energy: {
     method: "kwh",
     observations: [
@@ -25,6 +27,7 @@ const validCustomerCalculationInput = {
   site: {
     province: "ho-chi-minh",
     daytimeBehavior: "some_daytime_use",
+    electricalPhase: "single-phase",
     roof: { known: false },
     backup: { required: false },
   },
@@ -33,6 +36,7 @@ const validCustomerCalculationInput = {
 const validCalculationInput = {
   monthlyBill: 2_000_000,
   electricityType: "residential",
+  electricalPhase: null,
   province: "ho-chi-minh",
   daytimeUsageLevel: "high",
   roofAreaM2: 25,
@@ -49,6 +53,7 @@ const defaultPackageInput = {
   baseMonthlyGenerationKwh: defaultPackage.baseMonthlyGenerationKwh,
   requiredRoofAreaM2: defaultPackage.requiredRoofAreaM2,
   systemType: defaultPackage.systemType,
+  electricalPhase: defaultPackage.electricalPhase,
   batteryCapacityKwh: defaultPackage.batteryCapacityKwh,
   equipmentSummary: defaultPackage.equipmentSummary,
   panelBrand: defaultPackage.panelBrand,
@@ -159,6 +164,50 @@ describe("customerCalculationRequestV2Schema", () => {
     expect(
       calculationRequestSchema.safeParse(validCustomerCalculationInput)
         .success,
+    ).toBe(true);
+  });
+
+  it("yêu cầu pha điện hợp lệ ở contract 2.2", () => {
+    expect(
+      customerCalculationRequestV2Schema.safeParse({
+        ...validCustomerCalculationInput,
+        site: {
+          ...validCustomerCalculationInput.site,
+          electricalPhase: undefined,
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      customerCalculationRequestV2Schema.safeParse({
+        ...validCustomerCalculationInput,
+        site: {
+          ...validCustomerCalculationInput.site,
+          electricalPhase: "two-phase",
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("giữ parser strict cho contract 2.0 và 2.1 không thu thập pha", () => {
+    const legacySite = {
+      province: validCustomerCalculationInput.site.province,
+      daytimeBehavior: validCustomerCalculationInput.site.daytimeBehavior,
+      roof: validCustomerCalculationInput.site.roof,
+      backup: validCustomerCalculationInput.site.backup,
+    };
+    expect(
+      customerCalculationRequestV2_1Schema.safeParse({
+        ...validCustomerCalculationInput,
+        schemaVersion: "2.1.0",
+        site: legacySite,
+      }).success,
+    ).toBe(true);
+    expect(
+      customerCalculationRequestV2_0Schema.safeParse({
+        schemaVersion: "2.0.0",
+        energy: validCustomerCalculationInput.energy,
+        site: legacySite,
+      }).success,
     ).toBe(true);
   });
 
@@ -279,9 +328,10 @@ describe("legacyCalculationRequestSchema", () => {
       customerConfirmed: true,
     };
 
-    expect(legacyCalculationRequestSchema.parse(explicitLegacyInput)).toEqual(
-      explicitLegacyInput,
-    );
+    expect(legacyCalculationRequestSchema.parse(explicitLegacyInput)).toEqual({
+      ...explicitLegacyInput,
+      electricalPhase: null,
+    });
     expect(calculationRequestSchema.safeParse(explicitLegacyInput).success).toBe(
       true,
     );

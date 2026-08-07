@@ -191,6 +191,7 @@ describe("normalizedEnergyInputSchema", () => {
         monthlyConsumptionKwh: 669.95239,
         monthlyBill: 2_000_000,
         electricityType: "residential",
+        electricalPhase: null,
         province: "ho-chi-minh",
         daytimeUsageLevel: "high",
         roofAreaM2: 25,
@@ -366,6 +367,7 @@ describe("input confidence", () => {
         monthlyConsumptionKwh: 669.95239,
         monthlyBill: 2_000_000,
         electricityType: "residential",
+        electricalPhase: null,
         province: "ho-chi-minh",
         daytimeUsageLevel: "medium",
         roofAreaM2: 30,
@@ -391,6 +393,35 @@ describe("input confidence", () => {
 });
 
 describe("prepareCalculationInput", () => {
+  it("preserves selected 2.2 phase and normalizes 2.0/2.1 phase to null", () => {
+    const base = {
+      energy: { method: "kwh" as const, observations: [{ valueKwh: 450 }] },
+      site: {
+        province: "ho-chi-minh",
+        daytimeBehavior: "some_daytime_use" as const,
+        roof: { known: false as const },
+        backup: { required: false as const },
+      },
+    };
+    const current = prepareCalculationInput(
+      {
+        ...base,
+        schemaVersion: "2.2.0",
+        site: { ...base.site, electricalPhase: "three-phase" },
+      },
+      "tariff-test-v2",
+      { allowUnapprovedTariffData: true },
+    );
+    const legacy = prepareCalculationInput(
+      { ...base, schemaVersion: "2.1.0" },
+      "tariff-test-v2",
+      { allowUnapprovedTariffData: true },
+    );
+
+    expect(current.input.electricalPhase).toBe("three-phase");
+    expect(legacy.input.electricalPhase).toBeNull();
+  });
+
   it("lấy trung bình kWh trực tiếp, lưu từng quan sát và gắn giả định điện sinh hoạt", () => {
     const prepared = prepareCalculationInput(
       {

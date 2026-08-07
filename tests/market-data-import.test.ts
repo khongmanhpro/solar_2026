@@ -150,6 +150,7 @@ describe("market data workbook import", () => {
       priceVnd: 56_000_000,
       baseMonthlyGenerationKwh: 700.8,
       requiredRoofAreaM2: 28.6,
+      electricalPhase: "single-phase",
     });
     expect(release.packages[0].sourceReference).toContain(
       "trial-derived-generation:120 kWh/kWp/month",

@@ -24,6 +24,7 @@
     "data:build-candidate": "tsx scripts/market-data.ts build-candidate",
     "data:import-draft": "tsx scripts/market-data.ts import-draft",
     "data:import-trial": "tsx scripts/market-data.ts import-trial",
+    "data:sync-pvgis": "tsx scripts/sync-province-pvgis.ts",
     "privacy:purge-calculations": "tsx scripts/purge-expired-calculations.ts",
     "postinstall": "prisma generate"
   },
@@ -31,10 +32,10 @@
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource/be-vietnam-pro": "^5.3.0",
     "@prisma/client": "6.19.3",
-    "next": "^16.2.12",
+    "next": "^16.3.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "recharts": "^3.9.2",
+    "recharts": "^3.10.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -46,7 +47,7 @@
     "@types/react-dom": "^19.2.3",
     "dotenv": "^17.4.2",
     "eslint": "^9.39.5",
-    "eslint-config-next": "^16.2.12",
+    "eslint-config-next": "^16.3.0",
     "jsdom": "^29.1.1",
     "prisma": "6.19.3",
     "read-excel-file": "^9.3.5",
@@ -56,6 +57,6 @@
     "vitest": "^4.1.10"
   },
   "overrides": {
-    "postcss": "8.5.20"
+    "postcss": "8.5.26"
   }
 }

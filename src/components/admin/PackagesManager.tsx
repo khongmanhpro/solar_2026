@@ -21,6 +21,7 @@ const EMPTY_PACKAGE: SolarPackageCreateData = {
   baseMonthlyGenerationKwh: 0,
   requiredRoofAreaM2: 5,
   systemType: "grid-tied",
+  electricalPhase: "single-phase",
   batteryCapacityKwh: 0,
   equipmentSummary: "",
   panelBrand: "",
@@ -229,6 +230,7 @@ export function PackagesManager({ initialPackages }: { initialPackages: SolarPac
                 ["Công suất", `${item.capacityKwp} kWp`],
                 ["Sản lượng", `${item.baseMonthlyGenerationKwh} kWh/tháng`],
                 ["Loại", SYSTEM_TYPE_LABELS[item.systemType]],
+                ["Pha điện", item.electricalPhase === "single-phase" ? "1 pha" : "3 pha"],
               ].map(([label, value]) => (
                 <div className="bg-[var(--paper)] p-3" key={label}><dt className="text-xs uppercase tracking-[0.1em] text-[var(--muted)]">{label}</dt><dd className="mt-1 text-xs font-semibold">{value}</dd></div>
               ))}
@@ -264,6 +266,7 @@ export function PackagesManager({ initialPackages }: { initialPackages: SolarPac
               <Field error={errors.requiredRoofAreaM2} label="Diện tích mái (m²)" name="requiredRoofAreaM2" step="0.1" type="number" value={editingPackage.requiredRoofAreaM2} />
               <Field error={errors.batteryCapacityKwh} label="Dung lượng pin (kWh)" name="batteryCapacityKwh" step="0.1" type="number" value={editingPackage.batteryCapacityKwh} />
               <label className="block text-xs font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Loại hệ thống<select className="admin-field normal-case tracking-normal" defaultValue={editingPackage.systemType} name="systemType"><option value="grid-tied">Hòa lưới</option><option value="hybrid">Hybrid + lưu trữ</option></select></label>
+              <label className="block text-xs font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Pha điện inverter<select aria-invalid={Boolean(errors.electricalPhase)} className="admin-field normal-case tracking-normal" defaultValue={editingPackage.electricalPhase} name="electricalPhase"><option value="single-phase">Điện 1 pha</option><option value="three-phase">Điện 3 pha</option></select>{errors.electricalPhase ? <span className="mt-1 block normal-case tracking-normal text-[var(--danger)]">{errors.electricalPhase}</span> : null}</label>
             </fieldset>
 
             <fieldset className="grid gap-5 md:grid-cols-2"><legend className="mb-4 font-display text-xl font-semibold">Thiết bị & bảo hành</legend>

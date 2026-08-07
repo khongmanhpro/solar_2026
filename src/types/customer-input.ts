@@ -2,7 +2,9 @@ export const NORMALIZED_ENERGY_INPUT_SCHEMA_VERSION = "2.2.0" as const;
 
 /** Current customer contract. The 2.0.0 parser remains available so saved
  * Phase 1 requests can still be replayed. */
-export const CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION = "2.1.0" as const;
+export const CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION = "2.2.0" as const;
+export const CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_1 =
+  "2.1.0" as const;
 export const CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_0 =
   "2.0.0" as const;
 
@@ -120,6 +122,13 @@ export interface CustomerSiteInput {
   backup: CustomerBackupInput;
 }
 
+export const ELECTRICAL_PHASES = ["single-phase", "three-phase"] as const;
+export type ElectricalPhase = (typeof ELECTRICAL_PHASES)[number];
+
+export interface CustomerSiteInputV2_2 extends CustomerSiteInput {
+  electricalPhase: ElectricalPhase;
+}
+
 /** Read-only compatibility shape for requests saved during Phase 1. */
 export interface CustomerCalculationRequestV2_0 {
   schemaVersion: typeof CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_0;
@@ -127,14 +136,23 @@ export interface CustomerCalculationRequestV2_0 {
   site: CustomerSiteInput;
 }
 
-export interface CustomerCalculationRequestV2 {
-  schemaVersion: typeof CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION;
+/** Read-only compatibility shape for requests saved during Phase 2.1. */
+export interface CustomerCalculationRequestV2_1 {
+  schemaVersion: typeof CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION_V2_1;
   energy: CustomerEnergyInput;
   site: CustomerSiteInput;
 }
 
+/** Current customer request contract. Electrical phase is explicitly selected. */
+export interface CustomerCalculationRequestV2 {
+  schemaVersion: typeof CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION;
+  energy: CustomerEnergyInput;
+  site: CustomerSiteInputV2_2;
+}
+
 export type CustomerCalculationRequest =
   | CustomerCalculationRequestV2_0
+  | CustomerCalculationRequestV2_1
   | CustomerCalculationRequestV2;
 
 export const INPUT_FIELD_ORIGINS = [

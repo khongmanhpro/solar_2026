@@ -1,5 +1,13 @@
 import type { FormEvent } from "react";
 
+import {
+  BACKUP_DEVICE_OPTIONS,
+  BACKUP_DEVICE_PRESETS,
+  calculateBackupDeviceWatts,
+  getBackupDeviceCautions,
+  getBackupDeviceLabels,
+  type BackupDeviceId,
+} from "@/config/backup-devices";
 import { formatVnd } from "@/lib/formatters";
 import {
   getCurrentBillingPeriod,
@@ -16,6 +24,7 @@ export type MoneyBillingContextKind =
   | "known"
   | "unknown";
 export type MoneyPeriodAdjustmentKind = "" | "standard" | "custom";
+export type BackupInputMode = "devices" | "manual";
 
 export interface EnergyObservationFormValue {
   period: string;
@@ -33,16 +42,19 @@ export interface CalculatorFormValues {
   moneyReferenceDays: string;
   province: string;
   daytimeBehavior: "" | DaytimeBehavior;
+  electricalPhase: "" | "single-phase" | "three-phase";
   roofKnown: "" | "true" | "false";
   roofAreaM2: string;
   backupRequired: "" | "true" | "false";
+  backupDeviceIds: BackupDeviceId[];
+  backupInputMode: BackupInputMode;
   essentialLoadWatts: string;
   backupHours: string;
 }
 
 export type CalculatorFieldName = Exclude<
   keyof CalculatorFormValues,
-  "energyObservations"
+  "energyObservations" | "backupDeviceIds" | "backupInputMode"
 >;
 export type CalculatorFormErrors = Record<string, string | undefined>;
 
@@ -61,6 +73,8 @@ interface CalculatorFormProps {
   ) => void;
   onAddObservation: () => void;
   onRemoveObservation: (index: number) => void;
+  onBackupDevicesChange: (deviceIds: BackupDeviceId[]) => void;
+  onBackupInputModeChange: (mode: BackupInputMode) => void;
   onNext: () => void;
   onBack: () => void;
   onGoToStep: (step: 1 | 2) => void;
@@ -116,6 +130,16 @@ function daytimeBehaviorLabel(value: CalculatorFormValues["daytimeBehavior"]): s
   }
 }
 
+function electricalPhaseLabel(
+  value: CalculatorFormValues["electricalPhase"],
+): string {
+  return value === "single-phase"
+    ? "Điện 1 pha"
+    : value === "three-phase"
+      ? "Điện 3 pha"
+      : "Chưa chọn";
+}
+
 function moneyBillingContextLabel(values: CalculatorFormValues): string {
   switch (values.moneyBillingContext) {
     case "standard_single_household":
@@ -131,6 +155,12 @@ function moneyBillingContextLabel(values: CalculatorFormValues): string {
     default:
       return "Chưa xác nhận";
   }
+}
+
+function backupLoadLabel(watts: number): string {
+  if (watts <= 500) return "Cơ bản";
+  if (watts <= 1_200) return "Gia đình";
+  return "Nhiều thiết bị";
 }
 
 function Progress({ currentStep }: { currentStep: CalculatorStep }) {
@@ -208,6 +238,8 @@ export function CalculatorForm({
   onObservationChange,
   onAddObservation,
   onRemoveObservation,
+  onBackupDevicesChange,
+  onBackupInputModeChange,
   onNext,
   onBack,
   onGoToStep,
@@ -645,6 +677,33 @@ export function CalculatorForm({
             <FieldError id="province-error" message={errors.province} />
           </div>
 
+          <fieldset aria-invalid={Boolean(errors.electricalPhase)}>
+            <legend className="text-sm font-semibold text-[var(--ink)]">
+              Hệ thống điện tại nhà bạn
+            </legend>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {[
+                ["single-phase", "Điện 1 pha"],
+                ["three-phase", "Điện 3 pha"],
+              ].map(([value, label]) => (
+                <label className={choiceClassName} key={value}>
+                  <input
+                    aria-describedby={errors.electricalPhase ? "electricalPhase-error" : undefined}
+                    checked={values.electricalPhase === value}
+                    className="mt-0.5 size-5 shrink-0 accent-[var(--brand)]"
+                    disabled={isSubmitting}
+                    name="electricalPhase"
+                    onChange={(event) => onChange("electricalPhase", event.target.value)}
+                    type="radio"
+                    value={value}
+                  />
+                  <span className="text-sm font-semibold text-[var(--ink)]">{label}</span>
+                </label>
+              ))}
+            </div>
+            <FieldError id="electricalPhase-error" message={errors.electricalPhase} />
+          </fieldset>
+
           <fieldset>
             <legend className="text-sm font-semibold text-[var(--ink)]">
               Từ 8:00–17:00, nhà bạn thường như thế nào?
@@ -764,12 +823,147 @@ export function CalculatorForm({
 
           {values.backupRequired === "true" ? (
             <div className="rounded-xl border border-[var(--line)] p-4">
-              <h4 className="text-sm font-semibold text-[var(--ink)]">Nếu biết, hãy bổ sung nhu cầu dự phòng</h4>
+              <h4 className="text-sm font-semibold text-[var(--ink)]">Khi mất điện, bạn muốn ưu tiên thiết bị nào?</h4>
               <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
-                Hai ô này không bắt buộc. Để trống sẽ được lưu là “chưa biết”, không tự điền một con số giả định.
+                Chọn các thiết bị cần dùng. Hệ thống sẽ tự ước tính công suất để đề xuất pin và inverter phù hợp.
               </p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                {BACKUP_DEVICE_PRESETS.map((preset) => {
+                  const isSelected =
+                    preset.deviceIds.length === values.backupDeviceIds.length &&
+                    preset.deviceIds.every((deviceId) => values.backupDeviceIds.includes(deviceId));
+
+                  return (
+                    <button
+                      aria-pressed={isSelected}
+                      className={`rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] ${
+                        isSelected
+                          ? "border-[var(--brand)] bg-[var(--brand-soft)]"
+                          : "border-[var(--line)] bg-[var(--paper)] hover:border-[var(--brand)]"
+                      }`}
+                      disabled={isSubmitting}
+                      key={preset.id}
+                      onClick={() => onBackupDevicesChange([...preset.deviceIds])}
+                      type="button"
+                    >
+                      <span className="block text-sm font-semibold text-[var(--ink)]">{preset.label}</span>
+                      <span className="mt-1 block text-xs leading-5 text-[var(--muted)]">{preset.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {BACKUP_DEVICE_OPTIONS.map((device) => {
+                  const isSelected = values.backupDeviceIds.includes(device.id);
+
+                  return (
+                    <button
+                      aria-pressed={isSelected}
+                      className={`min-h-16 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] ${
+                        isSelected
+                          ? "border-[var(--brand)] bg-[var(--brand-soft)]"
+                          : "border-[var(--line)] bg-[var(--paper)] hover:border-[var(--brand)]"
+                      }`}
+                      disabled={isSubmitting}
+                      key={device.id}
+                      onClick={() =>
+                        onBackupDevicesChange(
+                          isSelected
+                            ? values.backupDeviceIds.filter((deviceId) => deviceId !== device.id)
+                            : [...values.backupDeviceIds, device.id],
+                        )
+                      }
+                      type="button"
+                    >
+                      <span className="block text-sm font-semibold text-[var(--ink)]">{device.label}</span>
+                      <span className="mt-1 block text-xs leading-5 text-[var(--muted)]">{device.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm leading-6">
+                <span className="text-[var(--muted)]">
+                  {values.backupDeviceIds.length > 0
+                    ? `Đã chọn: ${getBackupDeviceLabels(values.backupDeviceIds).join(", ")} · Mức dự phòng ${backupLoadLabel(calculateBackupDeviceWatts(values.backupDeviceIds))}`
+                    : "Chưa chọn thiết bị — có thể bổ sung sau khi khảo sát."}
+                </span>
+                {values.backupDeviceIds.length > 0 ? (
+                  <button
+                    className="font-semibold text-[var(--brand-dark)] underline underline-offset-4"
+                    disabled={isSubmitting}
+                    onClick={() => onBackupDevicesChange([])}
+                    type="button"
+                  >
+                    Xóa lựa chọn
+                  </button>
+                ) : null}
+              </div>
+              {getBackupDeviceCautions(values.backupDeviceIds).length > 0 ? (
+                <p className="mt-2 text-xs leading-5 text-[var(--warning-ink)]">
+                  {getBackupDeviceCautions(values.backupDeviceIds).join(" ")}
+                </p>
+              ) : null}
+
+              <div className="mt-5 border-t border-[var(--line)] pt-4">
+                <label className="text-sm font-semibold text-[var(--ink)]" htmlFor="backupHours">Muốn duy trì trong bao lâu?</label>
+                <div aria-label="Thời gian dự phòng gợi ý" className="mt-2 flex flex-wrap gap-2" role="group">
+                  {[
+                    ["2", "2 giờ"],
+                    ["4", "4 giờ"],
+                    ["8", "8 giờ"],
+                    ["", "Chưa biết"],
+                  ].map(([value, label]) => (
+                    <button
+                      aria-pressed={values.backupHours === value}
+                      className={`min-h-11 rounded-lg border px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] ${
+                        values.backupHours === value
+                          ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-dark)]"
+                          : "border-[var(--line)] text-[var(--muted)] hover:border-[var(--brand)]"
+                      }`}
+                      disabled={isSubmitting}
+                      key={label}
+                      onClick={() => onChange("backupHours", value)}
+                      type="button"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="relative mt-3 max-w-xs">
+                  <input
+                    aria-describedby={errors.backupHours ? "backupHours-error" : undefined}
+                    aria-invalid={Boolean(errors.backupHours)}
+                    className={`${fieldClassName} pr-16`}
+                    disabled={isSubmitting}
+                    id="backupHours"
+                    inputMode="decimal"
+                    min="0.1"
+                    name="backupHours"
+                    onChange={(event) => onChange("backupHours", event.target.value)}
+                    placeholder="Hoặc nhập số giờ khác"
+                    step="0.5"
+                    type="number"
+                    value={values.backupHours}
+                  />
+                  <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-[var(--muted)]">giờ</span>
+                </div>
+                <FieldError id="backupHours-error" message={errors.backupHours} />
+              </div>
+
+              <div className="mt-4">
+                <button
+                  aria-expanded={values.backupInputMode === "manual"}
+                  className="text-sm font-semibold text-[var(--brand-dark)] underline underline-offset-4"
+                  disabled={isSubmitting}
+                  onClick={() => onBackupInputModeChange(values.backupInputMode === "manual" ? "devices" : "manual")}
+                  type="button"
+                >
+                  {values.backupInputMode === "manual" ? "Dùng danh sách thiết bị" : "Tôi biết công suất chính xác"}
+                </button>
+              </div>
+
+              {values.backupInputMode === "manual" ? (
+                <div className="mt-3 max-w-sm">
                   <label className="text-sm font-semibold text-[var(--ink)]" htmlFor="essentialLoadWatts">Tổng công suất thiết bị thiết yếu</label>
                   <div className="relative">
                     <input
@@ -791,29 +985,7 @@ export function CalculatorForm({
                   </div>
                   <FieldError id="essentialLoadWatts-error" message={errors.essentialLoadWatts} />
                 </div>
-                <div>
-                  <label className="text-sm font-semibold text-[var(--ink)]" htmlFor="backupHours">Muốn duy trì trong bao lâu</label>
-                  <div className="relative">
-                    <input
-                      aria-describedby={errors.backupHours ? "backupHours-error" : undefined}
-                      aria-invalid={Boolean(errors.backupHours)}
-                      className={`${fieldClassName} pr-16`}
-                      disabled={isSubmitting}
-                      id="backupHours"
-                      inputMode="decimal"
-                      min="0.1"
-                      name="backupHours"
-                      onChange={(event) => onChange("backupHours", event.target.value)}
-                      placeholder="Ví dụ: 4"
-                      step="0.5"
-                      type="number"
-                      value={values.backupHours}
-                    />
-                    <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-[var(--muted)]">giờ</span>
-                  </div>
-                  <FieldError id="backupHours-error" message={errors.backupHours} />
-                </div>
-              </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -874,12 +1046,26 @@ export function CalculatorForm({
                   <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand)]">Ngôi nhà</p>
                   <p><strong>Khu vực:</strong> {selectedProvince?.name ?? values.province}</p>
                   <p><strong>Ban ngày:</strong> {daytimeBehaviorLabel(values.daytimeBehavior)}</p>
+                  <p><strong>Hệ thống điện:</strong> {electricalPhaseLabel(values.electricalPhase)}</p>
                   <p><strong>Diện tích mái:</strong> {values.roofKnown === "true" ? `${values.roofAreaM2} m²` : "Chưa biết — cần khảo sát"}</p>
                   <p><strong>Điện dự phòng:</strong> {values.backupRequired === "true" ? "Có" : "Không"}</p>
                   {values.backupRequired === "true" ? (
-                    <p className="text-[var(--muted)]">
-                      Tải thiết yếu: {values.essentialLoadWatts ? `${values.essentialLoadWatts} W` : "chưa biết"} · Thời gian: {values.backupHours ? `${values.backupHours} giờ` : "chưa biết"}
-                    </p>
+                    <>
+                      <p className="text-[var(--muted)]">
+                        Thiết bị ưu tiên: {values.backupInputMode === "manual"
+                          ? values.essentialLoadWatts
+                            ? `${values.essentialLoadWatts} W theo nhập tay`
+                            : "chưa biết"
+                          : values.backupDeviceIds.length > 0
+                            ? getBackupDeviceLabels(values.backupDeviceIds).join(", ")
+                            : "chưa biết"} · Thời gian: {values.backupHours ? `${values.backupHours} giờ` : "chưa biết"}
+                      </p>
+                      {getBackupDeviceCautions(values.backupDeviceIds).length > 0 ? (
+                        <p className="text-xs text-[var(--warning-ink)]">
+                          {getBackupDeviceCautions(values.backupDeviceIds).join(" ")}
+                        </p>
+                      ) : null}
+                    </>
                   ) : null}
                 </div>
                 <button className="min-h-11 px-2 text-sm font-semibold text-[var(--brand-dark)] underline underline-offset-4" onClick={() => onGoToStep(2)} type="button">Sửa</button>

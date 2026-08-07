@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import {
   DataStatus as PrismaDataStatus,
+  ElectricalPhase as PrismaElectricalPhase,
   PrismaClient,
   SolarSystemType as PrismaSolarSystemType,
 } from "@prisma/client";
@@ -73,6 +74,8 @@ const migrationPaths = [
   "../prisma/migrations/20260722120000_add_data_governance/migration.sql",
   "../prisma/migrations/20260722123000_backfill_governance_sources/migration.sql",
   "../prisma/migrations/20260722130000_phase1_customer_input/migration.sql",
+  "../prisma/migrations/20260806090000_add_electrical_phase/migration.sql",
+  "../prisma/migrations/20260806120000_add_pvgis_monthly_yield/migration.sql",
 ].map((migrationPath) => new URL(migrationPath, import.meta.url));
 
 describe("service integration", () => {
@@ -122,6 +125,7 @@ describe("service integration", () => {
           solarPackage.systemType === "grid-tied"
             ? PrismaSolarSystemType.GRID_TIED
             : PrismaSolarSystemType.HYBRID,
+        electricalPhase: PrismaElectricalPhase.SINGLE_PHASE,
       })),
     });
   });
@@ -194,6 +198,27 @@ describe("service integration", () => {
     });
   });
 
+  it("lưu pha khách chọn trong calculation và snapshot 2.2", async () => {
+    const result = await services.calculations.create({
+      ...validCustomerCalculationInput,
+      schemaVersion: "2.2.0",
+      site: {
+        ...validCustomerCalculationInput.site,
+        electricalPhase: "single-phase",
+      },
+    });
+    const stored = await prisma.calculation.findUnique({
+      where: { id: result.calculationId },
+    });
+
+    expect(stored?.electricalPhase).toBe(PrismaElectricalPhase.SINGLE_PHASE);
+    expect(result.inputSummary.electricalPhase).toBe("single-phase");
+    expect(result.sourceSnapshot.siteInput.electricalPhase).toMatchObject({
+      value: "single-phase",
+      origin: "customer",
+    });
+  });
+
   it("chỉ dùng catalog trial trong development khi bật cờ", async () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("TRIAL_MARKET_DATA_ENABLED", "true");
@@ -208,6 +233,7 @@ describe("service integration", () => {
         dataVersion: "market-data-trial-fixture-v1",
         sourceReference: "workbook:test; trial-only",
         systemType: PrismaSolarSystemType.GRID_TIED,
+        electricalPhase: PrismaElectricalPhase.SINGLE_PHASE,
       },
     });
 
@@ -243,6 +269,7 @@ describe("service integration", () => {
         dataVersion: "market-data-trial-public-preview-v1",
         sourceReference: "workbook:test; public-preview",
         systemType: PrismaSolarSystemType.GRID_TIED,
+        electricalPhase: PrismaElectricalPhase.SINGLE_PHASE,
       },
     });
 
@@ -592,6 +619,7 @@ describe("service integration", () => {
       baseMonthlyGenerationKwh: basePackage.baseMonthlyGenerationKwh,
       requiredRoofAreaM2: basePackage.requiredRoofAreaM2,
       systemType: basePackage.systemType,
+      electricalPhase: basePackage.electricalPhase,
       batteryCapacityKwh: basePackage.batteryCapacityKwh,
       equipmentSummary: basePackage.equipmentSummary,
       panelBrand: basePackage.panelBrand,

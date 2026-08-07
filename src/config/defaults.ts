@@ -110,6 +110,7 @@ export const DEFAULT_SOLAR_PACKAGES = [
     baseMonthlyGenerationKwh: 240,
     requiredRoofAreaM2: 12,
     systemType: "grid-tied",
+    electricalPhase: "single-phase",
     batteryCapacityKwh: 0,
     equipmentSummary:
       "Tấm pin, inverter hòa lưới, khung, tủ điện và thi công tiêu chuẩn.",
@@ -133,6 +134,7 @@ export const DEFAULT_SOLAR_PACKAGES = [
     baseMonthlyGenerationKwh: 360,
     requiredRoofAreaM2: 18,
     systemType: "grid-tied",
+    electricalPhase: "single-phase",
     batteryCapacityKwh: 0,
     equipmentSummary:
       "Tấm pin, inverter hòa lưới, khung, tủ điện, giám sát và thi công.",
@@ -155,6 +157,7 @@ export const DEFAULT_SOLAR_PACKAGES = [
     baseMonthlyGenerationKwh: 600,
     requiredRoofAreaM2: 30,
     systemType: "grid-tied",
+    electricalPhase: "single-phase",
     batteryCapacityKwh: 0,
     equipmentSummary:
       "Tấm pin, inverter hòa lưới, khung, tủ điện, giám sát và thi công.",
@@ -177,6 +180,7 @@ export const DEFAULT_SOLAR_PACKAGES = [
     baseMonthlyGenerationKwh: 360,
     requiredRoofAreaM2: 18,
     systemType: "hybrid",
+    electricalPhase: "single-phase",
     batteryCapacityKwh: 5,
     equipmentSummary:
       "Tấm pin, inverter hybrid, pin lưu trữ 5 kWh, khung, tủ điện và thi công.",

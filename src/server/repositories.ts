@@ -1,6 +1,7 @@
 import {
   DataStatus as PrismaDataStatus,
   DaytimeUsageLevel as PrismaDaytimeUsageLevel,
+  ElectricalPhase as PrismaElectricalPhase,
   ElectricityType as PrismaElectricityType,
   LeadStatus as PrismaLeadStatus,
   Prisma,
@@ -12,6 +13,7 @@ import type {
   AdminLeadDetail,
   CalculationSettings,
   DataGovernanceMetadata,
+  ElectricalPhase,
   ElectricityType,
   LeadInput,
   LeadRecord,
@@ -23,6 +25,9 @@ import type {
   SolarSystemType,
 } from "@/types/solar";
 import type { DataStatus } from "@/types/data-governance";
+import {
+  CUSTOMER_REFERENCE_PACKAGE_DATA_VERSION,
+} from "@/config/customer-reference-packages";
 import {
   isTrialMarketDataEnabled,
   TRIAL_PACKAGE_DATA_VERSION_PREFIX,
@@ -69,6 +74,22 @@ const domainElectricityTypeByPrisma: Record<
   ElectricityType
 > = {
   RESIDENTIAL: "residential",
+};
+
+const prismaElectricalPhaseByDomain: Record<
+  ElectricalPhase,
+  PrismaElectricalPhase
+> = {
+  "single-phase": PrismaElectricalPhase.SINGLE_PHASE,
+  "three-phase": PrismaElectricalPhase.THREE_PHASE,
+};
+
+const domainElectricalPhaseByPrisma: Record<
+  PrismaElectricalPhase,
+  ElectricalPhase
+> = {
+  SINGLE_PHASE: "single-phase",
+  THREE_PHASE: "three-phase",
 };
 
 const prismaLeadStatusByDomain: Record<LeadStatus, PrismaLeadStatus> = {
@@ -151,6 +172,7 @@ function mapSolarPackage(record: PrismaSolarPackageRecord): SolarPackage {
     baseMonthlyGenerationKwh: record.baseMonthlyGenerationKwh,
     requiredRoofAreaM2: record.requiredRoofAreaM2,
     systemType: domainSystemTypeByPrisma[record.systemType],
+    electricalPhase: domainElectricalPhaseByPrisma[record.electricalPhase],
     batteryCapacityKwh: record.batteryCapacityKwh,
     equipmentSummary: record.equipmentSummary,
     panelBrand: record.panelBrand,
@@ -165,12 +187,33 @@ function mapSolarPackage(record: PrismaSolarPackageRecord): SolarPackage {
 }
 
 function mapProvinceFactor(record: PrismaProvinceFactorRecord): ProvinceFactor {
+  let monthlyYieldKwhPerKwp: number[] | null = null;
+  if (record.monthlyYieldKwhPerKwpJson) {
+    try {
+      const parsed = JSON.parse(record.monthlyYieldKwhPerKwpJson) as unknown;
+      if (
+        Array.isArray(parsed) &&
+        parsed.length === 12 &&
+        parsed.every(
+          (value) => typeof value === "number" && Number.isFinite(value) && value >= 0,
+        )
+      ) {
+        monthlyYieldKwhPerKwp = parsed;
+      }
+    } catch {
+      monthlyYieldKwhPerKwp = null;
+    }
+  }
+
   return {
     ...mapDataGovernance(record),
     id: record.id,
     code: record.code,
     name: record.name,
     factor: record.factor,
+    latitude: record.latitude,
+    longitude: record.longitude,
+    monthlyYieldKwhPerKwp,
     active: record.active,
     displayOrder: record.displayOrder,
   };
@@ -223,6 +266,17 @@ export class SolarPackageRepository {
 
   async list(activeOnly = false): Promise<SolarPackage[]> {
     if (activeOnly) {
+      const referenceRecords = await this.prisma.solarPackage.findMany({
+        where: {
+          active: true,
+          dataVersion: CUSTOMER_REFERENCE_PACKAGE_DATA_VERSION,
+        },
+        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+      });
+      if (referenceRecords.length > 0) {
+        return referenceRecords.map(mapSolarPackage);
+      }
+
       const trialEnabled = isTrialMarketDataEnabled();
       if (trialEnabled) {
         const trialRecords = await this.prisma.solarPackage.findMany({
@@ -261,11 +315,12 @@ export class SolarPackageRepository {
   }
 
   async create(data: SolarPackageCreateData): Promise<SolarPackage> {
-    const { systemType, ...remainingData } = data;
+    const { systemType, electricalPhase, ...remainingData } = data;
     const record = await this.prisma.solarPackage.create({
       data: {
         ...remainingData,
         systemType: prismaSystemTypeByDomain[systemType],
+        electricalPhase: prismaElectricalPhaseByDomain[electricalPhase],
         dataStatus: PrismaDataStatus.DEMO,
         dataVersion: "demo-package-unapproved",
         approvedBy: null,
@@ -279,7 +334,7 @@ export class SolarPackageRepository {
     id: string,
     data: SolarPackageUpdateData,
   ): Promise<SolarPackage> {
-    const { systemType, ...remainingData } = data;
+    const { systemType, electricalPhase, ...remainingData } = data;
     const record = await this.prisma.solarPackage.update({
       where: { id },
       data: {
@@ -290,6 +345,9 @@ export class SolarPackageRepository {
         approvedAt: null,
         ...(systemType
           ? { systemType: prismaSystemTypeByDomain[systemType] }
+          : {}),
+        ...(electricalPhase
+          ? { electricalPhase: prismaElectricalPhaseByDomain[electricalPhase] }
           : {}),
       },
     });
@@ -445,6 +503,9 @@ export class CalculationRepository {
           prismaElectricityTypeByDomain[
             normalizedInput.electricityType.value
           ],
+        electricalPhase: input.electricalPhase
+          ? prismaElectricalPhaseByDomain[input.electricalPhase]
+          : null,
         province: siteInput.province.value,
         daytimeUsageLevel:
           prismaDaytimeLevelByDomain[siteInput.daytimeUsageLevel.value],
@@ -497,6 +558,9 @@ export class LeadRepository {
         monthlyBill: record.calculation.monthlyBill,
         electricityType:
           domainElectricityTypeByPrisma[record.calculation.electricityType],
+        electricalPhase: record.calculation.electricalPhase
+          ? domainElectricalPhaseByPrisma[record.calculation.electricalPhase]
+          : null,
         province: record.calculation.province,
         recommendedPackageName:
           record.calculation.recommendedPackage?.name ?? null,
@@ -523,6 +587,9 @@ export class LeadRepository {
         monthlyBill: record.calculation.monthlyBill,
         electricityType:
           domainElectricityTypeByPrisma[record.calculation.electricityType],
+        electricalPhase: record.calculation.electricalPhase
+          ? domainElectricalPhaseByPrisma[record.calculation.electricalPhase]
+          : null,
         province: record.calculation.province,
         daytimeUsageLevel:
           domainDaytimeLevelByPrisma[record.calculation.daytimeUsageLevel],

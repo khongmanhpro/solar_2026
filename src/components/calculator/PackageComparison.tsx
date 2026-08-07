@@ -76,7 +76,10 @@ export function PackageComparison({
             <h4 className="mt-3 text-2xl font-semibold leading-snug text-[var(--ink)]">
               {formatCustomerPackageName(solarPackage.name)}
             </h4>
-            <p className="mt-3 text-3xl font-semibold text-[var(--brand-dark)]">
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+              Giá tham khảo từ
+            </p>
+            <p className="mt-1 text-3xl font-semibold text-[var(--brand-dark)]">
               {formatVnd(solarPackage.priceVnd)}
             </p>
 

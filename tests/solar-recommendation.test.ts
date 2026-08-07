@@ -33,6 +33,7 @@ const standardInput: SolarCalculationInput = {
   ),
   monthlyBill: 2_000_000,
   electricityType: "residential",
+  electricalPhase: null,
   province: "ho-chi-minh",
   daytimeUsageLevel: "high",
   roofAreaM2: 25,
@@ -49,6 +50,28 @@ function createPackages(): SolarPackage[] {
 }
 
 describe("filterEligiblePackages", () => {
+  it("chỉ giữ inverter cùng pha khi khách đã chọn pha", () => {
+    const base = createPackages()[1]!;
+    const packages = [
+      { ...base, id: "single", electricalPhase: "single-phase" as const },
+      { ...base, id: "three", electricalPhase: "three-phase" as const },
+    ];
+
+    expect(
+      filterEligiblePackages(packages, {
+        ...standardInput,
+        electricalPhase: "single-phase",
+      }).map((item) => item.id),
+    ).toEqual(["single"]);
+    expect(
+      filterEligiblePackages(packages, {
+        ...standardInput,
+        electricalPhase: "three-phase",
+      }).map((item) => item.id),
+    ).toEqual(["three"]);
+    expect(filterEligiblePackages(packages, standardInput)).toHaveLength(2);
+  });
+
   it("không loại gói theo mái khi khách hàng chọn không biết", () => {
     const eligible = filterEligiblePackages(createPackages(), {
       ...standardInput,
