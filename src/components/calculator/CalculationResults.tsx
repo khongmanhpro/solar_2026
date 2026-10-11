@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { CashFlowChart } from "@/components/calculator/CashFlowChart";
+import { CALCULATION_CONSTANTS } from "@/config/defaults";
 import { LeadForm } from "@/components/calculator/LeadForm";
 import { PackageComparison } from "@/components/calculator/PackageComparison";
 import { trackEvent } from "@/lib/analytics";
@@ -182,6 +183,12 @@ export function CalculationResults({
   const roofAreaUnknown = result.inputSummary.roofAreaM2 === null;
   const usedDirectKwh = result.inputSummary.energyInputMethod === "kwh";
   const vatRate = result.inputSummary.vatRate ?? 0;
+  const horizonYears = selectedResult.cashFlow.at(-1)?.year ?? 20;
+  const monthlySavings = selectedResult.monthlyBreakdown?.map((month) => month.savingsVnd);
+  const seasonalSavings =
+    monthlySavings && monthlySavings.length > 0
+      ? { min: Math.min(...monthlySavings), max: Math.max(...monthlySavings) }
+      : null;
   const insights = generateSolarInsights({
     input: result.inputSummary,
     solarPackage: selectedPackage,
@@ -269,7 +276,13 @@ export function CalculationResults({
             value={formatVnd(result.inputSummary.monthlyBill * (1 + vatRate))}
           />
           <Metric label="Tiền điện sau khi lắp" value={formatVnd(selectedResult.billAfterSolarVnd)} />
-          <Metric accent label="Tiết kiệm mỗi tháng" value={formatVnd(selectedResult.monthlySavingsVnd)} />
+          <Metric accent label="Tiết kiệm trung bình mỗi tháng" value={formatVnd(selectedResult.monthlySavingsVnd)} />
+          {seasonalSavings ? (
+            <Metric
+              label="Tiết kiệm theo mùa"
+              value={`${formatVnd(seasonalSavings.min)} – ${formatVnd(seasonalSavings.max)}/tháng`}
+            />
+          ) : null}
           <Metric label="Tiết kiệm mỗi năm" value={formatVnd(selectedResult.yearlySavingsVnd)} />
           <Metric label="Tỷ lệ giảm hóa đơn" value={formatPercent(selectedResult.reductionPercent)} />
           <Metric label="Điện mặt trời tự sử dụng" value={formatPercent(selectedResult.selfConsumptionRate * 100)} />
@@ -280,7 +293,7 @@ export function CalculationResults({
       </section>
 
       <section aria-labelledby="long-term-title" className="mt-14">
-        <SectionHeading eyebrow="Tầm nhìn 20 năm" id="long-term-title" title="Hoàn vốn và lợi ích dài hạn" />
+        <SectionHeading eyebrow={`Tầm nhìn ${horizonYears} năm`} id="long-term-title" title="Hoàn vốn và lợi ích dài hạn" />
         <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr]">
           <div className="rounded-2xl bg-[var(--ink)] p-6 text-[var(--paper)]">
             <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--focus)]">Khoảng hoàn vốn dự kiến</p>
@@ -295,13 +308,15 @@ export function CalculationResults({
             </p>
           </div>
           <dl className="grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3 lg:grid-cols-1">
-            <Metric label="Tiết kiệm sau 5 năm" value={formatVnd(selectedResult.longTermSavings.saving5YearsVnd)} />
-            <Metric label="Tiết kiệm sau 10 năm" value={formatVnd(selectedResult.longTermSavings.saving10YearsVnd)} />
-            <Metric label="Tiết kiệm sau 20 năm" value={formatVnd(selectedResult.longTermSavings.saving20YearsVnd)} />
+            <Metric label="Tiết kiệm ròng sau 5 năm" value={formatVnd(selectedResult.longTermSavings.saving5YearsVnd)} />
+            <Metric label="Tiết kiệm ròng sau 10 năm" value={formatVnd(selectedResult.longTermSavings.saving10YearsVnd)} />
+            <Metric label={`Tiết kiệm ròng sau ${Math.min(20, horizonYears)} năm`} value={formatVnd(selectedResult.longTermSavings.saving20YearsVnd)} />
           </dl>
         </div>
         <p className="mt-3 text-sm leading-5 text-[var(--muted)]">
-          Chưa bao gồm biến động giá điện, suy giảm thiết bị và chi phí phát sinh.
+          {selectedResult.financial
+            ? `Đã tính giá điện tăng ${formatPercent(CALCULATION_CONSTANTS.finance.tariffEscalationRate * 100)}/năm, suy giảm tấm pin, chi phí bảo trì${selectedResult.financial.replacementCostsVnd.length > 0 ? ` và thay ${selectedResult.financial.replacementCostsVnd.map((item) => `${item.item === "battery" ? "pin lưu trữ" : "inverter"} năm ${item.year} (~${formatVnd(item.costVnd)})`).join(", ")}` : ""}. Điện dư phát lên lưới không được tính tiền.`
+            : "Chưa bao gồm biến động giá điện, suy giảm thiết bị và chi phí phát sinh."}
         </p>
       </section>
 

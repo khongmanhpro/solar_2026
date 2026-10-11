@@ -158,6 +158,25 @@ export interface CalculationScenarioResult {
   selfConsumptionRate: number;
 }
 
+export interface MonthlyBreakdownEntry {
+  /** Calendar month, 1-12. */
+  month: number;
+  generationKwh: number;
+  directSolarUseKwh: number;
+  batteryDischargeKwh: number;
+  gridImportKwh: number;
+  surplusKwh: number;
+  billAfterSolarVnd: number;
+  savingsVnd: number;
+}
+
+export interface LifetimeFinancialSummary {
+  horizonYears: number;
+  npvVnd: number;
+  irr: number | null;
+  replacementCostsVnd: { year: number; item: "inverter" | "battery"; costVnd: number }[];
+}
+
 export interface CashFlowPoint {
   year: number;
   cumulativeCashFlowVnd: number;
@@ -179,13 +198,15 @@ export interface UnscoredPackageCalculationResult
   cashFlow: CashFlowPoint[];
   breakEvenYear: number | null;
   longTermSavings: LongTermSavings;
+  /** Engine v3+: seasonal detail and lifetime finance. Absent on older snapshots. */
+  monthlyBreakdown?: MonthlyBreakdownEntry[];
+  financial?: LifetimeFinancialSummary;
 }
 
 export interface PackageScoreBreakdown {
-  targetGenerationKwh: number;
-  generationFitScore: number;
+  economicScore: number;
+  billReductionScore: number;
   selfUseScore: number;
-  paybackScore: number;
 }
 
 export interface PackageCalculationResult
@@ -194,8 +215,18 @@ export interface PackageCalculationResult
   scoreBreakdown: PackageScoreBreakdown;
 }
 
+/** Why no package is recommended; absent when one is (or on old snapshots). */
+export type NoRecommendationReason =
+  | "no_active_package"
+  | "phase_mismatch"
+  | "roof_too_small"
+  | "backup_needs_battery"
+  | "backup_exceeds_battery"
+  | "not_economical";
+
 export interface SolarRecommendationResult {
   recommendedPackage: PackageCalculationResult | null;
+  noRecommendationReason?: NoRecommendationReason;
   comparedPackages: PackageCalculationResult[];
   inputSummary: SolarCalculationInput;
   assumptions: CalculationSettings;

@@ -7,11 +7,9 @@ import {
 import { QD1279_RESIDENTIAL_TARIFF } from "@/config/electricity-tariffs";
 import {
   calculateSolarPackage,
-  createCashFlow,
   findBreakEvenYear,
 } from "@/lib/solar-calculator";
 import {
-  calculateElectricityBill,
   calculateElectricityEnergyCharge,
   estimateElectricityConsumptionFromBill,
 } from "@/lib/electricity-tariff";
@@ -77,7 +75,7 @@ describe("calculateSolarPackage", () => {
     expect(withVat.monthlySavingsVnd).toBeCloseTo(beforeVat.monthlySavingsVnd * 1.08, 6);
     expect(withVat.billAfterSolarVnd).toBeCloseTo(beforeVat.billAfterSolarVnd * 1.08, 6);
     expect(withVat.reductionPercent).toBeCloseTo(beforeVat.reductionPercent, 9);
-    expect(withVat.paybackMonths).toBeCloseTo(beforeVat.paybackMonths! / 1.08, 6);
+    expect(withVat.paybackYears!).toBeLessThan(beforeVat.paybackYears!);
   });
 
   it("từ chối thuế suất VAT ngoài khoảng 0..1", () => {
@@ -108,48 +106,6 @@ describe("calculateSolarPackage", () => {
     expect(result.daytimeDemandKwh).toBe(375);
   });
 
-  it("tính đúng ca mẫu không có pin cho gói 3 kWp", () => {
-    const result = calculateSolarPackage({
-      input: standardInput,
-      solarPackage: createPackage(1),
-      settings: defaultSettings,
-      provinceFactor: 1,
-    });
-
-    const expectedConsumption = standardInput.monthlyConsumptionKwh;
-    const expectedBillAfterSolar = calculateElectricityBill(
-      "residential",
-      expectedConsumption - 360,
-    );
-    const expectedSavings = 2_000_000 - expectedBillAfterSolar;
-
-    expect(result.estimatedMonthlyConsumptionKwh).toBe(expectedConsumption);
-    expect(result.daytimeDemandKwh).toBeCloseTo(
-      expectedConsumption * 0.75,
-      10,
-    );
-    expect(result.adjustedGenerationKwh).toBe(360);
-    expect(result.directSolarUseKwh).toBe(360);
-    expect(result.batteryUseKwh).toBe(0);
-    expect(result.totalSolarUseKwh).toBe(360);
-    expect(result.gridConsumptionAfterSolarKwh).toBeCloseTo(
-      expectedConsumption - 360,
-      10,
-    );
-    expect(result.monthlySavingsVnd).toBeCloseTo(expectedSavings, 10);
-    expect(result.billAfterSolarVnd).toBeCloseTo(expectedBillAfterSolar, 10);
-    expect(result.reductionPercent).toBeCloseTo(
-      (expectedSavings / 2_000_000) * 100,
-      10,
-    );
-    expect(result.paybackMonths).toBeCloseTo(30_000_000 / expectedSavings, 10);
-    expect(result.paybackYears).toBeCloseTo(
-      30_000_000 / expectedSavings / 12,
-      10,
-    );
-    expect(result.selfConsumptionRate).toBe(1);
-  });
-
   it("không cho tiền tiết kiệm vượt hóa đơn hoặc hóa đơn còn lại âm", () => {
     const result = calculateSolarPackage({
       input: {
@@ -171,41 +127,6 @@ describe("calculateSolarPackage", () => {
     expect(result.billAfterSolarVnd).toBeGreaterThanOrEqual(0);
     expect(result.billAfterSolarVnd).toBeCloseTo(0, 6);
     expect(result.reductionPercent).toBe(100);
-  });
-
-  it("giới hạn điện lấy từ pin bởi điện dư, công suất xả và nhu cầu còn lại", () => {
-    const result = calculateSolarPackage({
-      input: {
-        ...standardInput,
-        daytimeUsageLevel: "low",
-        backupRequired: true,
-      },
-      solarPackage: createPackage(3),
-      settings: defaultSettings,
-      provinceFactor: 1,
-    });
-
-    const monthlyBatteryCapacity = 5 * 30 * 1 * 0.9;
-    expect(result.solarSurplusKwh).toBeGreaterThan(0);
-    expect(result.batteryUseKwh).toBeLessThanOrEqual(
-      result.solarSurplusKwh,
-    );
-    expect(result.batteryUseKwh).toBe(monthlyBatteryCapacity);
-  });
-
-  it("không để pin tự tạo điện khi không có điện mặt trời dư", () => {
-    const result = calculateSolarPackage({
-      input: {
-        ...standardInput,
-        backupRequired: true,
-      },
-      solarPackage: createPackage(3),
-      settings: defaultSettings,
-      provinceFactor: 1,
-    });
-
-    expect(result.solarSurplusKwh).toBe(0);
-    expect(result.batteryUseKwh).toBe(0);
   });
 
   it("giữ cùng định mức nhiều hộ và kỳ đổi ngày khi tính hóa đơn sau solar", () => {
@@ -276,110 +197,6 @@ describe("calculateSolarPackage", () => {
     expect(result.adjustedGenerationKwh).toBeCloseTo(316.8, 10);
   });
 
-  it("ưu tiên sản lượng kWh/kWp theo 12 tháng từ PVGIS khi đã đồng bộ", () => {
-    const result = calculateSolarPackage({
-      input: standardInput,
-      solarPackage: createPackage(1),
-      settings: defaultSettings,
-      provinceFactor: 0.88,
-      provinceMonthlyYieldKwhPerKwp: Array(12).fill(100),
-    });
-
-    expect(result.adjustedGenerationKwh).toBeCloseTo(300, 10);
-  });
-
-  it("tính lại đầy đủ kịch bản thấp và cao", () => {
-    const result = calculateSolarPackage({
-      input: standardInput,
-      solarPackage: createPackage(1),
-      settings: defaultSettings,
-      provinceFactor: 1,
-    });
-
-    expect(result.lowEstimate.adjustedGenerationKwh).toBe(324);
-    const lowBillAfter = calculateElectricityBill(
-      "residential",
-      standardInput.monthlyConsumptionKwh - 324,
-    );
-    const lowSavings = 2_000_000 - lowBillAfter;
-    expect(result.lowEstimate.monthlySavingsVnd).toBeCloseTo(lowSavings, 10);
-    expect(result.lowEstimate.billAfterSolarVnd).toBeCloseTo(lowBillAfter, 10);
-    expect(result.lowEstimate.paybackMonths).toBeCloseTo(
-      30_000_000 / lowSavings,
-      10,
-    );
-
-    expect(result.highEstimate.adjustedGenerationKwh).toBe(378);
-    const highBillAfter = calculateElectricityBill(
-      "residential",
-      standardInput.monthlyConsumptionKwh - 378,
-    );
-    const highSavings = 2_000_000 - highBillAfter;
-    expect(result.highEstimate.monthlySavingsVnd).toBeCloseTo(highSavings, 10);
-    expect(result.highEstimate.billAfterSolarVnd).toBeCloseTo(highBillAfter, 10);
-    expect(result.highEstimate.paybackMonths).toBeCloseTo(
-      30_000_000 / highSavings,
-      10,
-    );
-  });
-
-  it("không nhân payback với hệ số khi pin đã chạm giới hạn xả", () => {
-    const result = calculateSolarPackage({
-      input: {
-        ...standardInput,
-        daytimeUsageLevel: "low",
-        backupRequired: true,
-      },
-      solarPackage: createPackage(3, {
-        baseMonthlyGenerationKwh: 600,
-      }),
-      settings: defaultSettings,
-      provinceFactor: 1,
-    });
-
-    expect(result.lowEstimate.monthlySavingsVnd).toBe(
-      result.monthlySavingsVnd,
-    );
-    expect(result.highEstimate.monthlySavingsVnd).toBe(
-      result.monthlySavingsVnd,
-    );
-    expect(result.lowEstimate.paybackMonths).toBe(result.paybackMonths);
-    expect(result.highEstimate.paybackMonths).toBe(result.paybackMonths);
-  });
-
-  it("tạo cash flow 0–20 năm, mốc hòa vốn và tiết kiệm dài hạn", () => {
-    const result = calculateSolarPackage({
-      input: standardInput,
-      solarPackage: createPackage(1),
-      settings: defaultSettings,
-      provinceFactor: 1,
-    });
-
-    expect(result.cashFlow).toHaveLength(21);
-    expect(result.cashFlow[0]).toEqual({
-      year: 0,
-      cumulativeCashFlowVnd: -30_000_000,
-    });
-    expect(result.cashFlow[20]?.year).toBe(20);
-    expect(result.cashFlow[20]?.cumulativeCashFlowVnd).toBeCloseTo(
-      -30_000_000 + result.yearlySavingsVnd * 20,
-      10,
-    );
-    expect(result.breakEvenYear).toBe(3);
-    expect(result.longTermSavings.saving5YearsVnd).toBeCloseTo(
-      result.yearlySavingsVnd * 5,
-      10,
-    );
-    expect(result.longTermSavings.saving10YearsVnd).toBeCloseTo(
-      result.yearlySavingsVnd * 10,
-      10,
-    );
-    expect(result.longTermSavings.saving20YearsVnd).toBeCloseTo(
-      result.yearlySavingsVnd * 20,
-      10,
-    );
-  });
-
   it("từ chối dữ liệu số âm hoặc giá điện bằng 0", () => {
     expect(() =>
       calculateSolarPackage({
@@ -417,8 +234,161 @@ describe("calculateSolarPackage", () => {
 });
 
 describe("cash flow helpers", () => {
-  it("trả null khi dòng tiền chưa hòa vốn trong 20 năm", () => {
-    const cashFlow = createCashFlow(50_000_000, 1_000_000);
-    expect(findBreakEvenYear(cashFlow)).toBeNull();
+  it("trả null khi dòng tiền chưa hòa vốn", () => {
+    expect(
+      findBreakEvenYear([
+        { year: 0, cumulativeCashFlowVnd: -50_000_000 },
+        { year: 1, cumulativeCashFlowVnd: -49_000_000 },
+      ]),
+    ).toBeNull();
+  });
+});
+
+describe("calculateSolarPackage — engine v3 invariants", () => {
+  const hybridPackage = createPackage(3);
+  const seasonalNorth = [64, 63, 75, 88, 115, 121, 126, 127, 112, 117, 88, 78];
+  const scenarios = [
+    { name: "hòa lưới, ít ở nhà", solarPackage: createPackage(1), daytime: "low" as const },
+    { name: "hòa lưới, hay ở nhà", solarPackage: createPackage(1), daytime: "high" as const },
+    { name: "hybrid, ít ở nhà", solarPackage: hybridPackage, daytime: "low" as const },
+    { name: "hybrid, hay ở nhà", solarPackage: hybridPackage, daytime: "high" as const },
+  ];
+
+  for (const scenario of scenarios) {
+    it(`bảo toàn năng lượng và không âm từng tháng (${scenario.name})`, () => {
+      const result = calculateSolarPackage({
+        input: { ...standardInput, daytimeUsageLevel: scenario.daytime },
+        solarPackage: scenario.solarPackage,
+        settings: defaultSettings,
+        provinceFactor: 1,
+        provinceMonthlyYieldKwhPerKwp: seasonalNorth,
+      });
+      const months = result.monthlyBreakdown!;
+      expect(months).toHaveLength(12);
+      for (const month of months) {
+        for (const value of Object.values(month)) {
+          expect(Number.isFinite(value)).toBe(true);
+          expect(value).toBeGreaterThanOrEqual(0);
+        }
+        // PV is split between direct use, battery charging and surplus.
+        expect(month.directSolarUseKwh + month.surplusKwh).toBeLessThanOrEqual(
+          month.generationKwh + 1e-6,
+        );
+        // Battery cannot return more than it was charged with.
+        expect(month.batteryDischargeKwh).toBeLessThanOrEqual(
+          (month.generationKwh - month.directSolarUseKwh - month.surplusKwh) + 1e-6,
+        );
+        expect(month.billAfterSolarVnd).toBeLessThanOrEqual(standardInput.monthlyBill + 1e-6);
+      }
+      expect(result.reductionPercent).toBeGreaterThanOrEqual(0);
+      expect(result.reductionPercent).toBeLessThanOrEqual(100);
+      expect(result.selfConsumptionRate).toBeGreaterThanOrEqual(0);
+      expect(result.selfConsumptionRate).toBeLessThanOrEqual(1);
+    });
+  }
+
+  it("giữ mùa vụ: tháng ít nắng tiết kiệm ít hơn tháng nhiều nắng", () => {
+    const result = calculateSolarPackage({
+      input: standardInput,
+      solarPackage: createPackage(1),
+      settings: defaultSettings,
+      provinceFactor: 1,
+      provinceMonthlyYieldKwhPerKwp: seasonalNorth,
+    });
+    const [january, , , , , , july] = result.monthlyBreakdown!;
+    expect(january.generationKwh).toBeLessThan(july.generationKwh);
+    expect(january.savingsVnd).toBeLessThan(july.savingsVnd);
+    // Billing month is 30 days; PV intensity follows the real month length.
+    expect(january.generationKwh).toBeCloseTo((3 * 64 * 30) / 31, 6);
+  });
+
+  it("dùng sản lượng phẳng base × hệ số tỉnh khi chưa có dữ liệu 12 tháng", () => {
+    const result = calculateSolarPackage({
+      input: standardInput,
+      solarPackage: createPackage(1),
+      settings: defaultSettings,
+      provinceFactor: 0.88,
+    });
+    for (const month of result.monthlyBreakdown!) {
+      expect(month.generationKwh).toBeCloseTo(316.8, 6);
+    }
+  });
+
+  it("pin hybrid không đưa hóa đơn về 0 khi có ngày âm u", () => {
+    const result = calculateSolarPackage({
+      input: { ...standardInput, daytimeUsageLevel: "medium" },
+      solarPackage: createPackage(3, { baseMonthlyGenerationKwh: 650, batteryCapacityKwh: 16 }),
+      settings: defaultSettings,
+      provinceFactor: 1,
+    });
+    expect(result.batteryUseKwh).toBeGreaterThan(0);
+    expect(result.gridConsumptionAfterSolarKwh).toBeGreaterThan(0);
+    expect(result.billAfterSolarVnd).toBeGreaterThan(0);
+  });
+
+  it("dự trữ dự phòng làm giảm điện pin dùng hằng ngày", () => {
+    const base = {
+      solarPackage: createPackage(3, { baseMonthlyGenerationKwh: 650, batteryCapacityKwh: 16 }),
+      settings: defaultSettings,
+      provinceFactor: 1,
+    };
+    const withoutReserve = calculateSolarPackage({
+      ...base,
+      input: { ...standardInput, daytimeUsageLevel: "low", backupRequired: true },
+    });
+    const withReserve = calculateSolarPackage({
+      ...base,
+      input: {
+        ...standardInput,
+        daytimeUsageLevel: "low",
+        backupRequired: true,
+        essentialLoadWatts: 1_000,
+        backupHours: 8,
+      },
+    });
+    expect(withReserve.batteryUseKwh).toBeLessThan(withoutReserve.batteryUseKwh);
+  });
+
+  it("kịch bản thấp/cao chạy lại toàn bộ mô hình với hệ số sản lượng", () => {
+    const result = calculateSolarPackage({
+      input: standardInput,
+      solarPackage: createPackage(1),
+      settings: defaultSettings,
+      provinceFactor: 1,
+    });
+    expect(result.lowEstimate.adjustedGenerationKwh).toBeCloseTo(
+      result.adjustedGenerationKwh * defaultSettings.lowEstimateFactor,
+      6,
+    );
+    expect(result.highEstimate.adjustedGenerationKwh).toBeCloseTo(
+      result.adjustedGenerationKwh * defaultSettings.highEstimateFactor,
+      6,
+    );
+    expect(result.lowEstimate.monthlySavingsVnd).toBeLessThanOrEqual(result.monthlySavingsVnd);
+    expect(result.highEstimate.monthlySavingsVnd).toBeGreaterThanOrEqual(result.monthlySavingsVnd);
+  });
+
+  it("dòng tiền theo vòng đời trong settings, hoàn vốn khớp mốc hòa vốn", () => {
+    const result = calculateSolarPackage({
+      input: standardInput,
+      solarPackage: createPackage(1),
+      settings: { ...defaultSettings, systemLifetimeYears: 25, maintenanceRatePerYear: 0.01 },
+      provinceFactor: 1,
+    });
+    expect(result.cashFlow).toHaveLength(26);
+    expect(result.cashFlow[0]).toEqual({ year: 0, cumulativeCashFlowVnd: -30_000_000 });
+    expect(result.financial?.horizonYears).toBe(25);
+    expect(result.paybackYears).not.toBeNull();
+    expect(result.breakEvenYear).toBe(Math.ceil(result.paybackYears!));
+    expect(result.paybackMonths).toBeCloseTo(result.paybackYears! * 12, 9);
+    // Net savings over 5 years = cumulative cash flow at year 5 + price.
+    expect(result.longTermSavings.saving5YearsVnd).toBeCloseTo(
+      result.cashFlow[5].cumulativeCashFlowVnd + 30_000_000,
+      3,
+    );
+    // Inverter replacement at year 12 shows up as a dip in yearly net flow.
+    const flow = (year: number) =>
+      result.cashFlow[year].cumulativeCashFlowVnd - result.cashFlow[year - 1].cumulativeCashFlowVnd;
+    expect(flow(12)).toBeLessThan(flow(11));
   });
 });

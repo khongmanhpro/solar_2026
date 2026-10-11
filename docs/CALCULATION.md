@@ -1,5 +1,13 @@
 # Calculation engine
 
+> **Từ thuật toán `3.0.0-hourly-lifetime` (11/10/2026)** phần sản lượng, tự dùng,
+> pin, hóa đơn, dòng tiền và xếp hạng được thay bằng mô phỏng theo giờ × 12 tháng
+> × 3 loại ngày, pin có DoD/dự trữ dự phòng, tài chính vòng đời và quy tắc đề xuất
+> trung thực. Thiết kế, giả định và ma trận ca: [ENGINE-V3-DESIGN.md](./ENGINE-V3-DESIGN.md).
+> Các mục "Điện tự dùng và pin lưu trữ", "Hóa đơn sau solar", "Ba kịch bản" bên
+> dưới mô tả engine v2 và chỉ còn giá trị lịch sử cho snapshot cũ; phần đầu vào,
+> biểu giá và suy ngược hóa đơn vẫn hiện hành.
+
 Tài liệu này mô tả đúng trạng thái thuật toán hiện tại. Đây là công cụ ước tính
 MVP, không phải mô phỏng thiết kế kỹ thuật hoặc báo giá chính thức.
 

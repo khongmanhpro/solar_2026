@@ -53,19 +53,70 @@ export const SOLAR_INPUT_LIMITS = {
 } as const;
 
 export const CALCULATION_CONSTANTS = {
+  /** Billing month normalised to 30 days; PV intensity uses real month days. */
   daysPerMonth: 30,
+  daysInMonth: [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+  /** Fallback horizon when settings are unavailable (legacy helpers). */
   cashFlowHorizonYears: 20,
   longTermSavingYears: [5, 10, 20],
   roofConstraintInsightThreshold: 0.8,
+  /**
+   * Normalised clear-day PV shape (share of daily energy per hour, 0h-23h).
+   * Mean of Hà Nội and TP.HCM profiles in the NLMT course workbooks; the 14
+   * Bắc Bộ / Đông Nam Bộ provinces share the same shape within ±1 point.
+   */
+  solarHourlyProfile: [
+    0, 0, 0, 0, 0, 0, 0.0132, 0.0485, 0.0836, 0.1087, 0.1237, 0.1307,
+    0.1299, 0.1208, 0.1047, 0.0794, 0.0449, 0.0120, 0, 0, 0, 0, 0, 0,
+  ],
+  /** Weather variability: day types whose weighted mean factor is 1.0. */
+  dayTypes: [
+    { id: "sunny", generationFactor: 1.3, weight: 0.4 },
+    { id: "average", generationFactor: 1.0, weight: 0.4 },
+    { id: "overcast", generationFactor: 0.4, weight: 0.2 },
+  ],
+  /** Household load: daytime share spread over 6h-18h; night share split
+   * between the 18h-22h evening peak and 22h-6h. */
+  load: {
+    daytimeStartHour: 6,
+    daytimeEndHour: 18,
+    eveningPeakEndHour: 22,
+    eveningShareOfNight: 0.6,
+  },
+  battery: {
+    depthOfDischarge: 0.9,
+    /** Hybrid inverter idle/self consumption, drawn around the clock. */
+    hybridStandbyLoadWatts: 40,
+    backupInverterEfficiency: 0.9,
+    /** Simulated days per day type so state of charge carries overnight. */
+    warmUpDays: 3,
+  },
+  finance: {
+    degradationFirstYear: 0.01,
+    degradationPerYear: 0.005,
+    tariffEscalationRate: 0.03,
+    maintenanceEscalationRate: 0.03,
+    discountRate: 0.08,
+    /** Packages do not store inverter kW yet; estimate from kWp. */
+    assumedDcAcRatio: 1.15,
+    inverterReplacementYear: 12,
+    inverterReplacementVndPerKw: { "grid-tied": 2_500_000, hybrid: 3_300_000 },
+    batteryReplacementYear: 12,
+    batteryReplacementVndPerKwh: 2_000_000,
+  },
 } as const;
 
 export const RECOMMENDATION_CONSTANTS = {
-  nonBackupTargetRatio: 0.8,
-  backupTargetRatio: 0.7,
-  generationFitWeight: 0.5,
-  selfUseWeight: 0.3,
-  paybackWeight: 0.2,
-  paybackPenaltyPerYear: 15,
+  economicWeight: 0.4,
+  billReductionWeight: 0.35,
+  selfUseWeight: 0.25,
+  paybackFullScoreYears: 4,
+  paybackZeroScoreYears: 12,
+  /** Packages beyond this payback (or with negative NPV) are not recommended. */
+  maxViablePaybackYears: 10,
+  /** A cheaper package within this NPV shortfall that pays back no later is
+   * preferred: same lifetime value for less capital and risk. */
+  capitalEfficiencyNpvTolerance: 0.05,
   maximumComparedPackages: 3,
   scoreTieTolerance: 1e-9,
 } as const;
@@ -78,7 +129,7 @@ export const DEFAULT_CALCULATION_SETTINGS = {
   lowEstimateFactor: 0.9,
   highEstimateFactor: 1.05,
   systemLifetimeYears: 20,
-  maintenanceRatePerYear: 0,
+  maintenanceRatePerYear: 0.008,
   daytimeLowRatio: 0.3,
   daytimeMediumRatio: 0.5,
   daytimeHighRatio: 0.75,

@@ -6,9 +6,11 @@ import {
   RECOMMENDATION_CONSTANTS,
 } from "@/config/defaults";
 import { calculateSolarPackage } from "@/lib/solar-calculator";
-import { estimateElectricityConsumptionFromBill } from "@/lib/electricity-tariff";
 import {
-  calculatePackageScoreBreakdown,
+  calculateElectricityBill,
+  estimateElectricityConsumptionFromBill,
+} from "@/lib/electricity-tariff";
+import {
   filterEligiblePackages,
   recommendSolarPackages,
   scorePackageCalculation,
@@ -41,6 +43,10 @@ const standardInput: SolarCalculationInput = {
   essentialLoadWatts: null,
   backupHours: null,
 };
+
+function estimateElectricityBillForTest(consumptionKwh: number): number {
+  return calculateElectricityBill("residential", consumptionKwh);
+}
 
 function createPackages(): SolarPackage[] {
   return DEFAULT_SOLAR_PACKAGES.map((solarPackage, index) => ({
@@ -119,95 +125,137 @@ describe("filterEligiblePackages", () => {
 });
 
 describe("scorePackageCalculation", () => {
-  it("tính đúng target và ba thành phần score cho gói 3 kWp", () => {
-    const solarPackage = createPackages()[1]!;
+  it("kết hợp điểm kinh tế, mức giảm hóa đơn và tỷ lệ tự dùng theo trọng số", () => {
     const calculation = calculateSolarPackage({
       input: standardInput,
-      solarPackage,
+      solarPackage: createPackages()[1]!,
       settings,
       provinceFactor: 1,
     });
-    const scored = scorePackageCalculation(standardInput, calculation);
-    const expectedTarget =
-      calculation.daytimeDemandKwh *
-      RECOMMENDATION_CONSTANTS.nonBackupTargetRatio;
-    const expectedGenerationFit =
-      100 -
-      (Math.abs(calculation.adjustedGenerationKwh - expectedTarget) /
-        expectedTarget) *
-        100;
-    const expectedPayback =
-      100 -
-      calculation.paybackYears! *
-        RECOMMENDATION_CONSTANTS.paybackPenaltyPerYear;
-    const expectedScore =
-      expectedGenerationFit *
-        RECOMMENDATION_CONSTANTS.generationFitWeight +
-      100 * RECOMMENDATION_CONSTANTS.selfUseWeight +
-      expectedPayback * RECOMMENDATION_CONSTANTS.paybackWeight;
-
-    expect(scored.scoreBreakdown.targetGenerationKwh).toBeCloseTo(
-      expectedTarget,
-      10,
+    const scored = scorePackageCalculation(calculation);
+    const { paybackFullScoreYears, paybackZeroScoreYears } = RECOMMENDATION_CONSTANTS;
+    const expectedEconomic = Math.min(
+      100,
+      Math.max(
+        0,
+        ((paybackZeroScoreYears - calculation.paybackYears!) /
+          (paybackZeroScoreYears - paybackFullScoreYears)) *
+          100,
+      ),
     );
-    expect(scored.scoreBreakdown.generationFitScore).toBeCloseTo(
-      expectedGenerationFit,
-      10,
-    );
-    expect(scored.scoreBreakdown.selfUseScore).toBe(100);
-    expect(scored.scoreBreakdown.paybackScore).toBeCloseTo(
-      expectedPayback,
-      10,
-    );
-    expect(scored.score).toBeCloseTo(expectedScore, 10);
-  });
 
-  it("dùng 70% tổng nhu cầu làm target khi cần backup", () => {
-    const input = { ...standardInput, backupRequired: true };
-    const solarPackage = createPackages()[3]!;
-    const calculation = calculateSolarPackage({
-      input,
-      solarPackage,
-      settings,
-      provinceFactor: 1,
-    });
-    const breakdown = calculatePackageScoreBreakdown(input, calculation);
-    const expectedTarget =
-      input.monthlyConsumptionKwh *
-      RECOMMENDATION_CONSTANTS.backupTargetRatio;
-    const expectedGenerationFit =
-      100 -
-      (Math.abs(calculation.adjustedGenerationKwh - expectedTarget) /
-        expectedTarget) *
-        100;
-
-    expect(breakdown.targetGenerationKwh).toBeCloseTo(expectedTarget, 10);
-    expect(breakdown.generationFitScore).toBeCloseTo(
-      expectedGenerationFit,
+    expect(scored.scoreBreakdown.economicScore).toBeCloseTo(expectedEconomic, 10);
+    expect(scored.scoreBreakdown.billReductionScore).toBeCloseTo(calculation.reductionPercent, 10);
+    expect(scored.scoreBreakdown.selfUseScore).toBeCloseTo(calculation.selfConsumptionRate * 100, 10);
+    expect(scored.score).toBeCloseTo(
+      expectedEconomic * RECOMMENDATION_CONSTANTS.economicWeight +
+        calculation.reductionPercent * RECOMMENDATION_CONSTANTS.billReductionWeight +
+        calculation.selfConsumptionRate * 100 * RECOMMENDATION_CONSTANTS.selfUseWeight,
       10,
     );
   });
 
-  it("không tạo NaN khi target hoặc payback bằng null", () => {
-    const input = {
-      ...standardInput,
-      monthlyBill: 0,
-      monthlyConsumptionKwh: 0,
-    };
-    const solarPackage = {
-      ...createPackages()[0]!,
-      baseMonthlyGenerationKwh: 0,
-    };
+  it("cho điểm kinh tế 0 khi không hoàn vốn và không tạo NaN", () => {
+    const input = { ...standardInput, monthlyBill: 0, monthlyConsumptionKwh: 0 };
     const calculation = calculateSolarPackage({
       input,
-      solarPackage,
+      solarPackage: { ...createPackages()[0]!, baseMonthlyGenerationKwh: 0 },
       settings,
       provinceFactor: 1,
     });
-    const scored = scorePackageCalculation(input, calculation);
+    const scored = scorePackageCalculation(calculation);
 
+    expect(scored.scoreBreakdown.economicScore).toBe(0);
     expect(scored.score).toBe(0);
     expect(Number.isFinite(scored.score)).toBe(true);
+  });
+});
+
+describe("recommendation honesty rules", () => {
+  it("không đề xuất gói khi không hoàn vốn trong ngưỡng — nêu lý do chưa hiệu quả", () => {
+    const result = recommendSolarPackages({
+      input: {
+        ...standardInput,
+        monthlyConsumptionKwh: 60,
+        monthlyBill: estimateElectricityBillForTest(60),
+      },
+      packages: createPackages(),
+      settings,
+      provinceFactor: 1,
+    });
+
+    expect(result.recommendedPackage).toBeNull();
+    expect(result.comparedPackages).toEqual([]);
+    expect(result.noRecommendationReason).toBe("not_economical");
+  });
+
+  it("loại gói có pin không đủ giữ điện dự phòng khách khai và nêu lý do", () => {
+    const result = recommendSolarPackages({
+      input: {
+        ...standardInput,
+        backupRequired: true,
+        essentialLoadWatts: 3_000,
+        backupHours: 8,
+      },
+      packages: createPackages(),
+      settings,
+      provinceFactor: 1,
+    });
+
+    expect(result.recommendedPackage).toBeNull();
+    expect(result.noRecommendationReason).toBe("backup_exceeds_battery");
+  });
+
+  it("nêu lý do mái không đủ và sai pha", () => {
+    expect(
+      recommendSolarPackages({
+        input: { ...standardInput, roofAreaM2: 5 },
+        packages: createPackages(),
+        settings,
+        provinceFactor: 1,
+      }).noRecommendationReason,
+    ).toBe("roof_too_small");
+    expect(
+      recommendSolarPackages({
+        input: { ...standardInput, electricalPhase: "three-phase" },
+        packages: createPackages(),
+        settings,
+        provinceFactor: 1,
+      }).noRecommendationReason,
+    ).toBe("phase_mismatch");
+  });
+
+  it("ưu tiên gói rẻ hơn khi giá trị vòng đời tương đương và hoàn vốn không chậm hơn", () => {
+    const base = createPackages()[1]!;
+    const gridTied = { ...base, id: "grid", code: "GRID", priceVnd: 30_000_000 };
+    const hybrid = (priceVnd: number): SolarPackage => ({
+      ...base,
+      id: "hybrid",
+      code: "HYBRID",
+      systemType: "hybrid",
+      batteryCapacityKwh: 5,
+      baseMonthlyGenerationKwh: 420,
+      priceVnd,
+    });
+    const recommend = (priceVnd: number) =>
+      recommendSolarPackages({
+        input: standardInput,
+        packages: [gridTied, hybrid(priceVnd)],
+        settings,
+        provinceFactor: 1,
+      });
+    const score = (result: ReturnType<typeof recommend>, id: string) =>
+      result.comparedPackages.find((item) => item.packageId === id)!.score;
+
+    // Hybrid scores higher, but grid-tied keeps >= 95% of its NPV for 60% of
+    // the money and pays back sooner: the honest advice is grid-tied.
+    const nearEqualValue = recommend(50_000_000);
+    expect(score(nearEqualValue, "hybrid")).toBeGreaterThan(score(nearEqualValue, "grid"));
+    expect(nearEqualValue.recommendedPackage?.packageId).toBe("grid");
+
+    // When the hybrid adds clearly more lifetime value, it stays on top.
+    const clearlyBetter = recommend(40_000_000);
+    expect(clearlyBetter.recommendedPackage?.packageId).toBe("hybrid");
   });
 });
 
@@ -268,7 +316,7 @@ describe("recommendSolarPackages", () => {
     expect(packages.map((item) => item.id)).toEqual(originalOrder);
   });
 
-  it("ưu tiên grid-tied khi hai package có score bằng nhau", () => {
+  it("ưu tiên grid-tied khi hai package giống hệt nhau về thiết bị", () => {
     const basePackage = createPackages()[1]!;
     const packages: SolarPackage[] = [
       {
@@ -293,9 +341,8 @@ describe("recommendSolarPackages", () => {
       provinceFactor: 1,
     });
 
-    expect(result.comparedPackages[0]?.score).toBe(
-      result.comparedPackages[1]?.score,
-    );
+    // The hybrid inverter draws standby power and costs more to replace, so
+    // an otherwise identical grid-tied package must rank first.
     expect(result.recommendedPackage?.packageId).toBe("grid-tie");
   });
 

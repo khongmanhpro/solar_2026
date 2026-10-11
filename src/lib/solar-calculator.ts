@@ -1,9 +1,18 @@
 import { CALCULATION_CONSTANTS } from "@/config/defaults";
 import { ELECTRICITY_TARIFF_REGISTRY } from "@/config/electricity-tariffs";
 import {
+  requiredBackupReserveKwh,
+  simulateMonth,
+  type MonthlyEnergyFlows,
+} from "@/lib/energy-simulation";
+import {
   calculateElectricityBill,
   calculateElectricityEnergyCharge,
 } from "@/lib/electricity-tariff";
+import {
+  calculateLifetimeFinance,
+  type LifetimeFinanceResult,
+} from "@/lib/financial-model";
 import { selectElectricityTariffByVersion } from "@/lib/tariff-selection";
 import type {
   CalculationScenarioResult,
@@ -11,6 +20,7 @@ import type {
   CashFlowPoint,
   DaytimeUsageLevel,
   LongTermSavings,
+  MonthlyBreakdownEntry,
   SolarCalculationInput,
   SolarPackage,
   UnscoredPackageCalculationResult,
@@ -23,20 +33,6 @@ export interface CalculateSolarPackageParams {
   provinceFactor: number;
   provinceMonthlyYieldKwhPerKwp?: readonly number[] | null;
   allowUnapprovedTariffData?: boolean;
-}
-
-interface CalculateScenarioParams {
-  adjustedGenerationKwh: number;
-  estimatedMonthlyConsumptionKwh: number;
-  daytimeDemandKwh: number;
-  monthlyBill: number;
-  vatMultiplier: number;
-  electricityType: SolarCalculationInput["electricityType"];
-  electricityTariffVersion?: string;
-  tariffBillingContext?: SolarCalculationInput["tariffBillingContext"];
-  allowUnapprovedTariffData: boolean;
-  solarPackage: SolarPackage;
-  settings: CalculationSettings;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -57,23 +53,17 @@ function assertUnitInterval(value: number, name: string): void {
   }
 }
 
-function averageMonthlyYield(
+function validMonthlyYield(
   monthlyYieldKwhPerKwp: readonly number[] | null | undefined,
-): number | null {
+): readonly number[] | null {
   if (
     !monthlyYieldKwhPerKwp ||
     monthlyYieldKwhPerKwp.length !== 12 ||
-    monthlyYieldKwhPerKwp.some(
-      (value) => !Number.isFinite(value) || value < 0,
-    )
+    monthlyYieldKwhPerKwp.some((value) => !Number.isFinite(value) || value < 0)
   ) {
     return null;
   }
-
-  return (
-    monthlyYieldKwhPerKwp.reduce((total, value) => total + value, 0) /
-    monthlyYieldKwhPerKwp.length
-  );
+  return monthlyYieldKwhPerKwp;
 }
 
 function assertCalculationInputs({
@@ -150,133 +140,162 @@ export function getDaytimeUsageRatio(
   return ratios[level];
 }
 
-function calculateScenario({
-  adjustedGenerationKwh,
-  estimatedMonthlyConsumptionKwh,
-  daytimeDemandKwh,
-  monthlyBill,
-  vatMultiplier,
-  electricityType,
-  electricityTariffVersion,
-  tariffBillingContext,
-  allowUnapprovedTariffData,
-  solarPackage,
-  settings,
-}: CalculateScenarioParams): CalculationScenarioResult {
-  const directSolarUseKwh = Math.min(
-    adjustedGenerationKwh,
-    daytimeDemandKwh,
+/**
+ * New-system PV generation per 30-day billing month. PVGIS yields keep their
+ * seasonal shape (daily intensity from real month length); without them the
+ * legacy flat estimate `base x province factor` is used for every month.
+ */
+export function monthlyGenerationKwh(
+  solarPackage: SolarPackage,
+  provinceFactor: number,
+  provinceMonthlyYieldKwhPerKwp?: readonly number[] | null,
+): number[] {
+  const yields = validMonthlyYield(provinceMonthlyYieldKwhPerKwp);
+  const days = CALCULATION_CONSTANTS.daysPerMonth;
+  if (!yields) {
+    return Array.from(
+      { length: 12 },
+      () => solarPackage.baseMonthlyGenerationKwh * provinceFactor,
+    );
+  }
+  return yields.map(
+    (yieldKwhPerKwp, index) =>
+      (solarPackage.capacityKwp * yieldKwhPerKwp * days) /
+      CALCULATION_CONSTANTS.daysInMonth[index],
   );
+}
 
-  const solarSurplusKwh = Math.max(
-    0,
-    adjustedGenerationKwh - directSolarUseKwh,
-  );
+interface SimulatedMonth extends MonthlyEnergyFlows {
+  energyChargeAfterSolarVnd: number;
+  billAfterSolarVnd: number;
+  savingsVnd: number;
+}
 
-  const monthlyBatteryDischargeCapacityKwh =
-    solarPackage.batteryCapacityKwh > 0
-      ? solarPackage.batteryCapacityKwh *
-        CALCULATION_CONSTANTS.daysPerMonth *
-        settings.batteryDailyCycleFactor *
-        settings.batteryRoundTripEfficiency
-      : 0;
+interface YearSimulator {
+  (generationFactor: number): SimulatedMonth[];
+}
 
-  const remainingDemandKwh = Math.max(
-    0,
-    estimatedMonthlyConsumptionKwh - directSolarUseKwh,
-  );
-
-  const batteryUseKwh =
-    solarPackage.batteryCapacityKwh > 0
-      ? Math.min(
-          solarSurplusKwh,
-          monthlyBatteryDischargeCapacityKwh,
-          remainingDemandKwh,
+function createYearSimulator(params: {
+  input: SolarCalculationInput;
+  solarPackage: SolarPackage;
+  settings: CalculationSettings;
+  generationByMonth: readonly number[];
+  allowUnapprovedTariffData: boolean;
+}): YearSimulator {
+  const { input, solarPackage, settings, generationByMonth } = params;
+  const days = CALCULATION_CONSTANTS.daysPerMonth;
+  const vatMultiplier = 1 + (input.vatRate ?? 0);
+  const daytimeRatio = getDaytimeUsageRatio(input.daytimeUsageLevel, settings);
+  const battery = {
+    nominalKwh: solarPackage.batteryCapacityKwh,
+    roundTripEfficiency: settings.batteryRoundTripEfficiency,
+    dailyCycleFactor: settings.batteryDailyCycleFactor,
+    backupReserveKwh: input.backupRequired
+      ? requiredBackupReserveKwh(input.essentialLoadWatts, input.backupHours)
+      : 0,
+  };
+  const tariff =
+    input.electricityTariffVersion && input.tariffBillingContext
+      ? selectElectricityTariffByVersion(
+          ELECTRICITY_TARIFF_REGISTRY,
+          input.electricityTariffVersion,
+          { allowUnapproved: params.allowUnapprovedTariffData },
         )
-      : 0;
-
-  const totalSolarUseKwh = Math.min(
-    estimatedMonthlyConsumptionKwh,
-    directSolarUseKwh + batteryUseKwh,
-  );
-
-  const gridConsumptionAfterSolarKwh = Math.max(
-    0,
-    estimatedMonthlyConsumptionKwh - totalSolarUseKwh,
-  );
-
-  const tieredBillAfterSolarVnd =
-    electricityTariffVersion && tariffBillingContext
-      ? calculateElectricityEnergyCharge({
-          tariff: selectElectricityTariffByVersion(
-            ELECTRICITY_TARIFF_REGISTRY,
-            electricityTariffVersion,
-            { allowUnapproved: allowUnapprovedTariffData },
-          ),
-          consumptionKwh: gridConsumptionAfterSolarKwh,
-          context: tariffBillingContext,
-        }).energyChargeBeforeVatVnd
-      : calculateElectricityBill(
-          electricityType,
-          gridConsumptionAfterSolarKwh,
-        );
-  // Tariff charges are before VAT; package prices include VAT. Apply VAT to
-  // both sides of the bill so savings and payback compare like-for-like.
-  const energyChargeAfterSolarVnd = clamp(tieredBillAfterSolarVnd, 0, monthlyBill);
-  const billAfterSolarVnd = energyChargeAfterSolarVnd * vatMultiplier;
-  const monthlySavingsVnd = Math.max(
-    0,
-    (monthlyBill - energyChargeAfterSolarVnd) * vatMultiplier,
-  );
-  const reductionPercent = clamp(
-    monthlyBill > 0
-      ? ((monthlyBill - energyChargeAfterSolarVnd) / monthlyBill) * 100
-      : 0,
-    0,
-    100,
-  );
-  const yearlySavingsVnd = monthlySavingsVnd * 12;
-  const paybackMonths =
-    monthlySavingsVnd > 0
-      ? solarPackage.priceVnd / monthlySavingsVnd
       : null;
-  const paybackYears = paybackMonths === null ? null : paybackMonths / 12;
-  const selfConsumptionRate = clamp(
-    adjustedGenerationKwh > 0
-      ? totalSolarUseKwh / adjustedGenerationKwh
-      : 0,
-    0,
-    1,
-  );
+  const energyCharge = (consumptionKwh: number) =>
+    tariff && input.tariffBillingContext
+      ? calculateElectricityEnergyCharge({
+          tariff,
+          consumptionKwh,
+          context: input.tariffBillingContext,
+        }).energyChargeBeforeVatVnd
+      : calculateElectricityBill(input.electricityType, consumptionKwh);
 
-  return {
-    adjustedGenerationKwh,
-    solarSurplusKwh,
-    directSolarUseKwh,
-    batteryUseKwh,
-    totalSolarUseKwh,
-    gridConsumptionAfterSolarKwh,
-    monthlySavingsVnd,
-    billAfterSolarVnd,
-    reductionPercent,
-    yearlySavingsVnd,
-    paybackMonths,
-    paybackYears,
-    selfConsumptionRate,
+  const cache = new Map<number, SimulatedMonth[]>();
+  return (generationFactor) => {
+    const key = Math.round(generationFactor * 1e6) / 1e6;
+    const cached = cache.get(key);
+    if (cached) return cached;
+
+    const months = generationByMonth.map((generation) => {
+      const flows = simulateMonth({
+        dailyGenerationKwh: (generation * key) / days,
+        dailyConsumptionKwh: input.monthlyConsumptionKwh / days,
+        daytimeRatio,
+        battery,
+        systemStandbyLoadKw:
+          solarPackage.systemType === "hybrid"
+            ? CALCULATION_CONSTANTS.battery.hybridStandbyLoadWatts / 1_000
+            : 0,
+      });
+      // Tariff charges are before VAT; package prices include VAT. Apply VAT
+      // to both sides of the bill so savings compare like-for-like.
+      const energyChargeAfterSolarVnd = clamp(
+        energyCharge(flows.gridImportKwh),
+        0,
+        input.monthlyBill,
+      );
+      return {
+        ...flows,
+        energyChargeAfterSolarVnd,
+        billAfterSolarVnd: energyChargeAfterSolarVnd * vatMultiplier,
+        savingsVnd: Math.max(
+          0,
+          (input.monthlyBill - energyChargeAfterSolarVnd) * vatMultiplier,
+        ),
+      };
+    });
+    cache.set(key, months);
+    return months;
   };
 }
 
-export function createCashFlow(
-  priceVnd: number,
-  yearlySavingsVnd: number,
-): CashFlowPoint[] {
-  return Array.from(
-    { length: CALCULATION_CONSTANTS.cashFlowHorizonYears + 1 },
-    (_, year) => ({
-      year,
-      cumulativeCashFlowVnd: -priceVnd + yearlySavingsVnd * year,
-    }),
-  );
+function sum(values: readonly number[]): number {
+  return values.reduce((total, value) => total + value, 0);
+}
+
+function summariseScenario(
+  months: readonly SimulatedMonth[],
+  input: SolarCalculationInput,
+  finance: LifetimeFinanceResult,
+): CalculationScenarioResult {
+  const average = (pick: (month: SimulatedMonth) => number) =>
+    sum(months.map(pick)) / months.length;
+  const generation = average((month) => month.generationKwh);
+  const direct = average((month) => month.directSolarUseKwh);
+  const battery = average((month) => month.batteryDischargeKwh);
+  const grid = average((month) => month.gridImportKwh);
+  const surplus = average((month) => month.surplusKwh);
+  const energyChargeAfter = average((month) => month.energyChargeAfterSolarVnd);
+  const yearlySavingsVnd = sum(months.map((month) => month.savingsVnd));
+  const totalSolarUse = Math.min(input.monthlyConsumptionKwh, direct + battery);
+
+  return {
+    adjustedGenerationKwh: generation,
+    solarSurplusKwh: surplus,
+    directSolarUseKwh: direct,
+    batteryUseKwh: battery,
+    totalSolarUseKwh: totalSolarUse,
+    gridConsumptionAfterSolarKwh: grid,
+    monthlySavingsVnd: yearlySavingsVnd / 12,
+    billAfterSolarVnd: average((month) => month.billAfterSolarVnd),
+    reductionPercent: clamp(
+      input.monthlyBill > 0
+        ? ((input.monthlyBill - energyChargeAfter) / input.monthlyBill) * 100
+        : 0,
+      0,
+      100,
+    ),
+    yearlySavingsVnd,
+    paybackMonths:
+      finance.paybackYears === null ? null : finance.paybackYears * 12,
+    paybackYears: finance.paybackYears,
+    selfConsumptionRate: clamp(
+      generation > 0 ? totalSolarUse / generation : 0,
+      0,
+      1,
+    ),
+  };
 }
 
 export function findBreakEvenYear(cashFlow: CashFlowPoint[]): number | null {
@@ -285,14 +304,13 @@ export function findBreakEvenYear(cashFlow: CashFlowPoint[]): number | null {
   );
 }
 
-function calculateLongTermSavings(yearlySavingsVnd: number): LongTermSavings {
-  const [year5, year10, year20] =
-    CALCULATION_CONSTANTS.longTermSavingYears;
+function calculateLongTermSavings(finance: LifetimeFinanceResult): LongTermSavings {
+  const [year5, year10, year20] = CALCULATION_CONSTANTS.longTermSavingYears;
 
   return {
-    saving5YearsVnd: yearlySavingsVnd * year5,
-    saving10YearsVnd: yearlySavingsVnd * year10,
-    saving20YearsVnd: yearlySavingsVnd * year20,
+    saving5YearsVnd: finance.cumulativeNetSavingsVnd(year5),
+    saving10YearsVnd: finance.cumulativeNetSavingsVnd(year10),
+    saving20YearsVnd: finance.cumulativeNetSavingsVnd(year20),
   };
 }
 
@@ -309,63 +327,68 @@ export function calculateSolarPackage({
   // The service has already normalized the public request. In particular,
   // direct kWh input must never pass through a bill-to-kWh inverse here.
   const estimatedMonthlyConsumptionKwh = input.monthlyConsumptionKwh;
-  const daytimeUsageRatio = getDaytimeUsageRatio(
-    input.daytimeUsageLevel,
-    settings,
-  );
   const daytimeDemandKwh =
-    estimatedMonthlyConsumptionKwh * daytimeUsageRatio;
-  const pvgisAverageMonthlyYield = averageMonthlyYield(
-    provinceMonthlyYieldKwhPerKwp,
-  );
-  const adjustedGenerationKwh =
-    pvgisAverageMonthlyYield === null
-      ? solarPackage.baseMonthlyGenerationKwh * provinceFactor
-      : solarPackage.capacityKwp * pvgisAverageMonthlyYield;
-
-  const commonScenarioParams = {
-    estimatedMonthlyConsumptionKwh,
-    daytimeDemandKwh,
-    monthlyBill: input.monthlyBill,
-    vatMultiplier: 1 + (input.vatRate ?? 0),
-    electricityType: input.electricityType,
-    electricityTariffVersion: input.electricityTariffVersion,
-    tariffBillingContext: input.tariffBillingContext,
-    allowUnapprovedTariffData,
+    estimatedMonthlyConsumptionKwh *
+    getDaytimeUsageRatio(input.daytimeUsageLevel, settings);
+  const simulateYear = createYearSimulator({
+    input,
     solarPackage,
     settings,
+    generationByMonth: monthlyGenerationKwh(
+      solarPackage,
+      provinceFactor,
+      provinceMonthlyYieldKwhPerKwp,
+    ),
+    allowUnapprovedTariffData,
+  });
+
+  const runScenario = (scenarioFactor: number) => {
+    const months = simulateYear(scenarioFactor);
+    const finance = calculateLifetimeFinance({
+      priceVnd: solarPackage.priceVnd,
+      horizonYears: settings.systemLifetimeYears,
+      annualSavingsAtGenerationFactor: (factor) =>
+        sum(simulateYear(scenarioFactor * factor).map((month) => month.savingsVnd)),
+      maintenanceRatePerYear: settings.maintenanceRatePerYear,
+      systemType: solarPackage.systemType,
+      capacityKwp: solarPackage.capacityKwp,
+      batteryCapacityKwh: solarPackage.batteryCapacityKwh,
+    });
+    return { months, finance, summary: summariseScenario(months, input, finance) };
   };
 
-  const standardEstimate = calculateScenario({
-    ...commonScenarioParams,
-    adjustedGenerationKwh,
-  });
-  const lowEstimate = calculateScenario({
-    ...commonScenarioParams,
-    adjustedGenerationKwh:
-      adjustedGenerationKwh * settings.lowEstimateFactor,
-  });
-  const highEstimate = calculateScenario({
-    ...commonScenarioParams,
-    adjustedGenerationKwh:
-      adjustedGenerationKwh * settings.highEstimateFactor,
-  });
-  const cashFlow = createCashFlow(
-    solarPackage.priceVnd,
-    standardEstimate.yearlySavingsVnd,
+  const standard = runScenario(1);
+  const low = runScenario(settings.lowEstimateFactor);
+  const high = runScenario(settings.highEstimateFactor);
+  const monthlyBreakdown: MonthlyBreakdownEntry[] = standard.months.map(
+    (month, index) => ({
+      month: index + 1,
+      generationKwh: month.generationKwh,
+      directSolarUseKwh: month.directSolarUseKwh,
+      batteryDischargeKwh: month.batteryDischargeKwh,
+      gridImportKwh: month.gridImportKwh,
+      surplusKwh: month.surplusKwh,
+      billAfterSolarVnd: month.billAfterSolarVnd,
+      savingsVnd: month.savingsVnd,
+    }),
   );
 
   return {
     packageId: solarPackage.id,
     estimatedMonthlyConsumptionKwh,
     daytimeDemandKwh,
-    ...standardEstimate,
-    lowEstimate,
-    highEstimate,
-    cashFlow,
-    breakEvenYear: findBreakEvenYear(cashFlow),
-    longTermSavings: calculateLongTermSavings(
-      standardEstimate.yearlySavingsVnd,
-    ),
+    ...standard.summary,
+    lowEstimate: low.summary,
+    highEstimate: high.summary,
+    cashFlow: standard.finance.cashFlow,
+    breakEvenYear: standard.finance.breakEvenYear,
+    longTermSavings: calculateLongTermSavings(standard.finance),
+    monthlyBreakdown,
+    financial: {
+      horizonYears: standard.finance.cashFlow.length - 1,
+      npvVnd: standard.finance.npvVnd,
+      irr: standard.finance.irr,
+      replacementCostsVnd: standard.finance.replacementCostsVnd,
+    },
   };
 }

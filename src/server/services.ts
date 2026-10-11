@@ -139,7 +139,9 @@ function attachMoneyRecommendationStability(params: {
       upperConsumptionPackageId: upperId,
       reason: stable
         ? "Cùng một gói đứng đầu tại cả hai biên và điểm giữa của khoảng kWh."
-        : allConversionsExact
+        : expectedId === null && allConversionsExact
+          ? "Không có gói phù hợp tại mức tiêu thụ ước tính."
+          : allConversionsExact
           ? "Gói đứng đầu thay đổi trong khoảng kWh; cần thêm hóa đơn hoặc khảo sát trước khi đề xuất."
           : "Thành phần hóa đơn chưa được xác nhận nên không đề xuất một gói từ khoảng kWh quá rộng.",
       ...(stable ? {} : { rangeOptions }),

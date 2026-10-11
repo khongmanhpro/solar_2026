@@ -9,9 +9,40 @@ import {
 } from "@/lib/formatters";
 import type {
   CalculationResponse,
+  NoRecommendationReason,
   RecommendationRangeOption,
   SolarPackage,
 } from "@/types/solar";
+
+const NO_RECOMMENDATION_COPY: Record<
+  NoRecommendationReason,
+  { title: string; body: string }
+> = {
+  not_economical: {
+    title: "Lắp điện mặt trời lúc này chưa có lợi về kinh tế",
+    body: "Với mức dùng điện hiện tại, các gói đang bán không hoàn vốn trong 10 năm. Chúng tôi không đề xuất một khoản đầu tư không có lợi cho bạn. Nếu nhu cầu tăng (thêm điều hòa, xe điện, kinh doanh tại nhà) hoặc bạn muốn hệ nhỏ hơn, hãy để lại thông tin để kỹ sư tư vấn riêng.",
+  },
+  backup_exceeds_battery: {
+    title: "Nhu cầu dự phòng vượt dung lượng pin của các gói sẵn có",
+    body: "Tải thiết yếu × số giờ dự phòng bạn khai cần nhiều điện hơn pin 16 kWh có thể giữ. Kỹ sư sẽ tư vấn cấu hình pin lớn hơn (ví dụ 32 kWh) hoặc giảm tải dự phòng.",
+  },
+  backup_needs_battery: {
+    title: "Chưa có gói có pin lưu trữ phù hợp",
+    body: "Bạn cần điện dự phòng nhưng hiện không có gói hybrid kèm pin phù hợp với điều kiện đã chọn. Kỹ sư sẽ tư vấn cấu hình riêng.",
+  },
+  roof_too_small: {
+    title: "Diện tích mái chưa đủ cho các gói sẵn có",
+    body: "Gói nhỏ nhất cần nhiều diện tích hơn mái bạn khai. Kỹ sư có thể khảo sát để tận dụng thêm mái phụ hoặc đề xuất hệ nhỏ hơn.",
+  },
+  phase_mismatch: {
+    title: "Chưa có gói đúng loại điện 1 pha / 3 pha của bạn",
+    body: "Hiện chưa có gói phù hợp với loại điện đã chọn. Kỹ sư sẽ tư vấn cấu hình phù hợp.",
+  },
+  no_active_package: {
+    title: "Danh mục gói đang được cập nhật",
+    body: "Hiện chưa có gói nào đang mở bán. Vui lòng để lại thông tin để được tư vấn.",
+  },
+};
 
 const RANGE_OPTION_LABELS: Record<RecommendationRangeOption["bound"], string> = {
   lowerBound: "Nếu mức dùng ở cận thấp",
@@ -113,6 +144,10 @@ export function CalculationPreview({
       result.recommendationStability.stable === false;
     const consumption = result.normalizedInput?.monthlyConsumptionKwh.value;
     const rangeOptions = result.recommendationStability?.rangeOptions ?? [];
+    const reasonCopy =
+      !unstableMoneyRecommendation && result.noRecommendationReason
+        ? NO_RECOMMENDATION_COPY[result.noRecommendationReason]
+        : null;
 
     return (
       <div id="ket-qua" className="rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-6 py-12 sm:px-10 sm:py-14" tabIndex={-1}>
@@ -123,12 +158,12 @@ export function CalculationPreview({
           <h2 className="mt-5 font-display text-3xl font-semibold tracking-tight text-[var(--ink)] sm:text-4xl">
             {unstableMoneyRecommendation
               ? "Cần thêm thông tin trước khi chọn gói"
-              : "Chưa có gói phù hợp hoàn toàn"}
+              : reasonCopy?.title ?? "Chưa có gói phù hợp hoàn toàn"}
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--muted)]">
             {unstableMoneyRecommendation
               ? `Tổng tiền hiện chỉ xác định được khoảng ${consumption ? formatKwhRange(consumption.lowerBound, consumption.upperBound) : "chưa đủ dữ liệu"}. Các biên chưa dẫn tới cùng một gói, nên hệ thống không tự chốt phương án có vẻ chính xác.`
-              : "Nhu cầu hiện chưa khớp hoàn toàn với các gói đang hoạt động. Kết quả tính toán đã được lưu để tư vấn viên kiểm tra phương án riêng; khả năng lắp đặt chỉ được xác nhận sau khảo sát mái."}
+              : reasonCopy?.body ?? "Nhu cầu hiện chưa khớp hoàn toàn với các gói đang hoạt động. Kết quả tính toán đã được lưu để tư vấn viên kiểm tra phương án riêng; khả năng lắp đặt chỉ được xác nhận sau khảo sát mái."}
           </p>
         </div>
 

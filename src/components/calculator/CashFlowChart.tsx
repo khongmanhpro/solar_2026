@@ -26,6 +26,7 @@ const compactCurrencyFormatter = new Intl.NumberFormat("vi-VN", {
 });
 
 export function CashFlowChart({ data, breakEvenYear }: CashFlowChartProps) {
+  const horizonYears = data.at(-1)?.year ?? 0;
   if (data.length < 2) {
     return (
       <div className="flex min-h-64 items-center justify-center rounded-2xl border border-dashed border-[var(--line-strong)] bg-[var(--paper)] p-8 text-center">
@@ -49,7 +50,7 @@ export function CashFlowChart({ data, breakEvenYear }: CashFlowChartProps) {
   return (
     <figure>
       <div
-        aria-label="Biểu đồ dòng tiền tích lũy từ năm 0 đến năm 20"
+        aria-label={`Biểu đồ dòng tiền tích lũy từ năm 0 đến năm ${horizonYears}`}
         className="h-64 sm:h-80 w-full rounded-2xl border border-[var(--line)] bg-[var(--paper)] px-2 pb-2 pt-5 sm:px-4"
         role="img"
       >
@@ -117,7 +118,7 @@ export function CashFlowChart({ data, breakEvenYear }: CashFlowChartProps) {
         <span>Năm 0 bắt đầu từ chi phí đầu tư của gói.</span>
         <span className="font-semibold text-[var(--ink)]">
           {breakEvenYear === null
-            ? "Chưa có mốc hòa vốn trong 20 năm"
+            ? `Chưa có mốc hòa vốn trong ${horizonYears} năm`
             : `Mốc hòa vốn: năm ${breakEvenYear}`}
         </span>
       </figcaption>

@@ -1,7 +1,12 @@
 import { RECOMMENDATION_CONSTANTS } from "@/config/defaults";
+import {
+  requiredBackupReserveKwh,
+  usableBatteryKwh,
+} from "@/lib/energy-simulation";
 import { calculateSolarPackage } from "@/lib/solar-calculator";
 import type {
   CalculationSettings,
+  NoRecommendationReason,
   PackageCalculationResult,
   PackageScoreBreakdown,
   SolarCalculationInput,
@@ -44,9 +49,14 @@ export function isPackageEligible(
   }
 
   if (input.backupRequired) {
+    // A package that cannot hold the declared outage energy must not be
+    // offered as a backup solution. Unknown load keeps hybrids eligible; the
+    // result is then flagged for survey by input normalisation.
     return (
       solarPackage.systemType === "hybrid" &&
-      solarPackage.batteryCapacityKwh > 0
+      solarPackage.batteryCapacityKwh > 0 &&
+      requiredBackupReserveKwh(input.essentialLoadWatts, input.backupHours) <=
+        usableBatteryKwh(solarPackage.batteryCapacityKwh)
     );
   }
 
@@ -62,57 +72,48 @@ export function filterEligiblePackages(
   );
 }
 
+/**
+ * Customer-centred score:
+ * - economic: payback within the household comfort zone (full marks at
+ *   <= 4 years, zero at >= 12 years or negative lifetime NPV);
+ * - bill reduction: how much of the yearly electricity bill disappears;
+ * - self-use: share of PV the home actually uses — penalises oversizing, as
+ *   surplus energy is not paid for.
+ */
 export function calculatePackageScoreBreakdown(
-  input: SolarCalculationInput,
   result: UnscoredPackageCalculationResult,
 ): PackageScoreBreakdown {
-  const targetGenerationKwh = input.backupRequired
-    ? result.estimatedMonthlyConsumptionKwh *
-      RECOMMENDATION_CONSTANTS.backupTargetRatio
-    : result.daytimeDemandKwh *
-      RECOMMENDATION_CONSTANTS.nonBackupTargetRatio;
-
-  const generationFitScore =
-    targetGenerationKwh > 0
-      ? Math.max(
-          0,
-          100 -
-            (Math.abs(
-              result.adjustedGenerationKwh - targetGenerationKwh,
-            ) /
-              targetGenerationKwh) *
+  const { paybackFullScoreYears, paybackZeroScoreYears } = RECOMMENDATION_CONSTANTS;
+  const npvNegative = result.financial !== undefined && result.financial.npvVnd < 0;
+  const economicScore =
+    result.paybackYears === null || npvNegative
+      ? 0
+      : Math.min(
+          100,
+          Math.max(
+            0,
+            ((paybackZeroScoreYears - result.paybackYears) /
+              (paybackZeroScoreYears - paybackFullScoreYears)) *
               100,
-        )
-      : 0;
-  const selfUseScore = result.selfConsumptionRate * 100;
-  const paybackScore =
-    result.paybackYears !== null
-      ? Math.max(
-          0,
-          100 -
-            result.paybackYears *
-              RECOMMENDATION_CONSTANTS.paybackPenaltyPerYear,
-        )
-      : 0;
+          ),
+        );
 
   return {
-    targetGenerationKwh,
-    generationFitScore,
-    selfUseScore,
-    paybackScore,
+    economicScore,
+    billReductionScore: Math.min(100, Math.max(0, result.reductionPercent)),
+    selfUseScore: Math.min(100, Math.max(0, result.selfConsumptionRate * 100)),
   };
 }
 
 export function scorePackageCalculation(
-  input: SolarCalculationInput,
   result: UnscoredPackageCalculationResult,
 ): PackageCalculationResult {
-  const scoreBreakdown = calculatePackageScoreBreakdown(input, result);
+  const scoreBreakdown = calculatePackageScoreBreakdown(result);
   const score =
-    scoreBreakdown.generationFitScore *
-      RECOMMENDATION_CONSTANTS.generationFitWeight +
-    scoreBreakdown.selfUseScore * RECOMMENDATION_CONSTANTS.selfUseWeight +
-    scoreBreakdown.paybackScore * RECOMMENDATION_CONSTANTS.paybackWeight;
+    scoreBreakdown.economicScore * RECOMMENDATION_CONSTANTS.economicWeight +
+    scoreBreakdown.billReductionScore *
+      RECOMMENDATION_CONSTANTS.billReductionWeight +
+    scoreBreakdown.selfUseScore * RECOMMENDATION_CONSTANTS.selfUseWeight;
 
   return {
     ...result,
@@ -156,6 +157,88 @@ function compareScoredPackages(
   return firstPackage.code.localeCompare(secondPackage.code);
 }
 
+/**
+ * A package is worth recommending only if it pays back within the household
+ * comfort horizon and creates value over its lifetime. Selling a system that
+ * never pays back destroys the customer's trust.
+ */
+export function isEconomicallyViable(result: UnscoredPackageCalculationResult): boolean {
+  return (
+    result.paybackYears !== null &&
+    result.paybackYears <= RECOMMENDATION_CONSTANTS.maxViablePaybackYears &&
+    (result.financial === undefined || result.financial.npvVnd >= 0)
+  );
+}
+
+/**
+ * Capital-efficiency rule: if a cheaper package delivers practically the same
+ * lifetime value and pays back no later, recommend it first. Mirrors how an
+ * honest adviser would steer a customer away from an unnecessary upsell.
+ */
+function promoteCapitalEfficientPackage(
+  ranked: PackageCalculationResult[],
+  packageById: ReadonlyMap<string, SolarPackage>,
+): PackageCalculationResult[] {
+  const tolerance = RECOMMENDATION_CONSTANTS.capitalEfficiencyNpvTolerance;
+  let best = ranked[0];
+  if (!best) return ranked;
+
+  for (;;) {
+    const bestPackage = packageById.get(best.packageId);
+    const bestNpv = best.financial?.npvVnd;
+    const bestPayback = best.paybackYears;
+    if (!bestPackage || bestNpv === undefined || bestPayback === null) break;
+
+    const cheaperEquivalent = ranked.find((candidate) => {
+      const candidatePackage = packageById.get(candidate.packageId);
+      const candidateNpv = candidate.financial?.npvVnd;
+      return (
+        candidatePackage !== undefined &&
+        candidateNpv !== undefined &&
+        candidate.paybackYears !== null &&
+        candidatePackage.priceVnd < bestPackage.priceVnd &&
+        candidateNpv >= bestNpv * (1 - tolerance) &&
+        candidate.paybackYears <= bestPayback
+      );
+    });
+    if (!cheaperEquivalent) break;
+    best = cheaperEquivalent;
+  }
+
+  return [best, ...ranked.filter((candidate) => candidate !== best)];
+}
+
+/** First filter that removes every remaining package, in customer terms. */
+function diagnoseNoEligiblePackage(
+  packages: readonly SolarPackage[],
+  input: SolarCalculationInput,
+): NoRecommendationReason {
+  let remaining = packages.filter((solarPackage) => solarPackage.active);
+  if (remaining.length === 0) return "no_active_package";
+
+  if (input.electricalPhase !== null) {
+    remaining = remaining.filter(
+      (solarPackage) => solarPackage.electricalPhase === input.electricalPhase,
+    );
+    if (remaining.length === 0) return "phase_mismatch";
+  }
+
+  if (input.backupRequired) {
+    remaining = remaining.filter(
+      (solarPackage) =>
+        solarPackage.systemType === "hybrid" && solarPackage.batteryCapacityKwh > 0,
+    );
+    if (remaining.length === 0) return "backup_needs_battery";
+    const reserve = requiredBackupReserveKwh(input.essentialLoadWatts, input.backupHours);
+    remaining = remaining.filter(
+      (solarPackage) => reserve <= usableBatteryKwh(solarPackage.batteryCapacityKwh),
+    );
+    if (remaining.length === 0) return "backup_exceeds_battery";
+  }
+
+  return "roof_too_small";
+}
+
 export function recommendSolarPackages({
   input,
   packages,
@@ -171,7 +254,6 @@ export function recommendSolarPackages({
   const scoredPackages = eligiblePackages
     .map((solarPackage) =>
       scorePackageCalculation(
-        input,
         calculateSolarPackage({
           input,
           solarPackage,
@@ -185,14 +267,23 @@ export function recommendSolarPackages({
     .sort((first, second) =>
       compareScoredPackages(first, second, packageById, input),
     );
-  const comparedPackages = scoredPackages.slice(
-    0,
-    RECOMMENDATION_CONSTANTS.maximumComparedPackages,
-  );
+  // Only economically sound packages are offered; if none qualify the
+  // customer is told so honestly rather than sold an unprofitable system.
+  const comparedPackages = promoteCapitalEfficientPackage(
+    scoredPackages.filter(isEconomicallyViable),
+    packageById,
+  ).slice(0, RECOMMENDATION_CONSTANTS.maximumComparedPackages);
+  const noRecommendationReason: NoRecommendationReason | undefined =
+    eligiblePackages.length === 0
+      ? diagnoseNoEligiblePackage(packages, input)
+      : comparedPackages.length === 0
+        ? "not_economical"
+        : undefined;
 
   return {
     recommendedPackage: comparedPackages[0] ?? null,
     comparedPackages,
+    ...(noRecommendationReason ? { noRecommendationReason } : {}),
     inputSummary: { ...input },
     assumptions: { ...settings },
   };
