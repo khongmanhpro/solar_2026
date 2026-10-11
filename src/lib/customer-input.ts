@@ -46,6 +46,7 @@ import {
   selectVatRule,
   TariffSelectionError,
 } from "@/lib/tariff-selection";
+import { resolvePlannedLoads } from "@/config/planned-loads";
 import type { TariffBillingContext } from "@/types/electricity-tariff";
 import type {
   DaytimeUsageLevel,
@@ -605,6 +606,23 @@ function selectedElectricalPhase(
     : null;
 }
 
+function selectedPlannedLoads(
+  request: CustomerCalculationRequest,
+): NonNullable<SolarCalculationInput["plannedLoads"]> {
+  return request.schemaVersion === CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION
+    ? resolvePlannedLoads(request.site.plannedLoads)
+    : [];
+}
+
+function plannedLoadWarnings(request: CustomerCalculationRequest): string[] {
+  const planned = selectedPlannedLoads(request);
+  if (planned.length === 0) return [];
+  const total = planned.reduce((sum, load) => sum + load.monthlyKwh, 0);
+  return [
+    `Phương án đã cộng thêm khoảng ${Math.round(total)} kWh/tháng cho thiết bị bạn dự định mua; đây là ước tính, không phải số đo trên hóa đơn.`,
+  ];
+}
+
 function average(values: readonly number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
@@ -898,6 +916,7 @@ function prepareMoneyCalculationInput(
   const warnings = [
     ...new Set([
       ...conversions.flatMap((conversion) => conversion.warnings),
+      ...plannedLoadWarnings(request),
       ...(conversions.length === 1
         ? ["Chỉ có dữ liệu của một tháng; mức dùng theo mùa chưa được phản ánh."]
         : []),
@@ -963,6 +982,7 @@ function prepareMoneyCalculationInput(
     vatRate: projectionConversion.vatRate,
     electricityType: "residential",
     electricalPhase: selectedElectricalPhase(request),
+    plannedLoads: selectedPlannedLoads(request),
     province: request.site.province,
     daytimeUsageLevel:
       daytimeUsageLevelByBehavior[request.site.daytimeBehavior],
@@ -1214,6 +1234,7 @@ export function prepareCalculationInput(
     vatRate: selectCurrentVatRate(options.allowUnapprovedTariffData === true),
     electricityType: "residential",
     electricalPhase: selectedElectricalPhase(request),
+    plannedLoads: selectedPlannedLoads(request),
     province: request.site.province,
     daytimeUsageLevel:
       daytimeUsageLevelByBehavior[request.site.daytimeBehavior],
@@ -1297,6 +1318,7 @@ export function prepareCalculationInput(
           ? "good"
           : "preliminary",
     warnings: [
+      ...plannedLoadWarnings(request),
       ...(values.length === 1
         ? ["Chỉ có dữ liệu của một tháng; mức dùng theo mùa chưa được phản ánh."]
         : []),

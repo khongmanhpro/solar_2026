@@ -8,6 +8,7 @@ import {
   getBackupDeviceLabels,
   type BackupDeviceId,
 } from "@/config/backup-devices";
+import { PLANNED_LOAD_OPTIONS, type PlannedLoadId } from "@/config/planned-loads";
 import { formatVnd } from "@/lib/formatters";
 import {
   getCurrentBillingPeriod,
@@ -50,11 +51,12 @@ export interface CalculatorFormValues {
   backupInputMode: BackupInputMode;
   essentialLoadWatts: string;
   backupHours: string;
+  plannedLoadIds: PlannedLoadId[];
 }
 
 export type CalculatorFieldName = Exclude<
   keyof CalculatorFormValues,
-  "energyObservations" | "backupDeviceIds" | "backupInputMode"
+  "energyObservations" | "backupDeviceIds" | "backupInputMode" | "plannedLoadIds"
 >;
 export type CalculatorFormErrors = Record<string, string | undefined>;
 
@@ -75,6 +77,7 @@ interface CalculatorFormProps {
   onRemoveObservation: (index: number) => void;
   onBackupDevicesChange: (deviceIds: BackupDeviceId[]) => void;
   onBackupInputModeChange: (mode: BackupInputMode) => void;
+  onPlannedLoadsChange: (loadIds: PlannedLoadId[]) => void;
   onNext: () => void;
   onBack: () => void;
   onGoToStep: (step: 1 | 2) => void;
@@ -239,6 +242,7 @@ export function CalculatorForm({
   onAddObservation,
   onRemoveObservation,
   onBackupDevicesChange,
+  onPlannedLoadsChange,
   onBackupInputModeChange,
   onNext,
   onBack,
@@ -989,6 +993,45 @@ export function CalculatorForm({
             </div>
           ) : null}
 
+          <fieldset className="rounded-xl border border-[var(--line)] p-5">
+            <legend className="px-1 text-sm font-semibold text-[var(--ink)]">
+              1–2 năm tới bạn có định dùng thêm? <span className="font-normal text-[var(--muted)]">(không bắt buộc)</span>
+            </legend>
+            <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+              Hệ thống điện mặt trời dùng 20–25 năm. Tính trước nhu cầu mới giúp tránh lắp thiếu.
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {PLANNED_LOAD_OPTIONS.map((load) => {
+                const isSelected = values.plannedLoadIds.includes(load.id);
+                return (
+                  <button
+                    aria-pressed={isSelected}
+                    className={`min-h-16 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] ${
+                      isSelected
+                        ? "border-[var(--brand)] bg-[var(--brand-soft)]"
+                        : "border-[var(--line)] bg-[var(--paper)] hover:border-[var(--brand)]"
+                    }`}
+                    disabled={isSubmitting}
+                    key={load.id}
+                    onClick={() =>
+                      onPlannedLoadsChange(
+                        isSelected
+                          ? values.plannedLoadIds.filter((loadId) => loadId !== load.id)
+                          : [...values.plannedLoadIds, load.id],
+                      )
+                    }
+                    type="button"
+                  >
+                    <span className="block text-sm font-semibold text-[var(--ink)]">{load.label}</span>
+                    <span className="mt-1 block text-xs leading-5 text-[var(--muted)]">
+                      {load.description} · ~{load.monthlyKwh} kWh/tháng
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
           <NavigationButtons isSubmitting={isSubmitting} onBack={onBack} onNext={onNext} />
         </section>
       ) : null}
@@ -1049,6 +1092,14 @@ export function CalculatorForm({
                   <p><strong>Hệ thống điện:</strong> {electricalPhaseLabel(values.electricalPhase)}</p>
                   <p><strong>Diện tích mái:</strong> {values.roofKnown === "true" ? `${values.roofAreaM2} m²` : "Chưa biết — cần khảo sát"}</p>
                   <p><strong>Điện dự phòng:</strong> {values.backupRequired === "true" ? "Có" : "Không"}</p>
+                  {values.plannedLoadIds.length > 0 ? (
+                    <p>
+                      <strong>Dự định thêm:</strong>{" "}
+                      {PLANNED_LOAD_OPTIONS.filter((load) => values.plannedLoadIds.includes(load.id))
+                        .map((load) => load.label)
+                        .join(", ")}
+                    </p>
+                  ) : null}
                   {values.backupRequired === "true" ? (
                     <>
                       <p className="text-[var(--muted)]">

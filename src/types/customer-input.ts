@@ -1,3 +1,5 @@
+import type { PlannedLoadId } from "@/config/planned-loads";
+
 export const NORMALIZED_ENERGY_INPUT_SCHEMA_VERSION = "2.2.0" as const;
 
 /** Current customer contract. The 2.0.0 parser remains available so saved
@@ -127,6 +129,8 @@ export type ElectricalPhase = (typeof ELECTRICAL_PHASES)[number];
 
 export interface CustomerSiteInputV2_2 extends CustomerSiteInput {
   electricalPhase: ElectricalPhase;
+  /** Appliances the customer plans to add (sizing for future demand). */
+  plannedLoads?: PlannedLoadId[];
 }
 
 /** Read-only compatibility shape for requests saved during Phase 1. */

@@ -165,7 +165,39 @@ export function monthlyGenerationKwh(
   );
 }
 
+export interface HouseholdDemand {
+  /** Measured consumption plus planned appliances (kWh/month). */
+  monthlyConsumptionKwh: number;
+  /** Blended share of consumption between 6h and 18h. */
+  daytimeRatio: number;
+  plannedKwh: number;
+}
+
+/** Measured demand plus the appliances the customer plans to add. */
+export function householdDemand(
+  input: SolarCalculationInput,
+  settings: CalculationSettings,
+): HouseholdDemand {
+  const measured = input.monthlyConsumptionKwh;
+  const measuredRatio = getDaytimeUsageRatio(input.daytimeUsageLevel, settings);
+  const planned = (input.plannedLoads ?? []).filter(
+    (load) => Number.isFinite(load.monthlyKwh) && load.monthlyKwh > 0,
+  );
+  const plannedKwh = sum(planned.map((load) => load.monthlyKwh));
+  const total = measured + plannedKwh;
+  const daytimeKwh =
+    measured * measuredRatio +
+    sum(planned.map((load) => load.monthlyKwh * clamp(load.daytimeShare, 0, 1)));
+
+  return {
+    monthlyConsumptionKwh: total,
+    daytimeRatio: total > 0 ? daytimeKwh / total : measuredRatio,
+    plannedKwh,
+  };
+}
+
 interface SimulatedMonth extends MonthlyEnergyFlows {
+  baselineEnergyChargeVnd: number;
   energyChargeAfterSolarVnd: number;
   billAfterSolarVnd: number;
   savingsVnd: number;
@@ -185,7 +217,8 @@ function createYearSimulator(params: {
   const { input, solarPackage, settings, generationByMonth } = params;
   const days = CALCULATION_CONSTANTS.daysPerMonth;
   const vatMultiplier = 1 + (input.vatRate ?? 0);
-  const daytimeRatio = getDaytimeUsageRatio(input.daytimeUsageLevel, settings);
+  const demand = householdDemand(input, settings);
+  const daytimeRatio = demand.daytimeRatio;
   const battery = {
     nominalKwh: solarPackage.batteryCapacityKwh,
     roundTripEfficiency: settings.batteryRoundTripEfficiency,
@@ -210,6 +243,10 @@ function createYearSimulator(params: {
           context: input.tariffBillingContext,
         }).energyChargeBeforeVatVnd
       : calculateElectricityBill(input.electricityType, consumptionKwh);
+  // With planned appliances the "before solar" bill is the future bill at the
+  // higher consumption, so savings compare like-for-like.
+  const baselineEnergyChargeVnd =
+    demand.plannedKwh > 0 ? energyCharge(demand.monthlyConsumptionKwh) : input.monthlyBill;
 
   const cache = new Map<number, SimulatedMonth[]>();
   return (generationFactor) => {
@@ -220,7 +257,7 @@ function createYearSimulator(params: {
     const months = generationByMonth.map((generation) => {
       const flows = simulateMonth({
         dailyGenerationKwh: (generation * key) / days,
-        dailyConsumptionKwh: input.monthlyConsumptionKwh / days,
+        dailyConsumptionKwh: demand.monthlyConsumptionKwh / days,
         daytimeRatio,
         battery,
         systemStandbyLoadKw:
@@ -233,15 +270,16 @@ function createYearSimulator(params: {
       const energyChargeAfterSolarVnd = clamp(
         energyCharge(flows.gridImportKwh),
         0,
-        input.monthlyBill,
+        baselineEnergyChargeVnd,
       );
       return {
         ...flows,
+        baselineEnergyChargeVnd,
         energyChargeAfterSolarVnd,
         billAfterSolarVnd: energyChargeAfterSolarVnd * vatMultiplier,
         savingsVnd: Math.max(
           0,
-          (input.monthlyBill - energyChargeAfterSolarVnd) * vatMultiplier,
+          (baselineEnergyChargeVnd - energyChargeAfterSolarVnd) * vatMultiplier,
         ),
       };
     });
@@ -268,7 +306,9 @@ function summariseScenario(
   const surplus = average((month) => month.surplusKwh);
   const energyChargeAfter = average((month) => month.energyChargeAfterSolarVnd);
   const yearlySavingsVnd = sum(months.map((month) => month.savingsVnd));
-  const totalSolarUse = Math.min(input.monthlyConsumptionKwh, direct + battery);
+  const consumption = average((month) => month.consumptionKwh);
+  const baselineCharge = average((month) => month.baselineEnergyChargeVnd);
+  const totalSolarUse = Math.min(consumption, direct + battery);
 
   return {
     adjustedGenerationKwh: generation,
@@ -280,8 +320,8 @@ function summariseScenario(
     monthlySavingsVnd: yearlySavingsVnd / 12,
     billAfterSolarVnd: average((month) => month.billAfterSolarVnd),
     reductionPercent: clamp(
-      input.monthlyBill > 0
-        ? ((input.monthlyBill - energyChargeAfter) / input.monthlyBill) * 100
+      baselineCharge > 0
+        ? ((baselineCharge - energyChargeAfter) / baselineCharge) * 100
         : 0,
       0,
       100,
@@ -326,10 +366,9 @@ export function calculateSolarPackage({
 
   // The service has already normalized the public request. In particular,
   // direct kWh input must never pass through a bill-to-kWh inverse here.
-  const estimatedMonthlyConsumptionKwh = input.monthlyConsumptionKwh;
-  const daytimeDemandKwh =
-    estimatedMonthlyConsumptionKwh *
-    getDaytimeUsageRatio(input.daytimeUsageLevel, settings);
+  const demand = householdDemand(input, settings);
+  const estimatedMonthlyConsumptionKwh = demand.monthlyConsumptionKwh;
+  const daytimeDemandKwh = estimatedMonthlyConsumptionKwh * demand.daytimeRatio;
   const simulateYear = createYearSimulator({
     input,
     solarPackage,
@@ -381,8 +420,12 @@ export function calculateSolarPackage({
       ),
     ) / 12;
 
+  const vatMultiplier = 1 + (input.vatRate ?? 0);
+
   return {
     packageId: solarPackage.id,
+    baselineBillVnd: (standard.months[0]?.baselineEnergyChargeVnd ?? input.monthlyBill) * vatMultiplier,
+    plannedAdditionalKwh: demand.plannedKwh,
     estimatedMonthlyConsumptionKwh,
     daytimeDemandKwh,
     ...standard.summary,

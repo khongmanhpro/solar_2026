@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { SOLAR_INPUT_LIMITS } from "@/config/defaults";
+import { PLANNED_LOAD_IDS } from "@/config/planned-loads";
 import {
   getCurrentBillingPeriod,
   MIN_SUPPORTED_BILLING_PERIOD,
@@ -359,6 +360,8 @@ export const customerCalculationRequestV2Schema = z
         electricalPhase: z.enum(ELECTRICAL_PHASES, {
           error: "Vui lòng chọn loại điện 1 pha hoặc 3 pha.",
         }),
+        // Optional and additive: older 2.2.0 clients simply omit it.
+        plannedLoads: z.array(z.enum(PLANNED_LOAD_IDS)).max(PLANNED_LOAD_IDS.length).optional(),
       })
       .strict(),
   })

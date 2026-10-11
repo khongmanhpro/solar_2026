@@ -189,6 +189,7 @@ export function CalculationResults({
   const roofAreaUnknown = result.inputSummary.roofAreaM2 === null;
   const usedDirectKwh = result.inputSummary.energyInputMethod === "kwh";
   const vatRate = result.inputSummary.vatRate ?? 0;
+  const plannedKwh = selectedResult.plannedAdditionalKwh ?? 0;
   const horizonYears = selectedResult.cashFlow.at(-1)?.year ?? 20;
   const monthlySavings = selectedResult.monthlyBreakdown?.map((month) => month.savingsVnd);
   const seasonalSavings =
@@ -278,8 +279,14 @@ export function CalculationResults({
         <SectionHeading eyebrow="Hiệu quả hàng tháng" id="savings-title" title="Hóa đơn thay đổi thế nào?" />
         <dl className="grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
           <Metric
-            label={usedDirectKwh ? "Tiền điện quy đổi hiện tại" : "Tiền điện hiện tại"}
-            value={formatVnd(result.inputSummary.monthlyBill * (1 + vatRate))}
+            label={
+              plannedKwh > 0
+                ? "Tiền điện dự kiến khi thêm thiết bị"
+                : usedDirectKwh
+                  ? "Tiền điện quy đổi hiện tại"
+                  : "Tiền điện hiện tại"
+            }
+            value={formatVnd(selectedResult.baselineBillVnd ?? result.inputSummary.monthlyBill * (1 + vatRate))}
           />
           <Metric label="Tiền điện sau khi lắp" value={formatVnd(selectedResult.billAfterSolarVnd)} />
           <Metric accent label="Tiết kiệm trung bình mỗi tháng" value={formatVnd(selectedResult.monthlySavingsVnd)} />
@@ -294,7 +301,7 @@ export function CalculationResults({
           <Metric label="Điện mặt trời tự sử dụng" value={formatPercent(selectedResult.selfConsumptionRate * 100)} />
         </dl>
         <p className="mt-3 rounded-lg border-l-2 border-[var(--sun)] bg-[var(--warning-soft)] px-4 py-3 text-sm leading-6 text-[var(--warning-ink)]">
-          Điện sinh hoạt hộ gia đình · {usedDirectKwh ? "kWh được nhập trực tiếp" : "kWh được ước tính từ dữ liệu hóa đơn"} · {formatKwh(selectedResult.estimatedMonthlyConsumptionKwh)}/tháng · tiền điện trước và sau khi lắp đều được tính theo biểu giá trong phiên tính, {vatRate > 0 ? `đã gồm VAT ${formatPercent(vatRate * 100)} để so sánh cùng cơ sở với giá gói đã gồm VAT` : "chưa gồm VAT"}.
+          Điện sinh hoạt hộ gia đình · {usedDirectKwh ? "kWh được nhập trực tiếp" : "kWh được ước tính từ dữ liệu hóa đơn"} · {formatKwh(selectedResult.estimatedMonthlyConsumptionKwh)}/tháng{plannedKwh > 0 ? ` (gồm ~${Math.round(plannedKwh)} kWh dự kiến cho thiết bị mới)` : ""} · tiền điện trước và sau khi lắp đều được tính theo biểu giá trong phiên tính, {vatRate > 0 ? `đã gồm VAT ${formatPercent(vatRate * 100)} để so sánh cùng cơ sở với giá gói đã gồm VAT` : "chưa gồm VAT"}.
         </p>
       </section>
 
@@ -303,6 +310,7 @@ export function CalculationResults({
         <BillTierDecoder
           gridConsumptionAfterSolarKwh={selectedResult.gridConsumptionAfterSolarKwh}
           input={result.inputSummary}
+          monthlyConsumptionKwh={selectedResult.estimatedMonthlyConsumptionKwh}
         />
       </section>
 

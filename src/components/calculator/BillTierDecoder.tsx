@@ -4,6 +4,8 @@ import type { SolarCalculationInput } from "@/types/solar";
 
 interface BillTierDecoderProps {
   input: SolarCalculationInput;
+  /** Demand used by the engine (measured + planned appliances). */
+  monthlyConsumptionKwh: number;
   gridConsumptionAfterSolarKwh: number;
 }
 
@@ -16,8 +18,12 @@ function tierRange(fromKwh: number, toKwh: number | null): string {
 }
 
 /** Shows which EVN tiers solar removes: the expensive top tiers go first. */
-export function BillTierDecoder({ input, gridConsumptionAfterSolarKwh }: BillTierDecoderProps) {
-  const comparison = compareBillTiers(input, gridConsumptionAfterSolarKwh);
+export function BillTierDecoder({
+  input,
+  monthlyConsumptionKwh,
+  gridConsumptionAfterSolarKwh,
+}: BillTierDecoderProps) {
+  const comparison = compareBillTiers({ ...input, monthlyConsumptionKwh }, gridConsumptionAfterSolarKwh);
   if (!comparison) return null;
 
   const rows = comparison.rows.filter((row) => row.beforeKwh > 0);

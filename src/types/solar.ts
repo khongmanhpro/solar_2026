@@ -58,6 +58,8 @@ export interface SolarCalculationInput {
    * with VAT-inclusive package prices. Absent on older snapshots, or when no
    * VAT rule covers the current period: money outputs are then before VAT. */
   vatRate?: number | null;
+  /** Future appliances added on top of measured consumption (engine 3.1+). */
+  plannedLoads?: { id: string; monthlyKwh: number; daytimeShare: number }[];
   electricityType: ElectricityType;
   electricalPhase: ElectricalPhase | null;
   province: string;
@@ -191,6 +193,10 @@ export interface LongTermSavings {
 export interface UnscoredPackageCalculationResult
   extends CalculationScenarioResult {
   packageId: string;
+  /** Monthly bill before solar incl. VAT, at future demand (engine 3.1+). */
+  baselineBillVnd?: number;
+  /** kWh/month added for planned appliances (engine 3.1+). */
+  plannedAdditionalKwh?: number;
   estimatedMonthlyConsumptionKwh: number;
   daytimeDemandKwh: number;
   lowEstimate: CalculationScenarioResult;

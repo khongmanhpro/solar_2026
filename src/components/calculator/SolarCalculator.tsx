@@ -16,6 +16,7 @@ import {
   calculateBackupDeviceWatts,
   type BackupDeviceId,
 } from "@/config/backup-devices";
+import type { PlannedLoadId } from "@/config/planned-loads";
 import { CUSTOMER_REFERENCE_PACKAGE_DATA_VERSION } from "@/config/customer-reference-packages";
 import { TRIAL_PACKAGE_DATA_VERSION_PREFIX } from "@/config/trial-market-data";
 import { ApiClientError, requestJson } from "@/lib/api-client";
@@ -52,6 +53,7 @@ const INITIAL_VALUES: CalculatorFormValues = {
   backupInputMode: "devices",
   essentialLoadWatts: "",
   backupHours: "",
+  plannedLoadIds: [],
 };
 
 function firstErrorField(errors: CalculatorFormErrors): string | null {
@@ -290,6 +292,7 @@ function toRequest(values: CalculatorFormValues): CustomerCalculationRequestV2 |
       province: values.province,
       daytimeBehavior: values.daytimeBehavior,
       electricalPhase: values.electricalPhase,
+      ...(values.plannedLoadIds.length > 0 ? { plannedLoads: values.plannedLoadIds } : {}),
       roof:
         values.roofKnown === "true"
           ? { known: true, areaM2: Number(values.roofAreaM2) }
@@ -433,6 +436,14 @@ export function SolarCalculator() {
       });
       setErrors((current) => ({ ...current, [field]: undefined }));
       setServerError(null);
+    },
+    [registerInteraction],
+  );
+
+  const handlePlannedLoadsChange = useCallback(
+    (loadIds: PlannedLoadId[]) => {
+      registerInteraction();
+      setValues((current) => ({ ...current, plannedLoadIds: loadIds }));
     },
     [registerInteraction],
   );
@@ -784,6 +795,7 @@ export function SolarCalculator() {
               onAddObservation={handleAddObservation}
               onBack={() => goToStep(Math.max(1, currentStep - 1) as CalculatorStep)}
               onBackupDevicesChange={handleBackupDevicesChange}
+              onPlannedLoadsChange={handlePlannedLoadsChange}
               onBackupInputModeChange={handleBackupInputModeChange}
               onChange={handleChange}
               onEnergyMethodChange={handleEnergyMethodChange}
