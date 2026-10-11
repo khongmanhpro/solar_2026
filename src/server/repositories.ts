@@ -22,9 +22,11 @@ import type {
   ProvinceFactor,
   SolarCalculationInput,
   SolarPackage,
+  SolarRecommendationResult,
   SolarSystemType,
 } from "@/types/solar";
 import type { DataStatus } from "@/types/data-governance";
+import { isPlausibleMonthlyYield } from "@/lib/province-irradiance-validation";
 import {
   CUSTOMER_REFERENCE_PACKAGE_DATA_VERSION,
 } from "@/config/customer-reference-packages";
@@ -194,9 +196,8 @@ function mapProvinceFactor(record: PrismaProvinceFactorRecord): ProvinceFactor {
       if (
         Array.isArray(parsed) &&
         parsed.length === 12 &&
-        parsed.every(
-          (value) => typeof value === "number" && Number.isFinite(value) && value >= 0,
-        )
+        parsed.every((value) => typeof value === "number") &&
+        isPlausibleMonthlyYield(parsed)
       ) {
         monthlyYieldKwhPerKwp = parsed;
       }
@@ -229,6 +230,7 @@ function mapLead(record: PrismaLeadRecord): LeadRecord {
       record.preferredContactTime as LeadRecord["preferredContactTime"],
     note: record.note ?? undefined,
     calculationId: record.calculationId,
+    selectedPackageId: record.selectedPackageId ?? undefined,
     status: domainLeadStatusByPrisma[record.status],
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
@@ -532,6 +534,26 @@ export class CalculationRepository {
     const count = await this.prisma.calculation.count({ where: { id } });
     return count > 0;
   }
+
+  /** Package IDs the customer was shown for a calculation, or null if the
+   * calculation does not exist. */
+  async findOfferedPackageIds(id: string): Promise<string[] | null> {
+    const record = await this.prisma.calculation.findUnique({
+      where: { id },
+      select: { resultJson: true },
+    });
+    if (!record) return null;
+
+    const result = record.resultJson as unknown as Partial<SolarRecommendationResult>;
+    const ids = [
+      result.recommendedPackage?.packageId,
+      ...(result.comparedPackages ?? []).map((item) => item.packageId),
+      ...(result.recommendationStability?.rangeOptions ?? []).map(
+        (option) => option.result.packageId,
+      ),
+    ].filter((value): value is string => typeof value === "string");
+    return [...new Set(ids)];
+  }
 }
 
 export class LeadRepository {
@@ -548,6 +570,7 @@ export class LeadRepository {
         calculation: {
           include: { recommendedPackage: { select: { name: true } } },
         },
+        selectedPackage: { select: { name: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -566,6 +589,7 @@ export class LeadRepository {
           record.calculation.recommendedPackage?.name ?? null,
         createdAt: record.calculation.createdAt,
       },
+      selectedPackageName: record.selectedPackage?.name ?? null,
     }));
   }
 
@@ -576,6 +600,7 @@ export class LeadRepository {
         calculation: {
           include: { recommendedPackage: { select: { name: true } } },
         },
+        selectedPackage: { select: { name: true } },
       },
     });
 
@@ -601,6 +626,7 @@ export class LeadRepository {
         result:
           record.calculation.resultJson as unknown as AdminLeadDetail["calculation"]["result"],
       },
+      selectedPackageName: record.selectedPackage?.name ?? null,
     };
   }
 

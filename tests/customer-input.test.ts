@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import {
   ELECTRICITY_TARIFF_REGISTRY,
@@ -423,6 +423,13 @@ describe("prepareCalculationInput", () => {
   });
 
   it("lấy trung bình kWh trực tiếp, lưu từng quan sát và gắn giả định điện sinh hoạt", () => {
+    // "High" confidence requires the latest period to be recent; pin the clock
+    // so this case does not decay as real time passes.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-15T00:00:00+07:00"));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const prepared = prepareCalculationInput(
       {
         schemaVersion: "2.0.0",

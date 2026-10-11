@@ -151,10 +151,6 @@ export function CalculationResults({
   const snapshotPackages = result.sourceSnapshot?.packages;
   const packagesForCalculation = snapshotPackages ?? packages;
   const recommendedPackageId = result.recommendedPackage?.packageId ?? "";
-  const recommendedPackage = findPackage(
-    packagesForCalculation,
-    recommendedPackageId,
-  );
   const [selectedPackageId, setSelectedPackageId] = useState(recommendedPackageId);
   const selectedResult = findResult(result.comparedPackages, selectedPackageId);
   const selectedPackage = findPackage(
@@ -185,6 +181,7 @@ export function CalculationResults({
   const isRecommended = selectedPackageId === recommendedPackageId;
   const roofAreaUnknown = result.inputSummary.roofAreaM2 === null;
   const usedDirectKwh = result.inputSummary.energyInputMethod === "kwh";
+  const vatRate = result.inputSummary.vatRate ?? 0;
   const insights = generateSolarInsights({
     input: result.inputSummary,
     solarPackage: selectedPackage,
@@ -269,7 +266,7 @@ export function CalculationResults({
         <dl className="grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
           <Metric
             label={usedDirectKwh ? "Tiền điện quy đổi hiện tại" : "Tiền điện hiện tại"}
-            value={formatVnd(result.inputSummary.monthlyBill)}
+            value={formatVnd(result.inputSummary.monthlyBill * (1 + vatRate))}
           />
           <Metric label="Tiền điện sau khi lắp" value={formatVnd(selectedResult.billAfterSolarVnd)} />
           <Metric accent label="Tiết kiệm mỗi tháng" value={formatVnd(selectedResult.monthlySavingsVnd)} />
@@ -278,7 +275,7 @@ export function CalculationResults({
           <Metric label="Điện mặt trời tự sử dụng" value={formatPercent(selectedResult.selfConsumptionRate * 100)} />
         </dl>
         <p className="mt-3 rounded-lg border-l-2 border-[var(--sun)] bg-[var(--warning-soft)] px-4 py-3 text-sm leading-6 text-[var(--warning-ink)]">
-          Điện sinh hoạt hộ gia đình · {usedDirectKwh ? "kWh được nhập trực tiếp" : "kWh được ước tính từ dữ liệu hóa đơn"} · {formatKwh(selectedResult.estimatedMonthlyConsumptionKwh)}/tháng · tiền điện trước và sau khi lắp đều được tính theo biểu giá trong phiên tính, chưa gồm VAT.
+          Điện sinh hoạt hộ gia đình · {usedDirectKwh ? "kWh được nhập trực tiếp" : "kWh được ước tính từ dữ liệu hóa đơn"} · {formatKwh(selectedResult.estimatedMonthlyConsumptionKwh)}/tháng · tiền điện trước và sau khi lắp đều được tính theo biểu giá trong phiên tính, {vatRate > 0 ? `đã gồm VAT ${formatPercent(vatRate * 100)} để so sánh cùng cơ sở với giá gói đã gồm VAT` : "chưa gồm VAT"}.
         </p>
       </section>
 
@@ -393,12 +390,8 @@ export function CalculationResults({
       {isStale ? null : (
         <LeadForm
           calculationId={result.calculationId}
-          packageId={recommendedPackageId}
-          packageName={
-            recommendedPackage
-              ? formatCustomerPackageName(recommendedPackage.name)
-              : undefined
-          }
+          packageId={selectedPackageId}
+          packageName={formatCustomerPackageName(selectedPackage.name)}
           settings={result.assumptions}
         />
       )}

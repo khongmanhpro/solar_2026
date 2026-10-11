@@ -1,7 +1,7 @@
 import type { CalculationDataManifest } from "@/types/data-governance";
 
 export const CALCULATION_SNAPSHOT_SCHEMA_VERSION = "2.4.0" as const;
-export const CALCULATION_ALGORITHM_VERSION = "2.3.0-pvgis" as const;
+export const CALCULATION_ALGORITHM_VERSION = "2.4.0-vat-inclusive-savings" as const;
 
 export const CURRENT_DATA_MANIFEST = {
   electricityTariff: {

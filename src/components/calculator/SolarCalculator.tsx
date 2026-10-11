@@ -480,7 +480,10 @@ export function SolarCalculator() {
         ...current,
         energyMethod: method,
         energyObservations: [{ ...EMPTY_OBSERVATION }],
-        moneyBillingContext: "",
+        // Most household bills are a single meter with only energy + VAT;
+        // pre-select it (visible and changeable) so the common case gets an
+        // exact kWh conversion and a concrete package.
+        moneyBillingContext: method === "money" ? "standard_single_household" : "",
         moneyHouseholdCount: "",
         moneyOtherChargesVnd: "",
         moneyPeriodAdjustment: "",

@@ -10,7 +10,8 @@ export type AnalyticsEventName =
   | "package_selected"
   | "survey_form_opened"
   | "survey_submitted"
-  | "zalo_clicked";
+  | "zalo_clicked"
+  | "hotline_clicked";
 
 type AnalyticsPayload = Record<string, string | number | boolean | null>;
 

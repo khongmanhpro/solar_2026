@@ -476,12 +476,19 @@ describe("SolarCalculator", () => {
     expect(JSON.parse(String(calculationCall?.[1]?.body))).not.toHaveProperty("electricityType");
   });
 
-  it("yêu cầu kỳ hóa đơn và bối cảnh trước khi tiếp tục với tổng tiền", async () => {
+  it("yêu cầu kỳ hóa đơn và chọn sẵn bối cảnh một hộ tiêu chuẩn khi nhập tổng tiền", async () => {
     const user = userEvent.setup();
     render(<SolarCalculator />);
 
     await screen.findByRole("radio", { name: /Nhập tổng tiền/ });
     await user.click(screen.getByRole("radio", { name: /Nhập tổng tiền/ }));
+    expect(
+      (
+        screen.getByRole("radio", {
+          name: /Một hộ, kỳ bình thường, chỉ gồm tiền điện và VAT/,
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(true);
     await user.type(screen.getByLabelText("Tổng tiền đã thanh toán"), "2000000");
     await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
 
@@ -489,8 +496,8 @@ describe("SolarCalculator", () => {
       screen.getByText("Vui lòng chọn kỳ hóa đơn để áp dụng đúng biểu giá và VAT."),
     ).toBeTruthy();
     expect(
-      screen.getByText("Vui lòng chọn trường hợp phù hợp với hóa đơn."),
-    ).toBeTruthy();
+      screen.queryByText("Vui lòng chọn trường hợp phù hợp với hóa đơn."),
+    ).toBeNull();
     expect(screen.queryByLabelText("Tỉnh hoặc thành phố lắp đặt")).toBeNull();
   });
 

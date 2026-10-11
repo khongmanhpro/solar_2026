@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { trackEvent } from "@/lib/analytics";
+import { resolveContactChannels } from "@/lib/contact-channels";
 import { ApiClientError, requestJson } from "@/lib/api-client";
 import { leadInputSchema } from "@/lib/validations";
 import type { CalculationSettings } from "@/types/solar";
@@ -96,7 +97,11 @@ export function LeadForm({
     event.preventDefault();
     setServerError(null);
 
-    const parsed = leadInputSchema.safeParse({ ...values, calculationId });
+    const parsed = leadInputSchema.safeParse({
+      ...values,
+      calculationId,
+      ...(packageId ? { selectedPackageId: packageId } : {}),
+    });
     if (!parsed.success) {
       const nextErrors: LeadFormErrors = {};
       for (const issue of parsed.error.issues) {
@@ -154,7 +159,7 @@ export function LeadForm({
   }
 
   const isSubmitting = status === "submitting";
-  const phoneHref = `tel:${settings.hotline.replace(/[^\d+]/g, "")}`;
+  const { zaloHref, phoneHref, hotlineLabel } = resolveContactChannels(settings);
 
   return (
     <section aria-labelledby="survey-title" className="mt-14 overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)]">
@@ -340,28 +345,37 @@ export function LeadForm({
           </form>
         )}
 
-        <div className="mt-7 grid gap-3 border-t border-[var(--line)] pt-6 sm:grid-cols-2">
-          <a
-            className="flex min-h-12 items-center justify-between rounded-lg border border-[var(--line-strong)] px-4 py-3 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--brand)] hover:bg-[var(--brand-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)]"
-            href={settings.zaloUrl}
-            rel="noopener noreferrer"
-            target="_blank"
-            onClick={() => trackEvent("zalo_clicked", { packageId })}
-          >
-            <span>Tư vấn qua Zalo</span>
-            <span aria-hidden="true">↗</span>
-          </a>
-          <a
-            className="flex min-h-12 items-center justify-between rounded-lg border border-[var(--line-strong)] px-4 py-3 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--sun)] hover:bg-[var(--warning-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)]"
-            href={phoneHref}
-          >
-            <span>{settings.hotline}</span>
-            <span aria-hidden="true">☎</span>
-          </a>
-        </div>
-        <p className="mt-3 text-center text-sm leading-5 text-[var(--muted)]">
-          Kênh liên hệ của {settings.businessName}
-        </p>
+        {zaloHref || phoneHref ? (
+          <>
+            <div className="mt-7 grid gap-3 border-t border-[var(--line)] pt-6 sm:grid-cols-2">
+              {zaloHref ? (
+                <a
+                  className="flex min-h-12 items-center justify-between rounded-lg border border-[var(--line-strong)] px-4 py-3 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--brand)] hover:bg-[var(--brand-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)]"
+                  href={zaloHref}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  onClick={() => trackEvent("zalo_clicked", { packageId })}
+                >
+                  <span>Tư vấn qua Zalo</span>
+                  <span aria-hidden="true">↗</span>
+                </a>
+              ) : null}
+              {phoneHref ? (
+                <a
+                  className="flex min-h-12 items-center justify-between rounded-lg border border-[var(--line-strong)] px-4 py-3 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--sun)] hover:bg-[var(--warning-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)]"
+                  href={phoneHref}
+                  onClick={() => trackEvent("hotline_clicked", { packageId })}
+                >
+                  <span>{hotlineLabel}</span>
+                  <span aria-hidden="true">☎</span>
+                </a>
+              ) : null}
+            </div>
+            <p className="mt-3 text-center text-sm leading-5 text-[var(--muted)]">
+              Kênh liên hệ của {settings.businessName}
+            </p>
+          </>
+        ) : null}
       </div>
     </section>
   );

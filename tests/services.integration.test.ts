@@ -76,6 +76,7 @@ const migrationPaths = [
   "../prisma/migrations/20260722130000_phase1_customer_input/migration.sql",
   "../prisma/migrations/20260806090000_add_electrical_phase/migration.sql",
   "../prisma/migrations/20260806120000_add_pvgis_monthly_yield/migration.sql",
+  "../prisma/migrations/20261011120000_lead_selected_package/migration.sql",
 ].map((migrationPath) => new URL(migrationPath, import.meta.url));
 
 describe("service integration", () => {
@@ -436,6 +437,18 @@ describe("service integration", () => {
     });
     expect(result.recommendedPackage).toBeNull();
     expect(stored?.recommendedPackageId).toBeNull();
+
+    // Customers still see indicative options per consumption bound instead
+    // of an empty result.
+    const rangeOptions = result.recommendationStability?.rangeOptions ?? [];
+    expect(rangeOptions.length).toBeGreaterThan(0);
+    expect(new Set(rangeOptions.map((option) => option.result.packageId)).size).toBe(
+      rangeOptions.length,
+    );
+    for (const option of rangeOptions) {
+      expect(option.monthlyConsumptionKwh).toBeGreaterThanOrEqual(0);
+      expect(option.result.monthlySavingsVnd).toBeGreaterThan(0);
+    }
   });
 
   it("không tự dùng VAT ngoài khoảng registry", async () => {
@@ -594,6 +607,38 @@ describe("service integration", () => {
         where: { id: linked.calculationId },
       }),
     ).not.toBeNull();
+  });
+
+  it("lưu gói khách đang xem và từ chối gói không có trong kết quả", async () => {
+    const calculation = await services.calculations.create(
+      validCalculationInput,
+    );
+    const viewedPackageId = calculation.comparedPackages.at(-1)?.packageId;
+    expect(viewedPackageId).toBeDefined();
+
+    const lead = await services.leads.create({
+      fullName: "Nguyễn Văn An",
+      phone: "0901234567",
+      preferredContactTime: "anytime",
+      calculationId: calculation.calculationId,
+      selectedPackageId: viewedPackageId,
+    });
+    const stored = await prisma.lead.findUnique({ where: { id: lead.id } });
+    expect(stored?.selectedPackageId).toBe(viewedPackageId);
+    expect((await services.leads.list())[0]?.selectedPackageName).toEqual(
+      expect.any(String),
+    );
+
+    await expect(
+      services.leads.create({
+        fullName: "Nguyễn Văn An",
+        phone: "0901234567",
+        preferredContactTime: "anytime",
+        calculationId: calculation.calculationId,
+        selectedPackageId: "package-not-offered",
+      }),
+    ).rejects.toMatchObject({ code: "SELECTED_PACKAGE_NOT_OFFERED", status: 422 });
+    expect(await prisma.lead.count()).toBe(1);
   });
 
   it("từ chối lead tham chiếu calculation không tồn tại", async () => {

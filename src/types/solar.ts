@@ -54,6 +54,10 @@ export interface SolarCalculationInput {
     billingDays?: number;
     referenceDays?: number;
   } | null;
+  /** VAT rate (0..1) applied to energy charges so savings compare like-for-like
+   * with VAT-inclusive package prices. Absent on older snapshots, or when no
+   * VAT rule covers the current period: money outputs are then before VAT. */
+  vatRate?: number | null;
   electricityType: ElectricityType;
   electricalPhase: ElectricalPhase | null;
   province: string;
@@ -202,7 +206,16 @@ export interface SolarRecommendationResult {
     expectedConsumptionPackageId: string | null;
     upperConsumptionPackageId: string | null;
     reason: string;
+    /** Distinct top packages at each consumption bound, shown as indicative
+     * options when no single package is stable across the kWh range. */
+    rangeOptions?: RecommendationRangeOption[];
   };
+}
+
+export interface RecommendationRangeOption {
+  bound: "lowerBound" | "expected" | "upperBound";
+  monthlyConsumptionKwh: number;
+  result: PackageCalculationResult;
 }
 
 export interface LeadInput {
@@ -212,6 +225,8 @@ export interface LeadInput {
   preferredContactTime: PreferredContactTime;
   note?: string;
   calculationId: string;
+  /** Package shown to the customer when they registered. */
+  selectedPackageId?: string;
 }
 
 export interface LeadRecord extends LeadInput {
@@ -230,6 +245,7 @@ export interface AdminLeadRecord extends LeadRecord {
     recommendedPackageName: string | null;
     createdAt: Date;
   };
+  selectedPackageName: string | null;
 }
 
 export interface AdminLeadDetail extends LeadRecord {
@@ -245,6 +261,7 @@ export interface AdminLeadDetail extends LeadRecord {
     createdAt: Date;
     result: SolarRecommendationResult;
   };
+  selectedPackageName: string | null;
 }
 
 export interface CalculationResponse extends SolarRecommendationResult {

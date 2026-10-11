@@ -36,6 +36,7 @@ export interface AdminLeadListItem {
     recommendedPackageName: string | null;
     createdAt: string;
   };
+  selectedPackageName: string | null;
 }
 
 type LeadDetailPayload = Omit<AdminLeadDetail, "createdAt" | "updatedAt" | "calculation"> & {
@@ -123,7 +124,7 @@ export function LeadsManager({ initialLeads }: { initialLeads: AdminLeadListItem
               <article className="grid gap-4 p-5 lg:grid-cols-[1.1fr_0.9fr_0.8fr_0.8fr_auto] lg:items-center" key={lead.id}>
                 <div><p className="font-semibold">{lead.fullName}</p><a className="mt-1 inline-block rounded text-sm font-semibold text-[var(--brand-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)]" href={`tel:${lead.phone}`}>{lead.phone}</a><p className="mt-1 text-xs leading-5 text-[var(--muted)]">{lead.address || "Chưa có địa chỉ"}</p></div>
                 <div><p className="font-semibold">{formatVnd(lead.calculation.monthlyBill)}</p><p className="mt-1 text-xs text-[var(--muted)]">{lead.calculation.province}</p><p className="mt-1 text-xs text-[var(--muted)]">{dateFormatter.format(new Date(lead.createdAt))}</p></div>
-                <p className="text-sm font-semibold text-[var(--ink)]">{lead.calculation.recommendedPackageName ?? "Chưa có gói phù hợp"}</p>
+                <div><p className="text-sm font-semibold text-[var(--ink)]">{lead.calculation.recommendedPackageName ?? "Chưa có gói phù hợp"}</p>{lead.selectedPackageName && lead.selectedPackageName !== lead.calculation.recommendedPackageName ? <p className="mt-1 text-xs text-[var(--muted)]">Khách chọn: {lead.selectedPackageName}</p> : null}</div>
                 <select aria-label={`Trạng thái của ${lead.fullName}`} className="admin-field mt-0 text-sm" disabled={updatingId === lead.id} onChange={(event) => updateStatus(lead.id, event.target.value as LeadStatus)} value={lead.status}>{LEAD_STATUSES.map((status) => <option key={status} value={status}>{LEAD_STATUS_LABELS[status]}</option>)}</select>
                 <button className="admin-secondary-button" disabled={detailLoading} onClick={() => openDetail(lead.id)} type="button">{detailLoading ? "Đang tải…" : "Mở hồ sơ"}</button>
               </article>

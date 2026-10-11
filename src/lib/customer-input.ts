@@ -43,6 +43,8 @@ import {
   selectBillingRules,
   selectElectricityTariff,
   selectElectricityTariffByVersion,
+  selectVatRule,
+  TariffSelectionError,
 } from "@/lib/tariff-selection";
 import type { TariffBillingContext } from "@/types/electricity-tariff";
 import type {
@@ -819,6 +821,22 @@ function createMoneyConversion(
   };
 }
 
+// kWh-based paths have no bill to read VAT from, so use the rule covering the
+// current period. A registry gap leaves VAT unset (outputs stay before VAT)
+// instead of guessing a rate.
+function selectCurrentVatRate(allowUnapproved: boolean): number | null {
+  try {
+    const vatRule = selectVatRule(ELECTRICITY_TARIFF_REGISTRY, {
+      period: getCurrentBillingPeriod(),
+      allowUnapproved,
+    });
+    return vatRule.rateBps / 10_000;
+  } catch (error) {
+    if (error instanceof TariffSelectionError) return null;
+    throw error;
+  }
+}
+
 function prepareMoneyCalculationInput(
   request: CustomerCalculationRequestV2 | CustomerCalculationRequestV2_1,
   allowUnapprovedTariffData: boolean,
@@ -942,6 +960,7 @@ function prepareMoneyCalculationInput(
     monthlyBill: projectedMonthlyBill,
     electricityTariffVersion: projectionTariff.version,
     tariffBillingContext: projectionBillingContext,
+    vatRate: projectionConversion.vatRate,
     electricityType: "residential",
     electricalPhase: selectedElectricalPhase(request),
     province: request.site.province,
@@ -1128,6 +1147,7 @@ export function prepareCalculationInput(
       monthlyBill: request.monthlyBill,
       electricityTariffVersion: tariff.version,
       tariffBillingContext,
+      vatRate: selectCurrentVatRate(options.allowUnapprovedTariffData === true),
       electricityType: request.electricityType,
       electricalPhase: null,
       province: request.province,
@@ -1191,6 +1211,7 @@ export function prepareCalculationInput(
     monthlyBill,
     electricityTariffVersion: tariff.version,
     tariffBillingContext,
+    vatRate: selectCurrentVatRate(options.allowUnapprovedTariffData === true),
     electricityType: "residential",
     electricalPhase: selectedElectricalPhase(request),
     province: request.site.province,

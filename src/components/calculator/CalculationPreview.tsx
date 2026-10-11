@@ -1,7 +1,79 @@
 import { CalculationResults } from "@/components/calculator/CalculationResults";
 import { LeadForm } from "@/components/calculator/LeadForm";
-import { formatKwhRange } from "@/lib/formatters";
-import type { CalculationResponse, SolarPackage } from "@/types/solar";
+import {
+  formatCustomerPackageName,
+  formatKwh,
+  formatKwhRange,
+  formatPaybackYears,
+  formatVnd,
+} from "@/lib/formatters";
+import type {
+  CalculationResponse,
+  RecommendationRangeOption,
+  SolarPackage,
+} from "@/types/solar";
+
+const RANGE_OPTION_LABELS: Record<RecommendationRangeOption["bound"], string> = {
+  lowerBound: "Nếu mức dùng ở cận thấp",
+  expected: "Nếu mức dùng ở giữa khoảng",
+  upperBound: "Nếu hóa đơn chủ yếu là tiền điện và VAT",
+};
+
+function RangeOptions({
+  options,
+  packages,
+}: {
+  options: RecommendationRangeOption[];
+  packages: SolarPackage[];
+}) {
+  const packageById = new Map(packages.map((item) => [item.id, item]));
+  const rows = options.flatMap((option) => {
+    const solarPackage = packageById.get(option.result.packageId);
+    return solarPackage ? [{ option, solarPackage }] : [];
+  });
+  if (rows.length === 0) return null;
+
+  return (
+    <section aria-labelledby="range-options-title" className="mt-8">
+      <h3 id="range-options-title" className="text-lg font-semibold text-[var(--ink)]">
+        Phương án tham khảo theo khoảng điện năng
+      </h3>
+      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+        Đây là gói đứng đầu tại từng mức điện năng có thể xảy ra, chưa phải đề xuất chốt. Nhập kWh in trên hóa đơn hoặc chọn &ldquo;Một hộ, kỳ bình thường&rdquo; để nhận một phương án cụ thể.
+      </p>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {rows.map(({ option, solarPackage }) => (
+          <li
+            className="rounded-xl border border-[var(--line-strong)] bg-[var(--paper)] p-5"
+            key={option.result.packageId}
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+              {RANGE_OPTION_LABELS[option.bound]} · {formatKwh(option.monthlyConsumptionKwh)}/tháng
+            </p>
+            <p className="mt-2 text-xl font-semibold leading-snug text-[var(--ink)]">
+              {formatCustomerPackageName(solarPackage.name)}
+            </p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--brand-dark)]">
+              {formatVnd(solarPackage.priceVnd)}
+            </p>
+            <dl className="mt-3 divide-y divide-[var(--line)] border-y border-[var(--line)] text-sm">
+              {[
+                ["Công suất", `${solarPackage.capacityKwp} kWp`],
+                ["Tiết kiệm/tháng", formatVnd(option.result.monthlySavingsVnd)],
+                ["Hoàn vốn", formatPaybackYears(option.result.paybackYears)],
+              ].map(([label, value]) => (
+                <div className="flex items-start justify-between gap-3 py-2" key={label}>
+                  <dt className="text-[var(--muted)]">{label}</dt>
+                  <dd className="text-right font-semibold text-[var(--ink)]">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 interface CalculationPreviewProps {
   result: CalculationResponse | null;
@@ -40,6 +112,7 @@ export function CalculationPreview({
       result.recommendationStability?.evaluated === true &&
       result.recommendationStability.stable === false;
     const consumption = result.normalizedInput?.monthlyConsumptionKwh.value;
+    const rangeOptions = result.recommendationStability?.rangeOptions ?? [];
 
     return (
       <div id="ket-qua" className="rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-6 py-12 sm:px-10 sm:py-14" tabIndex={-1}>
@@ -58,6 +131,13 @@ export function CalculationPreview({
               : "Nhu cầu hiện chưa khớp hoàn toàn với các gói đang hoạt động. Kết quả tính toán đã được lưu để tư vấn viên kiểm tra phương án riêng; khả năng lắp đặt chỉ được xác nhận sau khảo sát mái."}
           </p>
         </div>
+
+        {unstableMoneyRecommendation && rangeOptions.length > 0 ? (
+          <RangeOptions
+            options={rangeOptions}
+            packages={result.sourceSnapshot?.packages ?? packages}
+          />
+        ) : null}
 
         <aside aria-label="Lưu ý về kết quả ước tính" className="mt-8 rounded-xl border border-[var(--line)] bg-[var(--admin-panel)] p-5">
           <p className="text-xs font-bold uppercase tracking-[0.1em] text-[var(--warning-ink)]">Lưu ý bắt buộc</p>

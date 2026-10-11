@@ -76,6 +76,7 @@ model SolarPackage {
   createdAt                DateTime        @default(now())
   updatedAt                DateTime        @updatedAt
   calculations             Calculation[]
+  selectedByLeads          Lead[]
 
   @@index([active, displayOrder])
 }
@@ -178,9 +179,14 @@ model Lead {
   status               LeadStatus  @default(NEW)
   calculationId        String
   calculation          Calculation @relation(fields: [calculationId], references: [id], onDelete: Restrict)
+  /// Package the customer was viewing when registering; may differ from the
+  /// calculation's recommended package.
+  selectedPackageId    String?
+  selectedPackage      SolarPackage? @relation(fields: [selectedPackageId], references: [id], onDelete: SetNull)
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
   @@index([status, createdAt])
   @@index([calculationId])
+  @@index([selectedPackageId])
 }

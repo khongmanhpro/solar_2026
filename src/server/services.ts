@@ -24,6 +24,7 @@ import type {
   CalculationResponse,
   PersistedCalculationSnapshot,
   PreparedCalculationInput,
+  RecommendationRangeOption,
   SolarCalculationInput,
   SolarRecommendationResult,
 } from "@/types/solar";
@@ -100,6 +101,31 @@ function attachMoneyRecommendationStability(params: {
     expectedId !== null &&
     lowerId === expectedId &&
     upperId === expectedId;
+  const rangeOptions: RecommendationRangeOption[] = [];
+  if (!stable) {
+    const candidates = [
+      ["lowerBound", lowerRecommendation],
+      ["expected", recommendation],
+      ["upperBound", upperRecommendation],
+    ] as const;
+    for (const [bound, candidate] of candidates) {
+      const top = candidate.recommendedPackage;
+      // A bound with no savings (e.g. 0 kWh when other charges are unknown)
+      // tells the customer nothing; skip it along with duplicate packages.
+      if (
+        !top ||
+        top.monthlySavingsVnd <= 0 ||
+        rangeOptions.some((option) => option.result.packageId === top.packageId)
+      ) {
+        continue;
+      }
+      rangeOptions.push({
+        bound,
+        monthlyConsumptionKwh: candidate.inputSummary.monthlyConsumptionKwh,
+        result: top,
+      });
+    }
+  }
 
   return {
     ...recommendation,
@@ -116,6 +142,7 @@ function attachMoneyRecommendationStability(params: {
         : allConversionsExact
           ? "Gói đứng đầu thay đổi trong khoảng kWh; cần thêm hóa đơn hoặc khảo sát trước khi đề xuất."
           : "Thành phần hóa đơn chưa được xác nhận nên không đề xuất một gói từ khoảng kWh quá rộng.",
+      ...(stable ? {} : { rangeOptions }),
     },
   };
 }
@@ -304,8 +331,20 @@ export class LeadService {
   async create(rawInput: unknown) {
     const input = leadInputSchema.parse(rawInput);
 
-    if (!(await this.calculationRepository.exists(input.calculationId))) {
+    const offeredPackageIds =
+      await this.calculationRepository.findOfferedPackageIds(input.calculationId);
+    if (!offeredPackageIds) {
       throw notFoundError("kết quả tính toán");
+    }
+    if (
+      input.selectedPackageId !== undefined &&
+      !offeredPackageIds.includes(input.selectedPackageId)
+    ) {
+      throw new AppError(
+        "SELECTED_PACKAGE_NOT_OFFERED",
+        "Gói đã chọn không thuộc kết quả tính toán này. Vui lòng tải lại kết quả.",
+        422,
+      );
     }
 
     return this.leadRepository.create(input);

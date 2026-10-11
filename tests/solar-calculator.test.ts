@@ -62,6 +62,35 @@ function createPackage(
 }
 
 describe("calculateSolarPackage", () => {
+  it("áp VAT cho hóa đơn và tiết kiệm để so cùng cơ sở với giá gói đã gồm VAT", () => {
+    const params = {
+      solarPackage: createPackage(1),
+      settings: defaultSettings,
+      provinceFactor: 1,
+    };
+    const beforeVat = calculateSolarPackage({ ...params, input: standardInput });
+    const withVat = calculateSolarPackage({
+      ...params,
+      input: { ...standardInput, vatRate: 0.08 },
+    });
+
+    expect(withVat.monthlySavingsVnd).toBeCloseTo(beforeVat.monthlySavingsVnd * 1.08, 6);
+    expect(withVat.billAfterSolarVnd).toBeCloseTo(beforeVat.billAfterSolarVnd * 1.08, 6);
+    expect(withVat.reductionPercent).toBeCloseTo(beforeVat.reductionPercent, 9);
+    expect(withVat.paybackMonths).toBeCloseTo(beforeVat.paybackMonths! / 1.08, 6);
+  });
+
+  it("từ chối thuế suất VAT ngoài khoảng 0..1", () => {
+    expect(() =>
+      calculateSolarPackage({
+        input: { ...standardInput, vatRate: 8 },
+        solarPackage: createPackage(1),
+        settings: defaultSettings,
+        provinceFactor: 1,
+      }),
+    ).toThrow("vatRate");
+  });
+
   it("dùng kWh chuẩn hóa trực tiếp dù số tiền nền không tương ứng", () => {
     const result = calculateSolarPackage({
       input: {

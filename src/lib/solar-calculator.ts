@@ -30,6 +30,7 @@ interface CalculateScenarioParams {
   estimatedMonthlyConsumptionKwh: number;
   daytimeDemandKwh: number;
   monthlyBill: number;
+  vatMultiplier: number;
   electricityType: SolarCalculationInput["electricityType"];
   electricityTariffVersion?: string;
   tariffBillingContext?: SolarCalculationInput["tariffBillingContext"];
@@ -82,6 +83,9 @@ function assertCalculationInputs({
   provinceFactor,
 }: CalculateSolarPackageParams): void {
   assertNonNegativeFinite(input.monthlyBill, "monthlyBill");
+  if (input.vatRate !== undefined && input.vatRate !== null) {
+    assertUnitInterval(input.vatRate, "vatRate");
+  }
   assertNonNegativeFinite(
     input.monthlyConsumptionKwh,
     "monthlyConsumptionKwh",
@@ -151,6 +155,7 @@ function calculateScenario({
   estimatedMonthlyConsumptionKwh,
   daytimeDemandKwh,
   monthlyBill,
+  vatMultiplier,
   electricityType,
   electricityTariffVersion,
   tariffBillingContext,
@@ -215,10 +220,18 @@ function calculateScenario({
           electricityType,
           gridConsumptionAfterSolarKwh,
         );
-  const billAfterSolarVnd = clamp(tieredBillAfterSolarVnd, 0, monthlyBill);
-  const monthlySavingsVnd = Math.max(0, monthlyBill - billAfterSolarVnd);
+  // Tariff charges are before VAT; package prices include VAT. Apply VAT to
+  // both sides of the bill so savings and payback compare like-for-like.
+  const energyChargeAfterSolarVnd = clamp(tieredBillAfterSolarVnd, 0, monthlyBill);
+  const billAfterSolarVnd = energyChargeAfterSolarVnd * vatMultiplier;
+  const monthlySavingsVnd = Math.max(
+    0,
+    (monthlyBill - energyChargeAfterSolarVnd) * vatMultiplier,
+  );
   const reductionPercent = clamp(
-    monthlyBill > 0 ? (monthlySavingsVnd / monthlyBill) * 100 : 0,
+    monthlyBill > 0
+      ? ((monthlyBill - energyChargeAfterSolarVnd) / monthlyBill) * 100
+      : 0,
     0,
     100,
   );
@@ -314,6 +327,7 @@ export function calculateSolarPackage({
     estimatedMonthlyConsumptionKwh,
     daytimeDemandKwh,
     monthlyBill: input.monthlyBill,
+    vatMultiplier: 1 + (input.vatRate ?? 0),
     electricityType: input.electricityType,
     electricityTariffVersion: input.electricityTariffVersion,
     tariffBillingContext: input.tariffBillingContext,

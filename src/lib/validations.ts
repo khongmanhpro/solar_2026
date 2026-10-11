@@ -450,6 +450,7 @@ export const leadInputSchema = z
       .string({ error: "Không tìm thấy kết quả tính toán." })
       .trim()
       .min(1, "Không tìm thấy kết quả tính toán."),
+    selectedPackageId: z.string().trim().min(1).max(100).optional(),
   })
   .strict();
 

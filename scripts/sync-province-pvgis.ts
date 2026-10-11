@@ -10,6 +10,7 @@ import {
   PVGIS_API_VERSION,
   PVGIS_SYSTEM_LOSS_PERCENT,
 } from "../src/lib/pvgis-client";
+import { isPlausibleMonthlyYield } from "../src/lib/province-irradiance-validation";
 
 const REQUEST_DELAY_MS = 500;
 const REQUEST_RETRIES = 2;
@@ -72,6 +73,12 @@ async function fetchWithRetry(province: ProvinceCoordinate) {
     for (let attempt = 0; attempt <= REQUEST_RETRIES; attempt++) {
       try {
         const result = await fetchPvgisMonthlyYield({ latitude, longitude });
+        if (!isPlausibleMonthlyYield(result.monthlyYieldKwhPerKwp)) {
+          // PVGIS optimal-angle solve occasionally degenerates (slope 0, ~1/3 yield).
+          throw new Error(
+            `PVGIS HTTP 5xx-equivalent: implausible yield ${result.yearlyYieldKwhPerKwp.toFixed(1)} kWh/kWp/năm`,
+          );
+        }
         return {
           ...result,
           queriedLatitude: latitude,
