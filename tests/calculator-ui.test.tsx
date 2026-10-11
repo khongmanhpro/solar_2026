@@ -476,7 +476,7 @@ describe("SolarCalculator", () => {
     expect(JSON.parse(String(calculationCall?.[1]?.body))).not.toHaveProperty("electricityType");
   });
 
-  it("yêu cầu kỳ hóa đơn và chọn sẵn bối cảnh một hộ tiêu chuẩn khi nhập tổng tiền", async () => {
+  it("điền sẵn kỳ hóa đơn gần nhất và chọn sẵn bối cảnh một hộ tiêu chuẩn khi nhập tổng tiền", async () => {
     const user = userEvent.setup();
     render(<SolarCalculator />);
 
@@ -492,13 +492,14 @@ describe("SolarCalculator", () => {
     await user.type(screen.getByLabelText("Tổng tiền đã thanh toán"), "2000000");
     await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
 
+    // The latest billed month is pre-filled, so the customer is not blocked.
     expect(
-      screen.getByText("Vui lòng chọn kỳ hóa đơn để áp dụng đúng biểu giá và VAT."),
-    ).toBeTruthy();
+      screen.queryByText("Vui lòng chọn kỳ hóa đơn để áp dụng đúng biểu giá và VAT."),
+    ).toBeNull();
     expect(
       screen.queryByText("Vui lòng chọn trường hợp phù hợp với hóa đơn."),
     ).toBeNull();
-    expect(screen.queryByLabelText("Tỉnh hoặc thành phố lắp đặt")).toBeNull();
+    expect(screen.getByLabelText("Tỉnh hoặc thành phố lắp đặt")).toBeTruthy();
   });
 
   it("gửi tổng tiền theo bối cảnh một hộ tiêu chuẩn", async () => {

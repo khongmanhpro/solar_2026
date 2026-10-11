@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { formatVnd } from "@/lib/formatters";
+import { normalizeDecimalInput } from "@/lib/number-input";
 import {
   cardInstalmentOption,
   cashOption,
@@ -40,25 +41,31 @@ function NumberField({
   step: number;
   suffix: string;
 }) {
+  // Free typing (incl. "10,5"), committed and clamped on blur.
+  const [draft, setDraft] = useState(String(value));
   return (
     <label className="block text-xs text-[var(--muted)]" htmlFor={id}>
       {label}
       <span className="mt-1 flex items-center gap-1">
         <input
-          className="w-20 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2 py-1.5 text-sm font-semibold text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)]"
+          className="min-h-11 w-24 rounded-md border border-[var(--line-strong)] bg-[var(--paper)] px-2 py-2 text-base font-semibold text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)]"
           id={id}
+          aria-describedby={`${id}-range`}
           inputMode="decimal"
-          max={max}
-          min={min}
-          onChange={(event) => {
-            const next = Number(event.target.value);
-            if (Number.isFinite(next)) onChange(Math.min(max, Math.max(min, next)));
+          onChange={(event) => setDraft(normalizeDecimalInput(event.target.value))}
+          onBlur={() => {
+            const next = Number(draft);
+            const clamped = Number.isFinite(next) && draft !== "" ? Math.min(max, Math.max(min, next)) : value;
+            onChange(clamped);
+            setDraft(String(clamped));
           }}
-          step={step}
-          type="number"
-          value={value}
+          type="text"
+          value={draft}
         />
         <span className="text-sm text-[var(--ink)]">{suffix}</span>
+      </span>
+      <span className="sr-only" id={`${id}-range`}>
+        Từ {min} đến {max}, bước {step}
       </span>
     </label>
   );

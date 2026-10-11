@@ -23,6 +23,7 @@ import { ApiClientError, requestJson } from "@/lib/api-client";
 import { trackEvent } from "@/lib/analytics";
 import {
   getCurrentBillingPeriod,
+  getLatestBilledPeriod,
   MIN_SUPPORTED_BILLING_PERIOD,
 } from "@/lib/billing-period";
 import { customerCalculationRequestV2Schema } from "@/lib/validations";
@@ -33,6 +34,8 @@ import {
 import type { CalculationResponse, ProvinceFactor, SolarPackage } from "@/types/solar";
 
 const EMPTY_OBSERVATION: EnergyObservationFormValue = { period: "", value: "" };
+/** Smallest monthly bill we treat as plausible for a household (VND). */
+const MIN_PLAUSIBLE_BILL_VND = 30_000;
 
 const INITIAL_VALUES: CalculatorFormValues = {
   energyMethod: "",
@@ -97,6 +100,10 @@ function validateEnergyStep(values: CalculatorFormValues): CalculatorFormErrors 
       errors[valuePath] = "Sản lượng điện vượt quá phạm vi hỗ trợ.";
     } else if (values.energyMethod === "money" && value > 500_000_000) {
       errors[valuePath] = "Tổng tiền thanh toán vượt quá phạm vi hỗ trợ.";
+    } else if (values.energyMethod === "money" && value < MIN_PLAUSIBLE_BILL_VND) {
+      // Guards against slips like typing "1.500" for 1.500.000 đ.
+      errors[valuePath] =
+        "Số tiền có vẻ quá nhỏ. Hãy nhập đúng số tiền trên hóa đơn, ví dụ 1.500.000.";
     }
 
     if (values.energyMethod === "money" && !observation.period) {
@@ -291,7 +298,10 @@ function toRequest(values: CalculatorFormValues): CustomerCalculationRequestV2 |
     site: {
       province: values.province,
       daytimeBehavior: values.daytimeBehavior,
-      electricalPhase: values.electricalPhase,
+      // Unknown phase: size for single-phase, the common household case; the
+      // review step and survey flag it for the engineer to confirm.
+      electricalPhase:
+        values.electricalPhase === "unknown" ? "single-phase" : values.electricalPhase,
       ...(values.plannedLoadIds.length > 0 ? { plannedLoads: values.plannedLoadIds } : {}),
       roof:
         values.roofKnown === "true"
@@ -490,7 +500,9 @@ export function SolarCalculator() {
       setValues((current) => ({
         ...current,
         energyMethod: method,
-        energyObservations: [{ ...EMPTY_OBSERVATION }],
+        // Pre-fill the latest billed month: most customers read last month's
+        // bill, and the month picker is the hardest field for older users.
+        energyObservations: [{ ...EMPTY_OBSERVATION, period: getLatestBilledPeriod() }],
         // Most household bills are a single meter with only energy + VAT;
         // pre-select it (visible and changeable) so the common case gets an
         // exact kWh conversion and a concrete package.
@@ -709,7 +721,7 @@ export function SolarCalculator() {
   }
 
   return (
-    <section className="mt-12 lg:mt-16" aria-label="Công cụ tính toán điện mặt trời">
+    <section className="mt-6 sm:mt-12 lg:mt-16" aria-label="Công cụ tính toán điện mặt trời">
       {resourceState === "error" ? (
         <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[var(--danger-line)] bg-[var(--danger-soft)] p-4 text-sm text-[var(--danger)] sm:flex-row sm:items-center sm:justify-between" role="alert">
           <span>Chưa tải được danh sách khu vực và gói điện mặt trời.</span>
@@ -728,15 +740,15 @@ export function SolarCalculator() {
 
       {resourceState === "ready" && (trialCatalogVersion || referenceCatalogLoaded) ? (
         <aside
-          className="mb-5 rounded-2xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-5 text-sm leading-6 text-[var(--warning-ink)]"
+          className="mb-5 rounded-2xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)] sm:p-5"
           role="note"
         >
-          <p className="font-display text-lg font-semibold">
+          <p className="font-semibold sm:font-display sm:text-lg">
             {referenceCatalogLoaded
               ? `${packages.length} gói tham khảo cho hộ gia đình`
               : `Thông tin giá và cấu hình của ${packages.length} gói điện mặt trời`}
           </p>
-          <p className="mt-2">
+          <p className="mt-2 hidden sm:block">
             {referenceCatalogLoaded
               ? "Các gói được cấu hình sẵn để khách dễ tham khảo. Giá, sản lượng và thiết bị chính thức sẽ được xác nhận lại sau khi khảo sát mái và hệ thống điện tại công trình."
               : "Giá là ước lượng V1 với sai số dự kiến ±15%. Sản lượng và diện tích mái còn dùng giả định có ghi nguồn; kết quả không phải báo giá và bắt buộc được khảo sát kỹ thuật trước khi tư vấn hoặc ký hợp đồng."}
@@ -755,11 +767,12 @@ export function SolarCalculator() {
       ) : null}
 
       <div className="calculator-shell overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] shadow-[0_20px_60px_var(--shadow)]">
-        <div className="mx-auto max-w-4xl p-6 sm:p-10 lg:p-14">
-          <div className="mb-8 flex items-start justify-between gap-4">
+        <div className="mx-auto max-w-4xl p-5 sm:p-10 lg:p-14">
+          {/* The page hero already says this on mobile; keep it for screen readers. */}
+          <div className="sr-only sm:not-sr-only sm:mb-8 sm:flex sm:items-start sm:justify-between sm:gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand)]">Nhập thông tin</p>
-              <h2 id="calculator-form-title" className="mt-2 font-display text-3xl font-semibold tracking-tight text-[var(--ink)]" tabIndex={-1}>
+              <h2 id="calculator-form-title" className="mt-2 font-display text-2xl font-semibold tracking-tight text-[var(--ink)] sm:text-3xl" tabIndex={-1}>
                 Tìm gói điện mặt trời phù hợp
               </h2>
             </div>

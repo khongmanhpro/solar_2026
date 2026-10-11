@@ -9,6 +9,11 @@ import {
   type BackupDeviceId,
 } from "@/config/backup-devices";
 import { PLANNED_LOAD_OPTIONS, type PlannedLoadId } from "@/config/planned-loads";
+import {
+  formatMoneyInput,
+  normalizeDecimalInput,
+  normalizeMoneyInput,
+} from "@/lib/number-input";
 import { formatVnd } from "@/lib/formatters";
 import {
   getCurrentBillingPeriod,
@@ -43,7 +48,8 @@ export interface CalculatorFormValues {
   moneyReferenceDays: string;
   province: string;
   daytimeBehavior: "" | DaytimeBehavior;
-  electricalPhase: "" | "single-phase" | "three-phase";
+  /** "unknown" is sized as single-phase (most homes) and flagged for survey. */
+  electricalPhase: "" | "single-phase" | "three-phase" | "unknown";
   roofKnown: "" | "true" | "false";
   roofAreaM2: string;
   backupRequired: "" | "true" | "false";
@@ -140,7 +146,9 @@ function electricalPhaseLabel(
     ? "Điện 1 pha"
     : value === "three-phase"
       ? "Điện 3 pha"
-      : "Chưa chọn";
+      : value === "unknown"
+        ? "Chưa rõ — tạm tính theo điện 1 pha (phổ biến nhất), kỹ sư kiểm tra khi khảo sát"
+        : "Chưa chọn";
 }
 
 function moneyBillingContextLabel(values: CalculatorFormValues): string {
@@ -268,7 +276,7 @@ export function CalculatorForm({
             </StepDescription>
           </div>
 
-          <div className="rounded-xl border border-[var(--line)] bg-[var(--admin-panel)] p-4 text-sm leading-6 text-[var(--muted)]">
+          <div className="hidden rounded-xl border border-[var(--line)] bg-[var(--admin-panel)] p-4 text-sm leading-6 text-[var(--muted)] sm:block">
             Công cụ hiện chỉ dành cho <strong className="text-[var(--ink)]">điện sinh hoạt hộ gia đình</strong>. Bạn không cần chọn loại điện.
           </div>
 
@@ -276,9 +284,9 @@ export function CalculatorForm({
             <legend className="text-sm font-semibold text-[var(--ink)]">Cách cung cấp mức dùng điện</legend>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               {[
-                ["kwh", "Nhập số điện (kWh)", "Chính xác nhất nếu có trên hóa đơn."],
-                ["money", "Nhập tổng tiền", "Dễ nhập nhưng cần dữ liệu VAT, phụ phí chuẩn."],
-                ["invoice_ocr", "Tải hóa đơn", "Vị trí tích hợp đọc hóa đơn tự động."],
+                ["money", "Nhập tổng tiền điện", "Dễ nhất — chỉ cần số tiền trên hóa đơn hoặc tin nhắn EVN tháng gần nhất."],
+                ["kwh", "Nhập số điện (kWh)", "Chính xác hơn nếu bạn xem được số kWh trên hóa đơn hoặc app EVN."],
+                ["invoice_ocr", "Tải hóa đơn (sắp có)", "Chụp ảnh hóa đơn để hệ thống tự đọc — đang phát triển."],
               ].map(([value, label, description]) => (
                 <label className={choiceClassName} key={value}>
                   <input
@@ -407,14 +415,25 @@ export function CalculatorForm({
                             className={`${fieldClassName} pr-20`}
                             disabled={isSubmitting}
                             id={`energy-value-${index}`}
+                            autoComplete="off"
                             inputMode={values.energyMethod === "kwh" ? "decimal" : "numeric"}
-                            min="1"
                             name={valueName}
-                            onChange={(event) => onObservationChange(index, "value", event.target.value)}
-                            placeholder={values.energyMethod === "kwh" ? "Ví dụ: 450" : "Ví dụ: 2000000"}
-                            step={values.energyMethod === "kwh" ? "0.1" : "1000"}
-                            type="number"
-                            value={observation.value}
+                            onChange={(event) =>
+                              onObservationChange(
+                                index,
+                                "value",
+                                values.energyMethod === "kwh"
+                                  ? normalizeDecimalInput(event.target.value)
+                                  : normalizeMoneyInput(event.target.value),
+                              )
+                            }
+                            placeholder={values.energyMethod === "kwh" ? "Ví dụ: 450" : "Ví dụ: 1.500.000"}
+                            type="text"
+                            value={
+                              values.energyMethod === "kwh"
+                                ? observation.value
+                                : formatMoneyInput(observation.value)
+                            }
                           />
                           <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-[var(--muted)]">
                             {values.energyMethod === "kwh" ? "kWh" : "VNĐ"}
@@ -685,10 +704,14 @@ export function CalculatorForm({
             <legend className="text-sm font-semibold text-[var(--ink)]">
               Hệ thống điện tại nhà bạn
             </legend>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+              Hầu hết nhà ở dùng điện 1 pha. Nhà có máy móc lớn, thang máy hoặc kinh doanh thường là 3 pha.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
               {[
                 ["single-phase", "Điện 1 pha"],
                 ["three-phase", "Điện 3 pha"],
+                ["unknown", "Tôi không rõ"],
               ].map(([value, label]) => (
                 <label className={choiceClassName} key={value}>
                   <input
@@ -776,13 +799,12 @@ export function CalculatorForm({
                   className={`${fieldClassName} pr-16`}
                   disabled={isSubmitting}
                   id="roofAreaM2"
+                  autoComplete="off"
                   inputMode="decimal"
-                  min="0.1"
                   name="roofAreaM2"
-                  onChange={(event) => onChange("roofAreaM2", event.target.value)}
+                  onChange={(event) => onChange("roofAreaM2", normalizeDecimalInput(event.target.value))}
                   placeholder="Ví dụ: 30"
-                  step="0.1"
-                  type="number"
+                  type="text"
                   value={values.roofAreaM2}
                 />
                 <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-[var(--muted)]">m²</span>

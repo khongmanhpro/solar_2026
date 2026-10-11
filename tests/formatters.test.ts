@@ -8,6 +8,7 @@ import {
   formatPaybackYears,
   formatPercent,
   formatVnd,
+  formatVndSpoken,
 } from "@/lib/formatters";
 
 describe("formatters", () => {
@@ -42,5 +43,17 @@ describe("formatters", () => {
     expect(formatKwhRange(388.8, 316.84)).toBe("316,8–388,8 kWh");
     expect(formatPaybackRange(6.28, 4.14)).toBe("4,1–6,3 năm");
     expect(formatPaybackRange(null, 4.14)).toBe("Chưa xác định");
+  });
+});
+
+describe("formatVndSpoken", () => {
+  it("reads like Vietnamese speech", () => {
+    expect(formatVndSpoken(110_000_000)).toBe("110 triệu đồng");
+    expect(formatVndSpoken(133_109_600)).toBe("133 triệu đồng");
+    expect(formatVndSpoken(1_389_412)).toBe("1,39 triệu đồng");
+    expect(formatVndSpoken(15_250_000)).toBe("15,3 triệu đồng");
+    expect(formatVndSpoken(114_276)).toBe("114 nghìn đồng");
+    expect(formatVndSpoken(1_250_000_000)).toBe("1,25 tỷ đồng");
+    expect(formatVndSpoken(0)).toBe("0 đồng");
   });
 });

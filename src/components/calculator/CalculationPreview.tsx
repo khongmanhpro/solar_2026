@@ -139,9 +139,13 @@ export function CalculationPreview({
   }
 
   if (result && !recommendation) {
+    // A concrete reason (roof too small, not economical, ...) at the expected
+    // consumption is what the customer needs to hear; "the bounds disagree"
+    // only applies when a package exists but changes across the kWh range.
     const unstableMoneyRecommendation =
       result.recommendationStability?.evaluated === true &&
-      result.recommendationStability.stable === false;
+      result.recommendationStability.stable === false &&
+      !result.noRecommendationReason;
     const consumption = result.normalizedInput?.monthlyConsumptionKwh.value;
     const rangeOptions = result.recommendationStability?.rangeOptions ?? [];
     const reasonCopy =
@@ -162,12 +166,12 @@ export function CalculationPreview({
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--muted)]">
             {unstableMoneyRecommendation
-              ? `Tổng tiền hiện chỉ xác định được khoảng ${consumption ? formatKwhRange(consumption.lowerBound, consumption.upperBound) : "chưa đủ dữ liệu"}. Các biên chưa dẫn tới cùng một gói, nên hệ thống không tự chốt phương án có vẻ chính xác.`
+              ? `Từ số tiền bạn nhập, nhà bạn dùng ${consumption ? (consumption.lowerBound < 1 ? `tối đa khoảng ${formatKwh(Math.round(consumption.upperBound))}` : `khoảng ${formatKwhRange(Math.round(consumption.lowerBound), Math.round(consumption.upperBound))}`) : "chưa rõ lượng"} điện mỗi tháng. Khoảng này còn rộng nên gói phù hợp có thể khác nhau — chúng tôi chưa chốt một gói để tránh tư vấn sai. Xem các phương án tham khảo bên dưới, hoặc nhập số kWh trên hóa đơn để có kết quả chính xác.`
               : reasonCopy?.body ?? "Nhu cầu hiện chưa khớp hoàn toàn với các gói đang hoạt động. Kết quả tính toán đã được lưu để tư vấn viên kiểm tra phương án riêng; khả năng lắp đặt chỉ được xác nhận sau khảo sát mái."}
           </p>
         </div>
 
-        {unstableMoneyRecommendation && rangeOptions.length > 0 ? (
+        {rangeOptions.length > 0 ? (
           <RangeOptions
             options={rangeOptions}
             packages={result.sourceSnapshot?.packages ?? packages}

@@ -69,7 +69,7 @@ export function MonthlyEnergyChart({ months, hasBattery, seasonalData }: Monthly
           : "Tỉnh này chưa có dữ liệu sản lượng theo mùa đã đồng bộ; các tháng đang dùng sản lượng trung bình."}
       </figcaption>
       <details className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--admin-panel)] p-4 text-sm">
-        <summary className="cursor-pointer font-semibold text-[var(--ink)]">Xem bảng số liệu 12 tháng</summary>
+        <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-[var(--ink)]">Xem bảng số liệu 12 tháng</summary>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[34rem] text-left">
             <thead className="text-xs uppercase tracking-[0.06em] text-[var(--muted)]">

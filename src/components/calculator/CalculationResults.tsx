@@ -15,11 +15,13 @@ import { PackageComparison } from "@/components/calculator/PackageComparison";
 import { trackEvent } from "@/lib/analytics";
 import {
   formatCustomerPackageName,
+  formatDecimal,
   formatKwh,
   formatKwhRange,
   formatPaybackRange,
   formatPercent,
   formatVnd,
+  formatVndSpoken,
 } from "@/lib/formatters";
 import { generateSolarInsights } from "@/lib/solar-insights";
 import type {
@@ -117,11 +119,13 @@ function MoneyConversionNotice({ result }: { result: CalculationResponse }) {
         Tổng tiền → mức dùng điện
       </p>
       <h3 className="mt-2 text-lg font-semibold text-[var(--ink)]" id="money-conversion-title">
-        {exact ? formatKwh(consumption.expected) : formatKwhRange(consumption.lowerBound, consumption.upperBound)}
+        {exact
+          ? `${bill?.totalPaymentVnd ? `${formatVnd(bill.totalPaymentVnd.value)} → ` : ""}khoảng ${formatKwh(Math.round(consumption.expected))}/tháng`
+          : formatKwhRange(Math.round(consumption.lowerBound), Math.round(consumption.upperBound))}
       </h3>
       <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
         {exact
-          ? "Khoảng quy đổi hẹp vì bạn đã xác nhận số hộ, kỳ ghi điện và khoản khác trong hóa đơn."
+          ? "Quy đổi từ số tiền bạn nhập theo biểu giá bậc thang của EVN và VAT, cho hóa đơn một hộ, kỳ bình thường. Nếu hóa đơn có khoản khác (nợ cũ, nhiều hộ chung công tơ), hãy chọn lại ở bước 1."
           : "Đây là khoảng bảo thủ vì thành phần hóa đơn chưa chắc chắn. Công cụ không coi điểm giữa là số điện đã đo và không tự chốt gói từ khoảng này."}
       </p>
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
@@ -212,16 +216,8 @@ export function CalculationResults({
   }
 
   return (
-    <div id="ket-qua" className="rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-6 py-10 sm:px-10 sm:py-14" tabIndex={-1}>
-      {isStale ? <StaleResultNotice /> : <ShareBar calculationId={result.calculationId} />}
-
-      <MoneyConversionNotice result={result} />
-
-      {roofAreaUnknown ? (
-        <aside className="mb-8 rounded-xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]" role="note">
-          <strong>Chưa có diện tích mái.</strong> Gói bên dưới chỉ được xếp theo nhu cầu điện và không khẳng định mái đủ chỗ hoặc có thể thi công. Cần khảo sát mái trước khi chốt phương án.
-        </aside>
-      ) : null}
+    <div id="ket-qua" className="rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-5 pb-24 pt-8 sm:px-10 sm:py-14" tabIndex={-1}>
+      {isStale ? <StaleResultNotice /> : null}
 
       <section aria-labelledby="recommended-title">
         <div className="flex flex-wrap items-center gap-3">
@@ -245,17 +241,41 @@ export function CalculationResults({
               {selectedPackage.description}
             </p>
           </div>
-          <div className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-5 lg:text-right">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">Điểm phù hợp</p>
-            <p className="mt-2 text-4xl font-semibold text-[var(--brand-dark)]">
-              {Math.round(selectedResult.score)}
-              <span className="text-lg text-[var(--muted)]">/100</span>
-            </p>
-          </div>
         </div>
 
+        <dl
+          aria-label="Tóm tắt phương án"
+          className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[var(--brand)] bg-[var(--brand)] lg:grid-cols-4"
+        >
+          {[
+            ["Chi phí lắp đặt", formatVndSpoken(selectedPackage.priceVnd), "giá tham khảo, đã gồm VAT"],
+            ["Mỗi tháng bớt", `~${formatVndSpoken(selectedResult.monthlySavingsVnd)}`, `thận trọng: ~${formatVndSpoken(selectedResult.lowEstimate.monthlySavingsVnd)}`],
+            ["Tiền điện còn trả", `~${formatVndSpoken(selectedResult.billAfterSolarVnd)}`, "mỗi tháng, trung bình cả năm"],
+            [
+              "Hoàn vốn sau",
+              formatPaybackRange(selectedResult.lowEstimate.paybackYears, selectedResult.highEstimate.paybackYears),
+              "đã trừ chi phí bảo trì, thay thiết bị",
+            ],
+          ].map(([label, value, hint]) => (
+            <div className="bg-[var(--brand-soft)] p-4 sm:p-5" key={label}>
+              <dt className="text-sm font-semibold text-[var(--brand-dark)]">{label}</dt>
+              <dd className="mt-1 break-words text-xl font-semibold leading-snug text-[var(--ink)] sm:text-2xl">{value}</dd>
+              <dd className="mt-1 text-xs leading-5 text-[var(--muted)]">{hint}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-4 text-base leading-7 text-[var(--ink)]">
+          Lắp {formatDecimal(selectedPackage.capacityKwp)} kWp tấm pin
+          {selectedPackage.batteryCapacityKwh > 0
+            ? ` kèm pin lưu trữ ${formatDecimal(selectedPackage.batteryCapacityKwh, 0)} kWh (có điện khi mất điện)`
+            : " nối lưới, không có pin (mất điện lưới thì hệ thống cũng tạm ngưng)"}
+          , cần khoảng {formatDecimal(selectedPackage.requiredRoofAreaM2, 0)} m² mái.
+        </p>
+
+        {isStale ? null : <div className="mt-6"><ShareBar calculationId={result.calculationId} /></div>}
+
         <dl className="mt-8 grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-4">
-          <Metric label="Công suất" value={`${selectedPackage.capacityKwp} kWp`} />
+          <Metric label="Công suất" value={`${formatDecimal(selectedPackage.capacityKwp)} kWp`} />
           <Metric
             label="Sản lượng dự kiến"
             value={formatKwhRange(
@@ -263,17 +283,28 @@ export function CalculationResults({
               selectedResult.highEstimate.adjustedGenerationKwh,
             )}
           />
-          <Metric label="Diện tích mái cần" value={`${selectedPackage.requiredRoofAreaM2} m²`} />
+          <Metric label="Diện tích mái cần" value={`${formatDecimal(selectedPackage.requiredRoofAreaM2, 1)} m²`} />
           <Metric
             label="Loại hệ thống"
             value={
               selectedPackage.systemType === "hybrid"
-                ? `Hybrid${selectedPackage.batteryCapacityKwh > 0 ? ` · pin ${selectedPackage.batteryCapacityKwh} kWh` : ""}`
-                : "Hòa lưới"
+                ? `Có pin lưu trữ${selectedPackage.batteryCapacityKwh > 0 ? ` ${formatDecimal(selectedPackage.batteryCapacityKwh, 0)} kWh` : ""}`
+                : "Nối lưới, không pin"
             }
           />
         </dl>
       </section>
+
+      <div className="mt-10">
+      <MoneyConversionNotice result={result} />
+
+      {roofAreaUnknown ? (
+        <aside className="mb-4 rounded-xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]" role="note">
+          <strong>Chưa có diện tích mái.</strong> Gói bên dưới chỉ được xếp theo nhu cầu điện và không khẳng định mái đủ chỗ hoặc có thể thi công. Cần khảo sát mái trước khi chốt phương án.
+        </aside>
+      ) : null}
+
+      </div>
 
       <section aria-labelledby="savings-title" className="mt-14">
         <SectionHeading eyebrow="Hiệu quả hàng tháng" id="savings-title" title="Hóa đơn thay đổi thế nào?" />
@@ -458,6 +489,15 @@ export function CalculationResults({
           Mã tính toán · {result.calculationId}
         </p>
       </aside>
+
+      {isStale ? null : (
+        <a
+          className="fixed inset-x-3 bottom-3 z-30 flex min-h-12 items-center justify-center rounded-xl bg-[var(--brand-dark)] px-5 py-3 text-base font-semibold text-[var(--paper)] shadow-[0_10px_30px_var(--shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)] lg:hidden print:hidden"
+          href="#survey-title"
+        >
+          Đăng ký khảo sát miễn phí ↓
+        </a>
+      )}
 
       {isStale ? null : (
         <LeadForm

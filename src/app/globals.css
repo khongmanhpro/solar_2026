@@ -61,7 +61,7 @@ textarea {
 }
 
 .hero-headline {
-  font-size: clamp(2.25rem, 5vw, 4.5rem);
+  font-size: clamp(1.9rem, 5vw, 4.5rem);
   line-height: 1.15;
   letter-spacing: -0.02em;
 }

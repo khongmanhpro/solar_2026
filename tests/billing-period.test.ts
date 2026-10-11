@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   billingPeriodIndex,
   getCurrentBillingPeriod,
+  getLatestBilledPeriod,
   isRecentBillingPeriod,
 } from "@/lib/billing-period";
 
@@ -18,5 +19,13 @@ describe("billing period", () => {
     const now = new Date("2026-07-22T12:00:00.000Z");
     expect(isRecentBillingPeriod("2026-05", 2, now)).toBe(true);
     expect(isRecentBillingPeriod("2026-04", 2, now)).toBe(false);
+  });
+});
+
+describe("getLatestBilledPeriod", () => {
+  it("returns the previous month, crossing year boundaries", () => {
+    expect(getLatestBilledPeriod(new Date("2026-10-12T05:00:00Z"))).toBe("2026-09");
+    expect(getLatestBilledPeriod(new Date("2027-01-15T05:00:00Z"))).toBe("2026-12");
+    expect(getLatestBilledPeriod(new Date("2026-12-01T05:00:00Z"))).toBe("2026-11");
   });
 });

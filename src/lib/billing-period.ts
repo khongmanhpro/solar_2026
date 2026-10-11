@@ -37,3 +37,11 @@ export function isRecentBillingPeriod(
     billingPeriodIndex(period);
   return Number.isFinite(ageMonths) && ageMonths >= 0 && ageMonths <= maximumAgeMonths;
 }
+
+/** Most recent fully billed month (the previous calendar month). */
+export function getLatestBilledPeriod(now = new Date()): string {
+  const index = billingPeriodIndex(getCurrentBillingPeriod(now)) - 1;
+  const year = Math.floor((index - 1) / 12);
+  const month = index - year * 12;
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
