@@ -157,6 +157,14 @@ export class CalculationService {
     private readonly calculationRepository: CalculationRepository,
   ) {}
 
+  async getShared(id: string): Promise<CalculationResponse | null> {
+    return this.calculationRepository.findSharedResult(id);
+  }
+
+  getShareRetentionDays(): number {
+    return this.calculationRepository.getUnlinkedRetentionDays();
+  }
+
   async create(rawInput: unknown): Promise<CalculationResponse> {
     const request = calculationRequestSchema.parse(rawInput);
     const allowUnapprovedTariffData =

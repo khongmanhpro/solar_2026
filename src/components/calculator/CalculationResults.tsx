@@ -8,6 +8,7 @@ import { CashFlowChart } from "@/components/calculator/CashFlowChart";
 import { MethodologyPanel } from "@/components/calculator/MethodologyPanel";
 import { MonthlyEnergyChart } from "@/components/calculator/MonthlyEnergyChart";
 import { PaymentOptions } from "@/components/calculator/PaymentOptions";
+import { ShareBar } from "@/components/calculator/ShareBar";
 import { CALCULATION_CONSTANTS } from "@/config/defaults";
 import { LeadForm } from "@/components/calculator/LeadForm";
 import { PackageComparison } from "@/components/calculator/PackageComparison";
@@ -211,7 +212,7 @@ export function CalculationResults({
 
   return (
     <div id="ket-qua" className="rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-6 py-10 sm:px-10 sm:py-14" tabIndex={-1}>
-      {isStale ? <StaleResultNotice /> : null}
+      {isStale ? <StaleResultNotice /> : <ShareBar calculationId={result.calculationId} />}
 
       <MoneyConversionNotice result={result} />
 

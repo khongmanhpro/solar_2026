@@ -641,6 +641,33 @@ describe("service integration", () => {
     expect(await prisma.lead.count()).toBe(1);
   });
 
+  it("link chia sẻ trả lại kết quả không chứa thông tin cá nhân và tôn trọng hạn lưu", async () => {
+    const fresh = await services.calculations.create(validCalculationInput);
+    const shared = await services.calculations.getShared(fresh.calculationId);
+    expect(shared?.calculationId).toBe(fresh.calculationId);
+    expect(shared?.recommendedPackage?.packageId).toBe(fresh.recommendedPackage?.packageId);
+    expect(shared?.normalizedInput).toEqual(fresh.normalizedInput);
+    expect(JSON.stringify(shared)).not.toMatch(/fullName|phone/);
+
+    const linked = await services.calculations.create(validCalculationInput);
+    await services.leads.create({
+      fullName: "Nguyễn Văn An",
+      phone: "0901234567",
+      preferredContactTime: "anytime",
+      calculationId: linked.calculationId,
+    });
+    const expiredAt = new Date(Date.now() - 31 * 24 * 60 * 60 * 1_000);
+    await prisma.calculation.updateMany({ data: { createdAt: expiredAt } });
+
+    expect(await services.calculations.getShared(fresh.calculationId)).toBeNull();
+    const linkedShared = await services.calculations.getShared(linked.calculationId);
+    expect(linkedShared?.calculationId).toBe(linked.calculationId);
+    expect(JSON.stringify(linkedShared)).not.toContain("0901234567");
+
+    expect(await services.calculations.getShared("../../etc")).toBeNull();
+    expect(await services.calculations.getShared("doesnotexist12345")).toBeNull();
+  });
+
   it("từ chối lead tham chiếu calculation không tồn tại", async () => {
     await expect(
       services.leads.create({

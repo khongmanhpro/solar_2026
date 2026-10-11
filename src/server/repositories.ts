@@ -11,6 +11,7 @@ import {
 
 import type {
   AdminLeadDetail,
+  CalculationResponse,
   CalculationSettings,
   DataGovernanceMetadata,
   ElectricalPhase,
@@ -437,7 +438,7 @@ export class ProvinceFactorRepository {
 export class CalculationRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  private getUnlinkedRetentionDays(): number {
+  getUnlinkedRetentionDays(): number {
     const configured = Number(process.env.CALCULATION_RETENTION_DAYS);
     return Number.isInteger(configured) && configured >= 1 && configured <= 365
       ? configured
@@ -528,6 +529,34 @@ export class CalculationRepository {
         createdAt: new Date(result.metadata.createdAt),
       },
     });
+  }
+
+  /**
+   * Result for a share link. Contains no customer PII (leads live in their own
+   * table). Unlinked results past the retention window are treated as gone
+   * even if the purge job has not run yet.
+   */
+  async findSharedResult(
+    id: string,
+    referenceTime = new Date(),
+  ): Promise<CalculationResponse | null> {
+    if (!/^[a-z0-9]{10,40}$/i.test(id)) return null;
+    const record = await this.prisma.calculation.findUnique({
+      where: { id },
+      select: { resultJson: true, createdAt: true, _count: { select: { leads: true } } },
+    });
+    if (!record) return null;
+    const cutoff =
+      referenceTime.getTime() - this.getUnlinkedRetentionDays() * 24 * 60 * 60 * 1_000;
+    if (record._count.leads === 0 && record.createdAt.getTime() < cutoff) return null;
+
+    const snapshot = record.resultJson as unknown as PersistedCalculationSnapshot;
+    if (!snapshot?.sourceSnapshot?.normalizedInput) return null;
+    return {
+      ...snapshot,
+      calculationId: id,
+      normalizedInput: snapshot.sourceSnapshot.normalizedInput,
+    };
   }
 
   async exists(id: string): Promise<boolean> {

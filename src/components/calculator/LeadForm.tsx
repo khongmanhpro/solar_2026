@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { trackEvent } from "@/lib/analytics";
+import { CUSTOMER_COMMITMENTS } from "@/config/customer-commitments";
 import { resolveContactChannels } from "@/lib/contact-channels";
 import { ApiClientError, requestJson } from "@/lib/api-client";
 import { leadInputSchema } from "@/lib/validations";
@@ -162,7 +163,7 @@ export function LeadForm({
   const { zaloHref, phoneHref, hotlineLabel } = resolveContactChannels(settings);
 
   return (
-    <section aria-labelledby="survey-title" className="mt-14 overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)]">
+    <section aria-labelledby="survey-title" className="mt-14 overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] print:hidden">
       <div className="bg-[var(--ink)] p-6 sm:p-8 text-[var(--paper)]">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--focus)]">Phiếu khảo sát mái</p>
         <h3 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:text-3xl" id="survey-title">
@@ -171,6 +172,17 @@ export function LeadForm({
         <p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--line)]">
           Đăng ký để xác nhận hiện trạng mái, cấu hình thiết bị và báo giá chính thức.
         </p>
+        <ul className="mt-4 flex flex-wrap gap-2" aria-label="Cam kết của chúng tôi">
+          {CUSTOMER_COMMITMENTS.map((commitment) => (
+            <li
+              className="rounded-full bg-[var(--brand)] px-3 py-1 text-sm font-semibold text-[var(--paper)]"
+              key={commitment.id}
+              title={commitment.detail}
+            >
+              ✓ {commitment.label}
+            </li>
+          ))}
+        </ul>
         {packageName ? (
           <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-[var(--admin-rail)] bg-[var(--admin-rail)] px-3 py-1 text-sm">
             <span className="text-[var(--focus)]">Kết quả tham chiếu:</span>
