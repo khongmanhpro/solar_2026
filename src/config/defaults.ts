@@ -106,6 +106,24 @@ export const CALCULATION_CONSTANTS = {
   },
 } as const;
 
+/**
+ * Rooftop self-consumption rules (DRAFT — verify against the official texts
+ * before publishing as approved data).
+ */
+export const REGULATION_CONSTANTS = {
+  surplusSale: {
+    /** Households may sell surplus up to this share of generated output. */
+    maxShareOfGeneration: 0.5,
+    /** Previous-year average wholesale market price; not yet published for 2026. */
+    priceVndPerKwh: 800,
+    status: "draft",
+    legalBasis: "Nghị định 58/2025/NĐ-CP, sửa đổi bởi Nghị định 243/2026/NĐ-CP (hiệu lực 26/06/2026)",
+    priceNote:
+      "Giá bằng giá điện năng thị trường bình quân năm trước do đơn vị vận hành hệ thống công bố; mức ~800 đ/kWh là ước tính, chưa có số chính thức năm 2026.",
+  },
+  notificationThresholdKw: 100,
+} as const;
+
 export const RECOMMENDATION_CONSTANTS = {
   economicWeight: 0.4,
   billReductionWeight: 0.35,

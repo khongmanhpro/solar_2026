@@ -274,7 +274,15 @@ describe("selector theo ngày và kỳ hóa đơn", () => {
       ).toBe(800);
     }
 
-    for (const date of ["2025-06-30", "2027-01-01"]) {
+    // 2027 onwards falls back to the standard 10% rule (draft, see registry notes).
+    expect(
+      selectVatRule(ELECTRICITY_TARIFF_REGISTRY, {
+        date: "2027-01-01",
+        allowUnapproved: true,
+      }).rateBps,
+    ).toBe(1000);
+
+    for (const date of ["2025-06-30"]) {
       expectSelectionError(
         () =>
           selectVatRule(ELECTRICITY_TARIFF_REGISTRY, {

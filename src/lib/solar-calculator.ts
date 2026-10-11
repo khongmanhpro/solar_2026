@@ -1,4 +1,4 @@
-import { CALCULATION_CONSTANTS } from "@/config/defaults";
+import { CALCULATION_CONSTANTS, REGULATION_CONSTANTS } from "@/config/defaults";
 import { ELECTRICITY_TARIFF_REGISTRY } from "@/config/electricity-tariffs";
 import {
   requiredBackupReserveKwh,
@@ -373,6 +373,14 @@ export function calculateSolarPackage({
     }),
   );
 
+  const { maxShareOfGeneration, priceVndPerKwh } = REGULATION_CONSTANTS.surplusSale;
+  const sellableKwhPerMonth =
+    sum(
+      standard.months.map((month) =>
+        Math.min(month.surplusKwh, month.generationKwh * maxShareOfGeneration),
+      ),
+    ) / 12;
+
   return {
     packageId: solarPackage.id,
     estimatedMonthlyConsumptionKwh,
@@ -389,6 +397,12 @@ export function calculateSolarPackage({
       npvVnd: standard.finance.npvVnd,
       irr: standard.finance.irr,
       replacementCostsVnd: standard.finance.replacementCostsVnd,
+    },
+    surplusSale: {
+      sellableKwhPerMonth,
+      revenueVndPerMonth: sellableKwhPerMonth * priceVndPerKwh,
+      priceVndPerKwh,
+      maxShareOfGeneration,
     },
   };
 }

@@ -219,6 +219,34 @@
         "Bản ghi cần được nghiệp vụ nội bộ xác nhận phạm vi áp dụng cho hóa đơn điện trước khi phát hành cho khách hàng."
       ],
       "roundingRule": { "mode": "half_up", "decimalPlaces": 0 }
+    },
+    {
+      "id": "vn-vat-electricity-10-percent-standard",
+      "version": "vat-10-standard-2027-01-01-v1",
+      "rateBps": 1000,
+      "status": "draft",
+      "approvalStatus": "requires_internal_approval",
+      "selectable": true,
+      "effectivePeriod": {
+        "from": "2027-01-01",
+        "to": null
+      },
+      "sources": [
+        {
+          "kind": "official_document",
+          "title": "Luật Thuế giá trị gia tăng số 48/2024/QH15 — thuế suất phổ thông 10%",
+          "authority": "Quốc hội",
+          "documentNumber": "48/2024/QH15",
+          "issuedOn": "2024-11-26",
+          "url": "https://vanban.chinhphu.vn/?pageid=27160&docid=211884"
+        }
+      ],
+      "notes": [
+        "Mức giảm 8% theo Nghị quyết 204/2025/QH15 và Nghị định 174/2025/NĐ-CP hết hiệu lực sau 31/12/2026; nếu không gia hạn, điện sinh hoạt quay về thuế suất phổ thông 10%.",
+        "Cần nghiệp vụ xác nhận trước 01/01/2027: nếu Quốc hội gia hạn mức giảm, sửa bản ghi này thay vì để engine tự suy đoán.",
+        "Bản ghi tồn tại để engine không báo thiếu quy tắc VAT cho kỳ hóa đơn từ 2027."
+      ],
+      "roundingRule": { "mode": "half_up", "decimalPlaces": 0 }
     }
   ]
 }

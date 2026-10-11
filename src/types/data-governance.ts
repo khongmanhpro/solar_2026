@@ -125,6 +125,8 @@ export interface CalculationSourceSnapshot<TPackage, TSettings, TProvince> {
   algorithmConstants: {
     calculation: Record<string, unknown>;
     recommendation: Record<string, unknown>;
+    /** Present from engine 3.1+. */
+    regulation?: Record<string, unknown>;
   };
   dataManifest: CalculationDataManifest;
 }

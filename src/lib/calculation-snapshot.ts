@@ -7,6 +7,7 @@ import { TRIAL_PACKAGE_DATA_VERSION_PREFIX } from "@/config/trial-market-data";
 import {
   CALCULATION_CONSTANTS,
   RECOMMENDATION_CONSTANTS,
+  REGULATION_CONSTANTS,
 } from "@/config/defaults";
 import {
   ELECTRICITY_TARIFF_REGISTRY,
@@ -430,6 +431,7 @@ export function createCalculationSourceSnapshot({
     algorithmConstants: {
       calculation: { ...CALCULATION_CONSTANTS },
       recommendation: { ...RECOMMENDATION_CONSTANTS },
+      regulation: { ...REGULATION_CONSTANTS },
     },
     dataManifest: createSnapshotDataManifest(packages),
   };

@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 
+import { BillTierDecoder } from "@/components/calculator/BillTierDecoder";
 import { CashFlowChart } from "@/components/calculator/CashFlowChart";
+import { MethodologyPanel } from "@/components/calculator/MethodologyPanel";
+import { MonthlyEnergyChart } from "@/components/calculator/MonthlyEnergyChart";
 import { CALCULATION_CONSTANTS } from "@/config/defaults";
 import { LeadForm } from "@/components/calculator/LeadForm";
 import { PackageComparison } from "@/components/calculator/PackageComparison";
@@ -292,6 +295,25 @@ export function CalculationResults({
         </p>
       </section>
 
+      <section aria-labelledby="tier-title" className="mt-14">
+        <SectionHeading eyebrow="Giải mã hóa đơn EVN" id="tier-title" title="Điện mặt trời cắt bậc giá đắt nhất trước" />
+        <BillTierDecoder
+          gridConsumptionAfterSolarKwh={selectedResult.gridConsumptionAfterSolarKwh}
+          input={result.inputSummary}
+        />
+      </section>
+
+      {selectedResult.monthlyBreakdown ? (
+        <section aria-labelledby="monthly-title" className="mt-14">
+          <SectionHeading eyebrow="12 tháng trong năm" id="monthly-title" title="Mỗi tháng điện đến từ đâu?" />
+          <MonthlyEnergyChart
+            hasBattery={selectedPackage.batteryCapacityKwh > 0}
+            months={selectedResult.monthlyBreakdown}
+            seasonalData={Boolean(result.sourceSnapshot?.provinceFactor?.monthlyYieldKwhPerKwp)}
+          />
+        </section>
+      ) : null}
+
       <section aria-labelledby="long-term-title" className="mt-14">
         <SectionHeading eyebrow={`Tầm nhìn ${horizonYears} năm`} id="long-term-title" title="Hoàn vốn và lợi ích dài hạn" />
         <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr]">
@@ -390,6 +412,10 @@ export function CalculationResults({
             </p>
           )}
         </div>
+      </section>
+
+      <section aria-label="Cách tính" className="mt-14">
+        <MethodologyPanel result={result} selectedResult={selectedResult} />
       </section>
 
       <aside aria-label="Lưu ý về kết quả ước tính" className="mt-14 rounded-xl border border-[var(--line-strong)] bg-[var(--admin-panel)] p-5">

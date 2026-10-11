@@ -201,6 +201,13 @@ export interface UnscoredPackageCalculationResult
   /** Engine v3+: seasonal detail and lifetime finance. Absent on older snapshots. */
   monthlyBreakdown?: MonthlyBreakdownEntry[];
   financial?: LifetimeFinancialSummary;
+  /** Optional surplus sale under the rooftop rules; NOT included in payback. */
+  surplusSale?: {
+    sellableKwhPerMonth: number;
+    revenueVndPerMonth: number;
+    priceVndPerKwh: number;
+    maxShareOfGeneration: number;
+  };
 }
 
 export interface PackageScoreBreakdown {
