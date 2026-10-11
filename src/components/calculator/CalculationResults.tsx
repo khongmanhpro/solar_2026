@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 
+import { BackupPlanner } from "@/components/calculator/BackupPlanner";
 import { BillTierDecoder } from "@/components/calculator/BillTierDecoder";
 import { CashFlowChart } from "@/components/calculator/CashFlowChart";
 import { MethodologyPanel } from "@/components/calculator/MethodologyPanel";
 import { MonthlyEnergyChart } from "@/components/calculator/MonthlyEnergyChart";
+import { PaymentOptions } from "@/components/calculator/PaymentOptions";
 import { CALCULATION_CONSTANTS } from "@/config/defaults";
 import { LeadForm } from "@/components/calculator/LeadForm";
 import { PackageComparison } from "@/components/calculator/PackageComparison";
@@ -340,6 +342,26 @@ export function CalculationResults({
             ? `Đã tính giá điện tăng ${formatPercent(CALCULATION_CONSTANTS.finance.tariffEscalationRate * 100)}/năm, suy giảm tấm pin, chi phí bảo trì${selectedResult.financial.replacementCostsVnd.length > 0 ? ` và thay ${selectedResult.financial.replacementCostsVnd.map((item) => `${item.item === "battery" ? "pin lưu trữ" : "inverter"} năm ${item.year} (~${formatVnd(item.costVnd)})`).join(", ")}` : ""}. Điện dư phát lên lưới không được tính tiền.`
             : "Chưa bao gồm biến động giá điện, suy giảm thiết bị và chi phí phát sinh."}
         </p>
+      </section>
+
+      <section aria-labelledby="payment-title" className="mt-14">
+        <SectionHeading eyebrow="Cách thanh toán" id="payment-title" title="Trả thẳng, trả góp hay vay?" />
+        <PaymentOptions monthlySavingsVnd={selectedResult.monthlySavingsVnd} priceVnd={selectedPackage.priceVnd} />
+      </section>
+
+      <section aria-labelledby="backup-title" className="mt-14">
+        <SectionHeading eyebrow="Pin & mất điện" id="backup-title" title="Khi mất điện lưới, nhà bạn còn điện bao lâu?" />
+        <BackupPlanner
+          alternatives={result.comparedPackages
+            .filter((item) => item.packageId !== selectedPackageId)
+            .flatMap((item) => {
+              const solarPackage = findPackage(packagesForCalculation, item.packageId);
+              return solarPackage ? [{ solarPackage, result: item }] : [];
+            })}
+          onSelectPackage={selectPackage}
+          selectedPackage={selectedPackage}
+          selectedResult={selectedResult}
+        />
       </section>
 
       <section aria-labelledby="cash-flow-title" className="mt-14">
