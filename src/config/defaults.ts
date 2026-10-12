@@ -84,7 +84,8 @@ export const CALCULATION_CONSTANTS = {
     eveningShareOfNight: 0.6,
   },
   battery: {
-    depthOfDischarge: 0.9,
+    /** LFP/lithium DoD per the NLMT course (p.113); lead-acid would be 0.5. */
+    depthOfDischarge: 0.8,
     /** Hybrid inverter idle/self consumption, drawn around the clock. */
     hybridStandbyLoadWatts: 40,
     backupInverterEfficiency: 0.9,
@@ -93,15 +94,19 @@ export const CALCULATION_CONSTANTS = {
   },
   finance: {
     degradationFirstYear: 0.01,
-    degradationPerYear: 0.005,
+    /** NLMT course p.228 and workbooks: ~0.6%/yr. */
+    degradationPerYear: 0.006,
     tariffEscalationRate: 0.03,
+    /** Shown as a sensitivity: the course quotes ~6%/yr (2009-2023 average). */
+    highTariffEscalationRate: 0.06,
     maintenanceEscalationRate: 0.03,
     discountRate: 0.08,
     /** Packages do not store inverter kW yet; estimate from kWp. */
     assumedDcAcRatio: 1.15,
     inverterReplacementYear: 12,
     inverterReplacementVndPerKw: { "grid-tied": 2_500_000, hybrid: 3_300_000 },
-    batteryReplacementYear: 12,
+    /** Course: lithium lasts 5-10 years (p.25, p.113); use the upper end. */
+    batteryReplacementYear: 10,
     batteryReplacementVndPerKwh: 2_000_000,
   },
 } as const;

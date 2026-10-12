@@ -109,3 +109,21 @@ describe("calculateLifetimeFinance", () => {
     expect(result.yearlyNetCashFlowVnd.slice(0, 5).every((flow) => flow === 0)).toBe(true);
   });
 });
+
+describe("course-calibrated assumptions and tariff sensitivity", () => {
+  it("replaces lithium battery at year 10 and degrades 0.6%/yr after year 1", () => {
+    expect(finance.batteryReplacementYear).toBe(10);
+    expect(CALCULATION_CONSTANTS.battery.depthOfDischarge).toBe(0.8);
+    expect(generationFactorForYear(11)).toBeCloseTo(1 - 0.01 - 0.006 * 9, 12);
+  });
+
+  it("pays back sooner when electricity prices grow faster", () => {
+    const base_ = calculateLifetimeFinance(base);
+    const fast = calculateLifetimeFinance({
+      ...base,
+      tariffEscalationRate: CALCULATION_CONSTANTS.finance.highTariffEscalationRate,
+    });
+    expect(fast.paybackYears!).toBeLessThan(base_.paybackYears!);
+    expect(fast.npvVnd).toBeGreaterThan(base_.npvVnd);
+  });
+});

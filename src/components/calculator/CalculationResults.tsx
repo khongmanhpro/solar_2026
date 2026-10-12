@@ -369,6 +369,9 @@ export function CalculationResults({
             </p>
             <p className="mt-4 text-sm leading-6 text-[var(--line)]">
               Khoảng được tính lại từ kịch bản sản lượng thấp và cao, không chỉ nhân hệ số vào thời gian hoàn vốn.
+              {selectedResult.financial?.paybackYearsHighTariffGrowth != null
+                ? ` Nếu giá điện tăng nhanh hơn (${formatPercent(CALCULATION_CONSTANTS.finance.highTariffEscalationRate * 100)}/năm thay vì ${formatPercent(CALCULATION_CONSTANTS.finance.tariffEscalationRate * 100)}), hoàn vốn còn khoảng ${formatPaybackRange(selectedResult.financial.paybackYearsHighTariffGrowth, selectedResult.financial.paybackYearsHighTariffGrowth)}.`
+                : ""}
             </p>
           </div>
           <dl className="grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3 lg:grid-cols-1">

@@ -61,8 +61,8 @@ describe("payment options", () => {
 describe("backup planner", () => {
   it("estimates outage hours from usable battery energy and flags inverter overload", () => {
     const estimate = estimateBackup(16, 5.84, 310);
-    expect(estimate.usableKwh).toBeCloseTo(14.4, 6);
-    expect(estimate.hours).toBeCloseTo((14.4 * 0.9) / 0.31, 6);
+    expect(estimate.usableKwh).toBeCloseTo(12.8, 6); // 16 kWh x 80% DoD
+    expect(estimate.hours).toBeCloseTo((12.8 * 0.9) / 0.31, 6);
     expect(estimate.exceedsInverter).toBe(false);
     expect(estimateBackup(16, 5.84, 6_000).exceedsInverter).toBe(true);
     expect(estimateBackup(16, 5.84, 0).hours).toBeNull();

@@ -396,6 +396,17 @@ export function calculateSolarPackage({
     return { months, finance, summary: summariseScenario(months, input, finance) };
   };
 
+  const highGrowthFinance = calculateLifetimeFinance({
+    priceVnd: solarPackage.priceVnd,
+    horizonYears: settings.systemLifetimeYears,
+    annualSavingsAtGenerationFactor: (factor) =>
+      sum(simulateYear(factor).map((month) => month.savingsVnd)),
+    maintenanceRatePerYear: settings.maintenanceRatePerYear,
+    tariffEscalationRate: CALCULATION_CONSTANTS.finance.highTariffEscalationRate,
+    systemType: solarPackage.systemType,
+    capacityKwp: solarPackage.capacityKwp,
+    batteryCapacityKwh: solarPackage.batteryCapacityKwh,
+  });
   const standard = runScenario(1);
   const low = runScenario(settings.lowEstimateFactor);
   const high = runScenario(settings.highEstimateFactor);
@@ -437,6 +448,7 @@ export function calculateSolarPackage({
     monthlyBreakdown,
     financial: {
       horizonYears: standard.finance.cashFlow.length - 1,
+      paybackYearsHighTariffGrowth: highGrowthFinance.paybackYears,
       npvVnd: standard.finance.npvVnd,
       irr: standard.finance.irr,
       replacementCostsVnd: standard.finance.replacementCostsVnd,

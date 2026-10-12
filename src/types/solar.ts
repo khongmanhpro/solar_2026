@@ -174,6 +174,8 @@ export interface MonthlyBreakdownEntry {
 
 export interface LifetimeFinancialSummary {
   horizonYears: number;
+  /** Payback if electricity prices grow faster (sensitivity); null if never. */
+  paybackYearsHighTariffGrowth?: number | null;
   npvVnd: number;
   irr: number | null;
   replacementCostsVnd: { year: number; item: "inverter" | "battery"; costVnd: number }[];

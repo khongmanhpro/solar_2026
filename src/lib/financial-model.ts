@@ -7,6 +7,8 @@ export interface LifetimeFinanceParams {
   /** Year-1 bill savings (VND) at a given PV output multiplier (1 = new). */
   annualSavingsAtGenerationFactor: (generationFactor: number) => number;
   maintenanceRatePerYear: number;
+  /** Override the yearly electricity price growth (sensitivity runs). */
+  tariffEscalationRate?: number;
   systemType: SolarSystemType;
   capacityKwp: number;
   batteryCapacityKwh: number;
@@ -109,7 +111,7 @@ export function calculateLifetimeFinance(
   for (let year = 1; year <= horizon; year++) {
     const savings =
       savingsAt(generationFactorForYear(year)) *
-      (1 + finance.tariffEscalationRate) ** (year - 1);
+      (1 + (params.tariffEscalationRate ?? finance.tariffEscalationRate)) ** (year - 1);
     const maintenance =
       params.priceVnd *
       params.maintenanceRatePerYear *
