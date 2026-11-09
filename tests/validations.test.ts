@@ -394,6 +394,23 @@ describe("admin schemas", () => {
     ).toBe(true);
   });
 
+  it("công suất inverter/pin/dự phòng: để trống được, không nhận số âm", () => {
+    expect(
+      solarPackageCreateSchema.safeParse({
+        ...defaultPackageInput,
+        inverterAcKw: 6,
+        batteryPowerKw: null,
+        backupOutputKw: null,
+      }).success,
+    ).toBe(true);
+    for (const field of ["inverterAcKw", "batteryPowerKw", "backupOutputKw"]) {
+      expect(
+        solarPackageCreateSchema.safeParse({ ...defaultPackageInput, [field]: -1 }).success,
+        field,
+      ).toBe(false);
+    }
+  });
+
   it("từ chối thứ tự tỷ lệ dùng ban ngày không tăng dần", () => {
     const result = calculationSettingsSchema.safeParse({
       ...defaultSettingsInput,

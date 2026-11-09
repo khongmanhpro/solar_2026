@@ -128,4 +128,67 @@ describe("simulateMonth", () => {
     const withStandby = simulateMonth({ ...base, systemStandbyLoadKw: 0.04 });
     expect(withStandby.gridImportKwh - plain.gridImportKwh).toBeCloseTo(0.04 * 24 * 30, 6);
   });
+
+  it("clips PV above the inverter AC rating without a battery", () => {
+    const flows = simulateMonth({
+      dailyGenerationKwh: 40,
+      dailyConsumptionKwh: 10,
+      daytimeRatio: 0.5,
+      battery: noBattery,
+      inverterAcKw: 3,
+    });
+    const days = CALCULATION_CONSTANTS.daysPerMonth;
+    expect(flows.clippedKwh).toBeGreaterThan(0);
+    // Raw PV is either used, exported or clipped.
+    expect(flows.directSolarUseKwh + flows.surplusKwh + flows.clippedKwh).toBeCloseTo(40 * days, 6);
+    expect(flows.generationKwh).toBeCloseTo(40 * days - flows.clippedKwh, 6);
+  });
+
+  it("stores clipped DC energy in a hybrid battery before losing it", () => {
+    const base = {
+      dailyGenerationKwh: 40,
+      dailyConsumptionKwh: 10,
+      daytimeRatio: 0.5,
+      inverterAcKw: 3,
+    };
+    const gridTied = simulateMonth({ ...base, battery: noBattery });
+    const hybrid = simulateMonth({ ...base, battery: { ...noBattery, nominalKwh: 16 } });
+    expect(hybrid.clippedKwh).toBeLessThan(gridTied.clippedKwh);
+    expect(hybrid.batteryDischargeKwh).toBeGreaterThan(0);
+  });
+
+  it("caps battery discharge at its power rating each hour", () => {
+    const base = {
+      dailyGenerationKwh: 40,
+      // 30% daytime: the 18h-22h peak needs well over 1 kW per hour.
+      dailyConsumptionKwh: 40,
+      daytimeRatio: 0.3,
+    };
+    const unlimited = simulateMonth({ ...base, battery: { ...noBattery, nominalKwh: 16 } });
+    const limited = simulateMonth({
+      ...base,
+      battery: { ...noBattery, nominalKwh: 16, maxPowerKw: 1 },
+    });
+    expect(limited.batteryDischargeKwh).toBeLessThan(unlimited.batteryDischargeKwh);
+    expect(limited.gridImportKwh).toBeGreaterThan(unlimited.gridImportKwh);
+    // At most 1 kWh per night hour (12 hours outside 6h-18h) per day.
+    expect(limited.batteryDischargeKwh).toBeLessThanOrEqual(1 * 18 * CALCULATION_CONSTANTS.daysPerMonth + 1e-6);
+  });
+
+  it("is unchanged when no power limits are given", () => {
+    const base = {
+      dailyGenerationKwh: 30,
+      dailyConsumptionKwh: 20,
+      daytimeRatio: 0.4,
+      battery: { ...noBattery, nominalKwh: 16 },
+    };
+    const plain = simulateMonth(base);
+    const explicitNull = simulateMonth({
+      ...base,
+      inverterAcKw: null,
+      battery: { ...base.battery, maxPowerKw: null },
+    });
+    expect(explicitNull).toEqual(plain);
+    expect(plain.clippedKwh).toBe(0);
+  });
 });

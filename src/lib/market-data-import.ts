@@ -129,6 +129,7 @@ export interface TrialMarketPackage {
   systemType: "grid-tied" | "hybrid";
   electricalPhase: "single-phase" | "three-phase";
   batteryCapacityKwh: number;
+  inverterAcKw: number | null;
   equipmentSummary: string;
   panelBrand: string;
   panelModel: string;
@@ -741,6 +742,7 @@ export function buildTrialMarketRelease(
       systemType: item.systemType,
       electricalPhase: item.phase,
       batteryCapacityKwh: item.batteryNominalKwh,
+      inverterAcKw: item.inverterPowerKw,
       equipmentSummary: item.equipmentSummary,
       panelBrand: item.panelBrand,
       panelModel: item.panelModel,

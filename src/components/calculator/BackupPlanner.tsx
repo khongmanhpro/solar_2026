@@ -8,7 +8,7 @@ import {
   getBackupDeviceCautions,
   type BackupDeviceId,
 } from "@/config/backup-devices";
-import { batteryUpgradeValue, estimateBackup } from "@/lib/backup-planner";
+import { backupPowerWarning, batteryUpgradeValue, estimateBackup } from "@/lib/backup-planner";
 import { formatCustomerPackageName, formatVnd } from "@/lib/formatters";
 import type { PackageCalculationResult, SolarPackage } from "@/types/solar";
 
@@ -56,7 +56,7 @@ export function BackupPlanner({
   const batteryPackage = hasBattery ? selectedPackage : hybridAlternative?.solarPackage ?? null;
   const loadWatts = calculateBackupDeviceWatts(deviceIds);
   const estimate = batteryPackage
-    ? estimateBackup(batteryPackage.batteryCapacityKwh, batteryPackage.capacityKwp, loadWatts)
+    ? estimateBackup(batteryPackage, loadWatts)
     : null;
   const cautions = getBackupDeviceCautions(deviceIds);
   const upgrade =
@@ -131,9 +131,9 @@ export function BackupPlanner({
                 Ban ngày có nắng, tấm pin tiếp tục sạc thêm.
               </p>
             </div>
-            {estimate?.exceedsInverter ? (
+            {estimate?.exceedsBackupPower ? (
               <p className="mt-3 rounded-lg bg-[var(--warning-soft)] p-3 text-sm text-[var(--warning-ink)]" role="alert">
-                Tổng công suất vượt khả năng inverter ước tính (~{estimate.estimatedInverterKw.toFixed(1)} kW). Hãy bớt thiết bị chạy cùng lúc hoặc trao đổi với kỹ sư.
+                {backupPowerWarning(estimate.backupKw, estimate.backupKwSource)}
               </p>
             ) : null}
             {cautions.length > 0 ? (

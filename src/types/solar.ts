@@ -97,6 +97,13 @@ export interface SolarPackage extends DataGovernanceMetadata {
   systemType: SolarSystemType;
   electricalPhase: ElectricalPhase;
   batteryCapacityKwh: number;
+  /** Rated inverter AC output (kW). Absent/null = unknown; the engine then
+   * estimates kWp ÷ assumed DC/AC ratio. */
+  inverterAcKw?: number | null;
+  /** Max battery charge/discharge power (kW). Null = inverter AC rating. */
+  batteryPowerKw?: number | null;
+  /** Backup (EPS/off-grid) output from the datasheet (kW). Null = inverter AC rating. */
+  backupOutputKw?: number | null;
   equipmentSummary: string;
   panelBrand: string;
   panelModel: string;
@@ -168,6 +175,8 @@ export interface MonthlyBreakdownEntry {
   /** Calendar month, 1-12. */
   month: number;
   generationKwh: number;
+  /** PV lost above the inverter AC rating (engine 3.3+). */
+  clippedKwh?: number;
   directSolarUseKwh: number;
   batteryDischargeKwh: number;
   gridImportKwh: number;

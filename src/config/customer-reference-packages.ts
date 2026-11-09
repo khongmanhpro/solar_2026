@@ -42,6 +42,9 @@ export const CUSTOMER_REFERENCE_PACKAGES = [
     systemType: "grid-tied",
     electricalPhase: "single-phase",
     batteryCapacityKwh: 0,
+    inverterAcKw: 5,
+    batteryPowerKw: null,
+    backupOutputKw: null,
     equipmentSummary:
       "8 tấm Risen 730 W + inverter Solplanet 5 kW + BOS tiêu chuẩn + thi công cơ bản.",
     panelBrand: "Risen",
@@ -66,6 +69,9 @@ export const CUSTOMER_REFERENCE_PACKAGES = [
     systemType: "grid-tied",
     electricalPhase: "single-phase",
     batteryCapacityKwh: 0,
+    inverterAcKw: 6,
+    batteryPowerKw: null,
+    backupOutputKw: null,
     equipmentSummary:
       "9 tấm Risen 730 W + inverter Solplanet 6 kW + BOS tiêu chuẩn + thi công cơ bản.",
     panelBrand: "Risen",
@@ -90,6 +96,9 @@ export const CUSTOMER_REFERENCE_PACKAGES = [
     systemType: "grid-tied",
     electricalPhase: "single-phase",
     batteryCapacityKwh: 0,
+    inverterAcKw: 8,
+    batteryPowerKw: null,
+    backupOutputKw: null,
     equipmentSummary:
       "12 tấm Risen 730 W + inverter Solplanet 8 kW + BOS tiêu chuẩn + thi công cơ bản.",
     panelBrand: "Risen",
@@ -114,6 +123,9 @@ export const CUSTOMER_REFERENCE_PACKAGES = [
     systemType: "hybrid",
     electricalPhase: "single-phase",
     batteryCapacityKwh: 16.07,
+    inverterAcKw: 6,
+    batteryPowerKw: null,
+    backupOutputKw: null,
     equipmentSummary:
       "8 tấm Risen 730 W + inverter hybrid 6 kW + pin lưu trữ khoảng 16 kWh + tủ điện, BOS và thi công cơ bản.",
     panelBrand: "Risen",
@@ -138,6 +150,9 @@ export const CUSTOMER_REFERENCE_PACKAGES = [
     systemType: "hybrid",
     electricalPhase: "single-phase",
     batteryCapacityKwh: 16,
+    inverterAcKw: 6,
+    batteryPowerKw: null,
+    backupOutputKw: null,
     equipmentSummary:
       "10 tấm Risen HJT hai mặt kính 720 W + inverter hybrid SRNE 6 kW + pin Yunqida LiFePO4 16 kWh + khung, tủ điện, vật tư và thi công theo báo giá mẫu.",
     panelBrand: "Risen",
@@ -162,6 +177,9 @@ export const CUSTOMER_REFERENCE_PACKAGES = [
     systemType: "hybrid",
     electricalPhase: "three-phase",
     batteryCapacityKwh: 16.07,
+    inverterAcKw: 8,
+    batteryPowerKw: null,
+    backupOutputKw: null,
     equipmentSummary:
       "12 tấm Risen 730 W + inverter hybrid 3 pha 8 kW + pin lưu trữ khoảng 16 kWh + BOS và thi công cơ bản.",
     panelBrand: "Risen",
@@ -186,6 +204,9 @@ export const CUSTOMER_REFERENCE_PACKAGES = [
     systemType: "hybrid",
     electricalPhase: "three-phase",
     batteryCapacityKwh: 16.07,
+    inverterAcKw: 12,
+    batteryPowerKw: null,
+    backupOutputKw: null,
     equipmentSummary:
       "16 tấm Risen 730 W + inverter hybrid 3 pha 12 kW + pin lưu trữ khoảng 16 kWh + BOS và thi công cơ bản.",
     panelBrand: "Risen",

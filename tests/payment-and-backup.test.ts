@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { batteryUpgradeValue, estimateBackup } from "@/lib/backup-planner";
+import { backupPowerWarning, batteryUpgradeValue, estimateBackup } from "@/lib/backup-planner";
+import { packagePowerLimits } from "@/lib/package-power";
 import {
   annuityPayment,
   cardInstalmentOption,
@@ -59,14 +60,46 @@ describe("payment options", () => {
 });
 
 describe("backup planner", () => {
-  it("estimates outage hours from usable battery energy and flags inverter overload", () => {
-    const estimate = estimateBackup(16, 5.84, 310);
+  const hybrid = { batteryCapacityKwh: 16, capacityKwp: 5.84 };
+
+  it("estimates outage hours from usable battery energy and flags overload", () => {
+    const estimate = estimateBackup(hybrid, 310);
     expect(estimate.usableKwh).toBeCloseTo(12.8, 6); // 16 kWh x 80% DoD
     expect(estimate.hours).toBeCloseTo((12.8 * 0.9) / 0.31, 6);
-    expect(estimate.exceedsInverter).toBe(false);
-    expect(estimateBackup(16, 5.84, 6_000).exceedsInverter).toBe(true);
-    expect(estimateBackup(16, 5.84, 0).hours).toBeNull();
-    expect(estimateBackup(0, 5.84, 300).hours).toBeNull();
+    expect(estimate.exceedsBackupPower).toBe(false);
+    expect(estimateBackup(hybrid, 6_000).exceedsBackupPower).toBe(true);
+    expect(estimateBackup(hybrid, 0).hours).toBeNull();
+    expect(estimateBackup({ ...hybrid, batteryCapacityKwh: 0 }, 300).hours).toBeNull();
+  });
+
+  it("uses the real inverter rating instead of guessing from kWp", () => {
+    // 5.84 kWp / 1.15 ≈ 5.1 kW was the old guess for a 6 kW inverter.
+    const estimate = estimateBackup({ ...hybrid, inverterAcKw: 6 }, 5_500);
+    expect(estimate.backupKw).toBe(6);
+    expect(estimate.backupKwSource).toBe("inverter-rating");
+    expect(estimate.exceedsBackupPower).toBe(false);
+    const unknown = estimateBackup(hybrid, 5_500);
+    expect(unknown.backupKw).toBeCloseTo(5.84 / 1.15, 6);
+    expect(unknown.backupKwSource).toBe("estimated");
+  });
+
+  it("limits backup to min(EPS rating, battery discharge power)", () => {
+    expect(estimateBackup({ ...hybrid, inverterAcKw: 5, backupOutputKw: 3 }, 3_500)).toMatchObject({
+      backupKw: 3,
+      backupKwSource: "datasheet",
+      exceedsBackupPower: true,
+    });
+    expect(
+      packagePowerLimits({ capacityKwp: 7.2, inverterAcKw: 6, batteryPowerKw: 4.8, backupOutputKw: 6 })
+        .backupKw,
+    ).toBe(4.8);
+    expect(packagePowerLimits({ capacityKwp: 7.2, inverterAcKw: 6 }).batteryPowerKw).toBe(6);
+  });
+
+  it("words the overload warning by how certain the power figure is", () => {
+    expect(backupPowerWarning(3, "datasheet")).toContain("công suất dự phòng của gói (3 kW)");
+    expect(backupPowerWarning(6, "inverter-rating")).toContain("kỹ sư xác nhận khi khảo sát");
+    expect(backupPowerWarning(5.08, "estimated")).toContain("ước tính (~5,1 kW)");
   });
 
   it("isolates the battery's own payback against a grid-tied alternative", () => {

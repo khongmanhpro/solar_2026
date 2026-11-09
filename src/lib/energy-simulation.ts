@@ -2,7 +2,10 @@ import { CALCULATION_CONSTANTS } from "@/config/defaults";
 
 /** Energy flows for one billing month (30 days), all in kWh. */
 export interface MonthlyEnergyFlows {
+  /** PV energy delivered after inverter clipping. */
   generationKwh: number;
+  /** DC energy above the inverter AC rating that could not be stored either. */
+  clippedKwh: number;
   /** Household consumption, excluding the system's own standby load. */
   consumptionKwh: number;
   standbyLoadKwh: number;
@@ -21,6 +24,8 @@ export interface BatteryParameters {
   dailyCycleFactor: number;
   /** Energy held back for outages; never used for daily self-consumption. */
   backupReserveKwh: number;
+  /** Max charge/discharge power (kW, i.e. kWh per simulated hour); null = no limit. */
+  maxPowerKw?: number | null;
 }
 
 export interface SimulateMonthParams {
@@ -33,10 +38,13 @@ export interface SimulateMonthParams {
   battery: BatteryParameters;
   /** Constant load added by the system itself (e.g. hybrid inverter idle). */
   systemStandbyLoadKw?: number;
+  /** Inverter AC output cap (kW); null = no clipping. */
+  inverterAcKw?: number | null;
 }
 
 interface DayFlows {
   generationKwh: number;
+  clippedKwh: number;
   directSolarUseKwh: number;
   batteryDischargeKwh: number;
   gridImportKwh: number;
@@ -104,23 +112,37 @@ export function usableBatteryKwh(nominalKwh: number): number {
   return Math.max(0, nominalKwh) * CALCULATION_CONSTANTS.battery.depthOfDischarge;
 }
 
+interface DayLimits {
+  cycleCapacityKwh: number;
+  maxDailyDischargeKwh: number;
+  roundTripEfficiency: number;
+  /** kWh per hour; Infinity = no limit. */
+  batteryPowerKw: number;
+  inverterAcKw: number;
+}
+
 /**
  * Simulates one day hour by hour. Charging losses are applied on the way in,
  * so stored energy can be discharged 1:1. `initialStoredKwh` is the energy
  * available above the backup reserve at midnight.
+ *
+ * PV above the inverter AC rating is clipped, except what a DC-coupled battery
+ * can still absorb; battery charge and discharge are each capped at the
+ * battery power rating.
  */
 function simulateDay(
   pvProfileKwh: readonly number[],
   loadProfileKwh: readonly number[],
-  cycleCapacityKwh: number,
-  maxDailyDischargeKwh: number,
-  roundTripEfficiency: number,
+  limits: DayLimits,
   initialStoredKwh: number,
 ): { flows: DayFlows; endStoredKwh: number } {
+  const { cycleCapacityKwh, maxDailyDischargeKwh, roundTripEfficiency, batteryPowerKw, inverterAcKw } =
+    limits;
   let stored = initialStoredKwh;
   let dischargedToday = 0;
   const flows: DayFlows = {
     generationKwh: 0,
+    clippedKwh: 0,
     directSolarUseKwh: 0,
     batteryDischargeKwh: 0,
     gridImportKwh: 0,
@@ -130,21 +152,35 @@ function simulateDay(
   for (let hour = 0; hour < HOURS; hour++) {
     const pv = pvProfileKwh[hour];
     const load = loadProfileKwh[hour];
-    const direct = Math.min(pv, load);
-    let excess = pv - direct;
+    const acPv = Math.min(pv, inverterAcKw);
+    let clippedDc = pv - acPv;
+    const direct = Math.min(acPv, load);
+    let excess = acPv - direct;
     let deficit = load - direct;
 
-    if (excess > 0 && cycleCapacityKwh > 0 && roundTripEfficiency > 0) {
-      const room = cycleCapacityKwh - stored;
-      const acceptedPv = Math.min(excess, room / roundTripEfficiency);
-      stored += acceptedPv * roundTripEfficiency;
-      excess -= acceptedPv;
+    if (
+      (excess > 0 || clippedDc > 0) &&
+      cycleCapacityKwh > 0 &&
+      roundTripEfficiency > 0
+    ) {
+      let chargeRoomKwh = Math.min(
+        (cycleCapacityKwh - stored) / roundTripEfficiency,
+        batteryPowerKw,
+      );
+      // Clipped DC energy is otherwise lost, so it charges the battery first.
+      const fromClipped = Math.max(0, Math.min(clippedDc, chargeRoomKwh));
+      clippedDc -= fromClipped;
+      chargeRoomKwh -= fromClipped;
+      const fromExcess = Math.max(0, Math.min(excess, chargeRoomKwh));
+      excess -= fromExcess;
+      stored += (fromClipped + fromExcess) * roundTripEfficiency;
     }
 
     if (deficit > 0 && stored > 0) {
       const discharge = Math.min(
         deficit,
         stored,
+        batteryPowerKw,
         Math.max(0, maxDailyDischargeKwh - dischargedToday),
       );
       stored -= discharge;
@@ -153,13 +189,20 @@ function simulateDay(
       flows.batteryDischargeKwh += discharge;
     }
 
-    flows.generationKwh += pv;
+    flows.generationKwh += pv - clippedDc;
+    flows.clippedKwh += clippedDc;
     flows.directSolarUseKwh += direct;
     flows.gridImportKwh += deficit;
     flows.surplusKwh += excess;
   }
 
   return { flows, endStoredKwh: stored };
+}
+
+function powerLimit(value: number | null | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : Number.POSITIVE_INFINITY;
 }
 
 /**
@@ -172,6 +215,7 @@ export function simulateMonth({
   daytimeRatio,
   battery,
   systemStandbyLoadKw = 0,
+  inverterAcKw = null,
 }: SimulateMonthParams): MonthlyEnergyFlows {
   const days = CALCULATION_CONSTANTS.daysPerMonth;
   const standbyKw = Math.max(0, systemStandbyLoadKw);
@@ -184,9 +228,17 @@ export function simulateMonth({
   const maxDailyDischargeKwh =
     cycleCapacityKwh * Math.min(1, Math.max(0, battery.dailyCycleFactor));
   const efficiency = Math.min(1, Math.max(0, battery.roundTripEfficiency));
+  const limits: DayLimits = {
+    cycleCapacityKwh,
+    maxDailyDischargeKwh,
+    roundTripEfficiency: efficiency,
+    batteryPowerKw: powerLimit(battery.maxPowerKw),
+    inverterAcKw: powerLimit(inverterAcKw),
+  };
 
   const total: MonthlyEnergyFlows = {
     generationKwh: 0,
+    clippedKwh: 0,
     consumptionKwh: Math.max(0, dailyConsumptionKwh) * days,
     standbyLoadKwh: standbyKw * HOURS * days,
     directSolarUseKwh: 0,
@@ -207,9 +259,7 @@ export function simulateMonth({
       const simulated = simulateDay(
         pvProfileKwh,
         loadProfileKwh,
-        cycleCapacityKwh,
-        maxDailyDischargeKwh,
-        efficiency,
+        limits,
         stored,
       );
       stored = simulated.endStoredKwh;
@@ -219,6 +269,7 @@ export function simulateMonth({
 
     const dayWeight = dayType.weight * days;
     total.generationKwh += day.generationKwh * dayWeight;
+    total.clippedKwh += day.clippedKwh * dayWeight;
     total.directSolarUseKwh += day.directSolarUseKwh * dayWeight;
     total.batteryDischargeKwh += day.batteryDischargeKwh * dayWeight;
     total.gridImportKwh += day.gridImportKwh * dayWeight;

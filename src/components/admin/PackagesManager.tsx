@@ -23,6 +23,9 @@ const EMPTY_PACKAGE: SolarPackageCreateData = {
   systemType: "grid-tied",
   electricalPhase: "single-phase",
   batteryCapacityKwh: 0,
+  inverterAcKw: null,
+  batteryPowerKw: null,
+  backupOutputKw: null,
   equipmentSummary: "",
   panelBrand: "",
   panelModel: "",
@@ -44,6 +47,9 @@ const numericFields = [
   "inverterWarrantyYears",
   "displayOrder",
 ] as const;
+
+/** Datasheet power fields: blank means "unknown", stored as null (not 0). */
+const optionalPowerFields = ["inverterAcKw", "batteryPowerKw", "backupOutputKw"] as const;
 
 function sortedPackages(items: SolarPackage[]) {
   return [...items].sort(
@@ -114,6 +120,10 @@ export function PackagesManager({ initialPackages }: { initialPackages: SolarPac
     const formData = new FormData(event.currentTarget);
     const raw = Object.fromEntries(formData.entries()) as Record<string, unknown>;
     for (const field of numericFields) raw[field] = Number(raw[field]);
+    for (const field of optionalPowerFields) {
+      const value = String(raw[field] ?? "").trim();
+      raw[field] = value === "" ? null : Number(value);
+    }
     raw.active = formData.get("active") === "on";
 
     const parsed = solarPackageCreateSchema.safeParse(raw);
@@ -265,6 +275,9 @@ export function PackagesManager({ initialPackages }: { initialPackages: SolarPac
               <Field error={errors.baseMonthlyGenerationKwh} label="Sản lượng/tháng (kWh)" name="baseMonthlyGenerationKwh" step="0.1" type="number" value={editingPackage.baseMonthlyGenerationKwh} />
               <Field error={errors.requiredRoofAreaM2} label="Diện tích mái (m²)" name="requiredRoofAreaM2" step="0.1" type="number" value={editingPackage.requiredRoofAreaM2} />
               <Field error={errors.batteryCapacityKwh} label="Dung lượng pin (kWh)" name="batteryCapacityKwh" step="0.1" type="number" value={editingPackage.batteryCapacityKwh} />
+              <Field error={errors.inverterAcKw} label="Công suất AC inverter (kW) — trống = chưa rõ" name="inverterAcKw" step="0.1" type="number" value={editingPackage.inverterAcKw ?? ""} />
+              <Field error={errors.batteryPowerKw} label="Công suất sạc/xả pin (kW) — trống = theo inverter" name="batteryPowerKw" step="0.1" type="number" value={editingPackage.batteryPowerKw ?? ""} />
+              <Field error={errors.backupOutputKw} label="Công suất dự phòng EPS (kW) — trống = theo inverter" name="backupOutputKw" step="0.1" type="number" value={editingPackage.backupOutputKw ?? ""} />
               <label className="block text-xs font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Loại hệ thống<select className="admin-field normal-case tracking-normal" defaultValue={editingPackage.systemType} name="systemType"><option value="grid-tied">Hòa lưới</option><option value="hybrid">Hybrid + lưu trữ</option></select></label>
               <label className="block text-xs font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Pha điện inverter<select aria-invalid={Boolean(errors.electricalPhase)} className="admin-field normal-case tracking-normal" defaultValue={editingPackage.electricalPhase} name="electricalPhase"><option value="single-phase">Điện 1 pha</option><option value="three-phase">Điện 3 pha</option></select>{errors.electricalPhase ? <span className="mt-1 block normal-case tracking-normal text-[var(--danger)]">{errors.electricalPhase}</span> : null}</label>
             </fieldset>

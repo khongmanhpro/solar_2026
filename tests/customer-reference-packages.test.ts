@@ -4,6 +4,7 @@ import {
   CUSTOMER_REFERENCE_PACKAGE_DATA_VERSION,
   CUSTOMER_REFERENCE_PACKAGES,
 } from "@/config/customer-reference-packages";
+import { STANDARD_PACKAGE_CATALOG } from "@/config/standard-package-catalog";
 
 describe("customer reference package catalog", () => {
   it("contains seven fixed household reference options in display order", () => {
@@ -61,5 +62,16 @@ describe("customer reference package catalog", () => {
         inverterModel: "ASW8000-S",
       }),
     );
+  });
+
+  it("takes each inverter AC rating from the standard catalog, not a kWp guess", () => {
+    for (const solarPackage of CUSTOMER_REFERENCE_PACKAGES) {
+      const standard = STANDARD_PACKAGE_CATALOG.find((item) => item.code === solarPackage.code);
+      expect(standard, solarPackage.code).toBeDefined();
+      expect(solarPackage.inverterAcKw, solarPackage.code).toBe(standard?.inverter.powerKw);
+      // No datasheet yet: battery power and EPS output stay unknown, not invented.
+      expect(solarPackage.batteryPowerKw).toBeNull();
+      expect(solarPackage.backupOutputKw).toBeNull();
+    }
   });
 });

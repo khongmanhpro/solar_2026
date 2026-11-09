@@ -135,15 +135,17 @@ Engine mô phỏng theo giờ nên đã chứa các hiệu ứng trên; dùng c�
 - Hybrid bám tải không bán điện: pin đầy thì tấm pin bị cắt bớt (ví dụ 35–38 → 20–24 kWh/ngày khi pin kém).
 - Hybrid hoàn vốn "ít gì cũng 5 năm trở lên"; ví dụ 609 kWh của thầy: hóa đơn tháng đầu 800k (chậm đấu nối), sau đó 400–600k.
 
-### 8.4 Việc engine có thể làm thêm (chưa làm, cần quyết định)
+### 8.4 Việc engine có thể làm thêm
 
-| # | Việc | Ảnh hưởng | Ưu tiên |
+| # | Việc | Ảnh hưởng | Trạng thái |
 |---|---|---|---|
-| 1 | Giới hạn công suất sạc/xả pin theo kW mỗi giờ (từ thông số inverter) | Nhỏ với hộ dân (tải tối 1–2 kW); lớn với nhà hàng/khách sạn | Trung bình |
-| 2 | Cắt đỉnh khi DC/AC > 1 (clipping) | Nhỏ ở DC/AC 1,15–1,2 hiện tại; cần nếu thêm gói DC/AC 1,3–1,5 | Thấp |
-| 3 | Backup planner dùng công suất EPS thật của gói thay vì kWp ÷ 1,15 | Khách thấy "vượt khả năng inverter" đúng hơn | Trung bình |
+| 1 | Giới hạn công suất sạc/xả pin theo kW mỗi giờ | Nhỏ với hộ dân (tải tối 1–2 kW); lớn với nhà hàng/khách sạn | **Đã làm** (engine 3.3.0, `batteryPowerKw`; trống = theo inverter) |
+| 2 | Cắt đỉnh khi PV vượt công suất AC inverter (clipping) | Gói hiện tại: 0 kWh bị cắt (đỉnh giờ ≈13% sản lượng ngày < AC). Cần cho gói DC/AC 1,3–1,5 | **Đã làm** (`inverterAcKw`; phần cắt sạc vào pin hybrid trước khi mất) |
+| 3 | Backup planner dùng min(EPS, công suất xả pin) thay vì kWp ÷ 1,15 | Gói 6K-16K: 5,1 kW → 6 kW; chữ cảnh báo nói rõ nguồn số | **Đã làm** (`backupOutputKw`) |
 | 4 | Wave 3: gói ~1,5–3 kWp (hoặc micro-inverter) cho hộ 300–400 kWh | Mở thêm phân khúc; phải giữ hoàn vốn trung thực | Cao (đã có kế hoạch) |
 | 5 | Mặc định không bán điện dư nếu chưa xác nhận công tơ hai chiều | Engine đã không cộng tiền điện dư vào hoàn vốn — khớp | Đã khớp |
+
+Còn chờ dữ liệu: `batteryPowerKw` và `backupOutputKw` của SRNE HESP486S100-H / HESP4880SHD3 / HESP48120SH3 để trống vì chưa có datasheet chính thức. Khi có, nhập ở trang admin gói; engine tự dùng. Lưu ý mã "100" của HESP486S100-H nhiều khả năng là dòng sạc 100 A ≈ 4,8–5 kW ở 48 V — thấp hơn 6 kW AC — nên cần xác nhận trước khi hứa công suất dự phòng 6 kW.
 
 ### 8.5 Thông tin cũ hoặc sai cần tránh (bổ sung)
 

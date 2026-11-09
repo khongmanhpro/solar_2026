@@ -56,6 +56,12 @@ model SolarPackage {
   systemType               SolarSystemType
   electricalPhase          ElectricalPhase
   batteryCapacityKwh       Float           @default(0)
+  /// Rated AC output (kW); null = unknown, engine estimates from kWp.
+  inverterAcKw             Float?
+  /// Max battery charge/discharge power (kW); null = assume inverter AC rating.
+  batteryPowerKw           Float?
+  /// Backup/EPS output (kW) from the datasheet; null = assume inverter AC rating.
+  backupOutputKw           Float?
   equipmentSummary         String
   panelBrand               String
   panelModel               String

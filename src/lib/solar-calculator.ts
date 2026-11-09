@@ -13,6 +13,7 @@ import {
   calculateLifetimeFinance,
   type LifetimeFinanceResult,
 } from "@/lib/financial-model";
+import { packagePowerLimits } from "@/lib/package-power";
 import { selectElectricityTariffByVersion } from "@/lib/tariff-selection";
 import type {
   CalculationScenarioResult,
@@ -218,8 +219,10 @@ function createYearSimulator(params: {
   const vatMultiplier = 1 + (input.vatRate ?? 0);
   const demand = householdDemand(input, settings);
   const daytimeRatio = demand.daytimeRatio;
+  const powerLimits = packagePowerLimits(solarPackage);
   const battery = {
     nominalKwh: solarPackage.batteryCapacityKwh,
+    maxPowerKw: powerLimits.batteryPowerKw,
     roundTripEfficiency: settings.batteryRoundTripEfficiency,
     dailyCycleFactor: settings.batteryDailyCycleFactor,
     backupReserveKwh: input.backupRequired
@@ -267,6 +270,7 @@ function createYearSimulator(params: {
         dailyConsumptionKwh: demand.monthlyConsumptionKwh / days,
         daytimeRatio,
         battery,
+        inverterAcKw: powerLimits.inverterAcKw,
         systemStandbyLoadKw:
           solarPackage.systemType === "hybrid"
             ? CALCULATION_CONSTANTS.battery.hybridStandbyLoadWatts / 1_000
@@ -414,6 +418,7 @@ export function calculateSolarPackage({
     (month, index) => ({
       month: index + 1,
       generationKwh: month.generationKwh,
+      clippedKwh: month.clippedKwh,
       directSolarUseKwh: month.directSolarUseKwh,
       batteryDischargeKwh: month.batteryDischargeKwh,
       gridImportKwh: month.gridImportKwh,

@@ -4,6 +4,7 @@ import {
   DEFAULT_CALCULATION_SETTINGS,
   DEFAULT_SOLAR_PACKAGES,
 } from "@/config/defaults";
+import { CUSTOMER_REFERENCE_PACKAGES } from "@/config/customer-reference-packages";
 import { QD1279_RESIDENTIAL_TARIFF } from "@/config/electricity-tariffs";
 import {
   calculateSolarPackage,
@@ -378,5 +379,68 @@ describe("calculateSolarPackage — engine v3 invariants", () => {
     const flow = (year: number) =>
       result.cashFlow[year].cumulativeCashFlowVnd - result.cashFlow[year - 1].cumulativeCashFlowVnd;
     expect(flow(12)).toBeLessThan(flow(11));
+  });
+});
+
+describe("giới hạn công suất inverter/pin (engine 3.3)", () => {
+  // Reference packages have DC/AC ≤ 1.1 and a household-sized evening peak, so
+  // clipping and the battery kW cap should barely move their savings.
+  it.each(
+    CUSTOMER_REFERENCE_PACKAGES.flatMap((solarPackage) =>
+      [450, 900].flatMap((kwh) =>
+        (["low", "high"] as const).map((daytimeUsageLevel) => ({
+          solarPackage,
+          kwh,
+          daytimeUsageLevel,
+        })),
+      ),
+    ),
+  )("$solarPackage.code · $kwh kWh · $daytimeUsageLevel: tiết kiệm lệch < 1%", ({ solarPackage, kwh, daytimeUsageLevel }) => {
+    const params = {
+      input: { ...standardInput, monthlyConsumptionKwh: kwh, daytimeUsageLevel },
+      settings: defaultSettings,
+      // Sunnier than average so midday peaks are as high as they get.
+      provinceFactor: 1.15,
+    };
+    const limited = calculateSolarPackage({
+      ...params,
+      solarPackage: { id: solarPackage.code, ...solarPackage },
+    });
+    const unlimited = calculateSolarPackage({
+      ...params,
+      solarPackage: {
+        id: solarPackage.code,
+        ...solarPackage,
+        inverterAcKw: 1_000,
+        batteryPowerKw: 1_000,
+      },
+    });
+    expect(limited.monthlySavingsVnd).toBeLessThanOrEqual(unlimited.monthlySavingsVnd + 1);
+    expect(limited.monthlySavingsVnd).toBeGreaterThan(unlimited.monthlySavingsVnd * 0.99);
+  });
+
+  it("cắt sản lượng chỉ giảm tiết kiệm khi cắt vào phần nhà đang dùng", () => {
+    const params = {
+      // 900 kWh, mostly daytime: ~1.9 kW load around noon.
+      input: { ...standardInput, monthlyConsumptionKwh: 900 },
+      settings: defaultSettings,
+      provinceFactor: 1.15,
+    };
+    const base = CUSTOMER_REFERENCE_PACKAGES[0];
+    const run = (inverterAcKw: number) =>
+      calculateSolarPackage({ ...params, solarPackage: { id: `ac-${inverterAcKw}`, ...base, inverterAcKw } });
+    const clippedKwh = (result: ReturnType<typeof run>) =>
+      (result.monthlyBreakdown ?? []).reduce((total, month) => total + (month.clippedKwh ?? 0), 0);
+    const normal = run(5);
+    const surplusOnly = run(2);
+    const intoLoad = run(1);
+
+    expect(clippedKwh(normal)).toBe(0);
+    // Clipping above the household load only removes unpaid surplus.
+    expect(clippedKwh(surplusOnly)).toBeGreaterThan(0);
+    expect(surplusOnly.adjustedGenerationKwh).toBeLessThan(normal.adjustedGenerationKwh);
+    expect(surplusOnly.monthlySavingsVnd).toBeCloseTo(normal.monthlySavingsVnd, 0);
+    // Clipping below the load costs real savings.
+    expect(intoLoad.monthlySavingsVnd).toBeLessThan(normal.monthlySavingsVnd * 0.95);
   });
 });

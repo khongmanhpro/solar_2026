@@ -77,6 +77,7 @@ const migrationPaths = [
   "../prisma/migrations/20260806090000_add_electrical_phase/migration.sql",
   "../prisma/migrations/20260806120000_add_pvgis_monthly_yield/migration.sql",
   "../prisma/migrations/20261011120000_lead_selected_package/migration.sql",
+  "../prisma/migrations/20261109120000_package_power_limits/migration.sql",
 ].map((migrationPath) => new URL(migrationPath, import.meta.url));
 
 describe("service integration", () => {
