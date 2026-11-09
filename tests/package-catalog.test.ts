@@ -5,6 +5,7 @@ import {
   adminCreatedVersion,
   adminEditedVersion,
   catalogFamily,
+  moveWithinGroup,
   selectCustomerCatalog,
 } from "@/lib/package-catalog";
 
@@ -57,3 +58,48 @@ describe("package catalog membership", () => {
     expect(selectCustomerCatalog(packages, false).packages.map((item) => item.id)).toEqual(["demo"]);
   });
 });
+
+describe("moveWithinGroup (admin ↑/↓)", () => {
+  // Mirrors the dev DB: visible HOME-* packages interleaved with hidden ones
+  // that share the same order numbers.
+  const rows = [
+    { id: "hidden-1", displayOrder: 1, visible: false },
+    { id: "home-5k", displayOrder: 1, visible: true },
+    { id: "hidden-3", displayOrder: 3, visible: false },
+    { id: "home-6k", displayOrder: 2, visible: true },
+    { id: "home-8k", displayOrder: 3, visible: true },
+    { id: "hidden-4", displayOrder: 4, visible: false },
+    { id: "home-hy", displayOrder: 4, visible: true },
+  ].sort((a, b) => a.displayOrder - b.displayOrder);
+  const sameGroup = (a: { visible: boolean }, b: { visible: boolean }) => a.visible === b.visible;
+
+  it("swaps only with the neighbour customers also see", () => {
+    expect(moveWithinGroup(rows, "home-8k", -1, sameGroup)).toEqual([
+      { id: "home-8k", displayOrder: 2 },
+      { id: "home-6k", displayOrder: 3 },
+    ]);
+    expect(moveWithinGroup(rows, "home-8k", 1, sameGroup)).toEqual([
+      { id: "home-hy", displayOrder: 3 },
+      { id: "home-8k", displayOrder: 4 },
+    ]);
+  });
+
+  it("returns null at the edges of the group", () => {
+    expect(moveWithinGroup(rows, "home-5k", -1, sameGroup)).toBeNull();
+    expect(moveWithinGroup(rows, "home-hy", 1, sameGroup)).toBeNull();
+  });
+
+  it("repairs duplicate order numbers inside a group instead of keeping a tie", () => {
+    const tied = [
+      { id: "a", displayOrder: 4, visible: true },
+      { id: "b", displayOrder: 4, visible: true },
+      { id: "c", displayOrder: 5, visible: true },
+    ];
+    const changes = moveWithinGroup(tied, "c", -1, sameGroup) ?? [];
+    const result = new Map(tied.map((item) => [item.id, item.displayOrder]));
+    for (const change of changes) result.set(change.id, change.displayOrder);
+    expect([...result.entries()].sort((x, y) => x[1] - y[1]).map(([id]) => id)).toEqual(["a", "c", "b"]);
+    expect(new Set(result.values()).size).toBe(3);
+  });
+});
+

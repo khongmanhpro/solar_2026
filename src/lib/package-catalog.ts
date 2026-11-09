@@ -65,3 +65,41 @@ export function selectCustomerCatalog<T extends { active: boolean; dataVersion: 
     catalogVersion: null,
   };
 }
+
+export interface DisplayOrderChange {
+  id: string;
+  displayOrder: number;
+}
+
+/**
+ * Moves one package up/down among the packages of the same group (e.g. those
+ * customers see), so a swap never lands on a hidden package. The group keeps
+ * its own order values; duplicates are replaced by a clean sequence. Returns
+ * only the packages whose order actually changes, or null at the edge.
+ */
+export function moveWithinGroup<T extends { id: string; displayOrder: number }>(
+  sortedPackages: readonly T[],
+  id: string,
+  direction: -1 | 1,
+  sameGroup: (first: T, second: T) => boolean,
+): DisplayOrderChange[] | null {
+  const moving = sortedPackages.find((item) => item.id === id);
+  if (!moving) return null;
+  const group = sortedPackages.filter((item) => sameGroup(item, moving));
+  const index = group.findIndex((item) => item.id === id);
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= group.length) return null;
+
+  const reordered = [...group];
+  [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+
+  const values = group.map((item) => item.displayOrder);
+  const distinct = new Set(values).size === values.length;
+  const slots = distinct
+    ? values
+    : group.map((_, position) => Math.min(...values) + position);
+
+  return reordered.flatMap((item, position) =>
+    item.displayOrder === slots[position] ? [] : [{ id: item.id, displayOrder: slots[position] }],
+  );
+}

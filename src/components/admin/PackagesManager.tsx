@@ -5,7 +5,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { SYSTEM_TYPE_LABELS } from "@/config/admin";
 import { ApiClientError, requestJson } from "@/lib/api-client";
 import { formatVnd } from "@/lib/formatters";
-import { selectCustomerCatalog } from "@/lib/package-catalog";
+import { moveWithinGroup, selectCustomerCatalog } from "@/lib/package-catalog";
 import { solarPackageCreateSchema } from "@/lib/validations";
 import type { SolarPackageCreateData } from "@/lib/validations";
 import type { SolarPackage } from "@/types/solar";
@@ -205,28 +205,29 @@ export function PackagesManager({
     }
   }
 
-  async function movePackage(index: number, direction: -1 | 1) {
-    const targetIndex = index + direction;
-    const current = packages[index];
-    const target = packages[targetIndex];
-    if (!current || !target) return;
+  const sameVisibility = (first: SolarPackage, second: SolarPackage) =>
+    customerVisibleIds.has(first.id) === customerVisibleIds.has(second.id);
+
+  async function movePackage(id: string, direction: -1 | 1) {
+    // Only swap with a neighbour customers see the same way; swapping with a
+    // hidden package would change nothing (or tie two visible packages).
+    const changes = moveWithinGroup(packages, id, direction, sameVisibility);
+    if (!changes || changes.length === 0) return;
 
     setBusy(true);
     setNotice(null);
     try {
-      const [savedCurrent, savedTarget] = await Promise.all([
-        requestJson<SolarPackage>(`/api/admin/packages/${current.id}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ displayOrder: target.displayOrder }),
-        }),
-        requestJson<SolarPackage>(`/api/admin/packages/${target.id}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ displayOrder: current.displayOrder }),
-        }),
-      ]);
-      setPackages((items) => sortedPackages(items.map((item) => item.id === savedCurrent.id ? savedCurrent : item.id === savedTarget.id ? savedTarget : item)));
+      const saved = await Promise.all(
+        changes.map((change) =>
+          requestJson<SolarPackage>(`/api/admin/packages/${change.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ displayOrder: change.displayOrder }),
+          }),
+        ),
+      );
+      const byId = new Map(saved.map((item) => [item.id, item]));
+      setPackages((items) => sortedPackages(items.map((item) => byId.get(item.id) ?? item)));
       setNotice("Đã cập nhật thứ tự hiển thị.");
     } catch (caughtError) {
       setNotice(caughtError instanceof ApiClientError ? caughtError.message : "Không thể đổi thứ tự gói.");
@@ -245,7 +246,7 @@ export function PackagesManager({
       {notice ? <p className="rounded-lg border border-[var(--line-strong)] bg-[var(--admin-panel)] p-3 text-sm text-[var(--ink)]" role="status">{notice}</p> : null}
 
       <div className="grid gap-4 xl:grid-cols-2">
-        {packages.map((item, index) => (
+        {packages.map((item) => (
           <article className="admin-panel overflow-hidden" key={item.id}>
             <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] p-5">
               <div>
@@ -281,8 +282,8 @@ export function PackagesManager({
               ))}
             </dl>
             <div className="flex flex-wrap gap-2 p-4">
-              <button className="admin-secondary-button" disabled={busy || index === 0} onClick={() => movePackage(index, -1)} type="button" aria-label={`Đưa ${item.name} lên`}>↑</button>
-              <button className="admin-secondary-button" disabled={busy || index === packages.length - 1} onClick={() => movePackage(index, 1)} type="button" aria-label={`Đưa ${item.name} xuống`}>↓</button>
+              <button className="admin-secondary-button" disabled={busy || !moveWithinGroup(packages, item.id, -1, sameVisibility)} onClick={() => movePackage(item.id, -1)} type="button" aria-label={`Đưa ${item.name} lên`}>↑</button>
+              <button className="admin-secondary-button" disabled={busy || !moveWithinGroup(packages, item.id, 1, sameVisibility)} onClick={() => movePackage(item.id, 1)} type="button" aria-label={`Đưa ${item.name} xuống`}>↓</button>
               <button className="admin-secondary-button" disabled={busy} onClick={() => openEdit(item.id)} type="button">Chỉnh sửa</button>
               <button className="admin-secondary-button ml-auto" disabled={busy} onClick={() => toggleActive(item)} type="button">{item.active ? "Tắt gói" : "Bật gói"}</button>
             </div>

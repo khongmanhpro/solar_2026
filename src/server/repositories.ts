@@ -300,7 +300,8 @@ export class SolarPackageRepository {
         ...remainingData,
         systemType: prismaSystemTypeByDomain[systemType],
         electricalPhase: prismaElectricalPhaseByDomain[electricalPhase],
-        dataStatus: PrismaDataStatus.DEMO,
+        // Nobody has reviewed an admin-created package yet.
+        dataStatus: PrismaDataStatus.DRAFT,
         // Join the catalog customers currently see, marked as unapproved.
         dataVersion: adminCreatedVersion(await this.customerCatalogVersion()),
         approvedBy: null,

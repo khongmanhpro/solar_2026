@@ -847,6 +847,7 @@ describe("service integration", () => {
       displayOrder: 0,
     });
 
+    expect(created.dataStatus).toBe("draft");
     const visible = await services.packages.list(true);
     expect(visible.map((item) => item.code).sort()).toEqual(
       [...referenceCodes, created.code].sort(),
