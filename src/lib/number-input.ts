@@ -30,6 +30,12 @@ export function formatMoneyInput(digits: string): string {
  * Stray characters are dropped. Returns a plain JS decimal string.
  */
 export function normalizeDecimalInput(raw: string): string {
+  // Keep a leading minus so "-50" fails validation instead of becoming 50.
+  const sign = /^\s*-/.test(raw) ? "-" : "";
+  return sign + normalizeUnsignedDecimal(raw);
+}
+
+function normalizeUnsignedDecimal(raw: string): string {
   const compact = raw.replace(/\s/g, "").replace(/[^\d.,]/g, "");
   const lastDot = compact.lastIndexOf(".");
   const lastComma = compact.lastIndexOf(",");

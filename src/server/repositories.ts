@@ -28,13 +28,12 @@ import type {
 } from "@/types/solar";
 import type { DataStatus } from "@/types/data-governance";
 import { isPlausibleMonthlyYield } from "@/lib/province-irradiance-validation";
+import { isTrialMarketDataEnabled } from "@/config/trial-market-data";
 import {
-  CUSTOMER_REFERENCE_PACKAGE_DATA_VERSION,
-} from "@/config/customer-reference-packages";
-import {
-  isTrialMarketDataEnabled,
-  TRIAL_PACKAGE_DATA_VERSION_PREFIX,
-} from "@/config/trial-market-data";
+  adminCreatedVersion,
+  adminEditedVersion,
+  selectCustomerCatalog,
+} from "@/lib/package-catalog";
 import type {
   CalculationSettingsUpdateData,
   ProvinceFactorData,
@@ -271,48 +270,22 @@ export class SolarPackageRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async list(activeOnly = false): Promise<SolarPackage[]> {
-    if (activeOnly) {
-      const referenceRecords = await this.prisma.solarPackage.findMany({
-        where: {
-          active: true,
-          dataVersion: CUSTOMER_REFERENCE_PACKAGE_DATA_VERSION,
-        },
-        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
-      });
-      if (referenceRecords.length > 0) {
-        return referenceRecords.map(mapSolarPackage);
-      }
-
-      const trialEnabled = isTrialMarketDataEnabled();
-      if (trialEnabled) {
-        const trialRecords = await this.prisma.solarPackage.findMany({
-          where: {
-            active: true,
-            dataVersion: {
-              startsWith: TRIAL_PACKAGE_DATA_VERSION_PREFIX,
-            },
-          },
-          orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
-        });
-        if (trialRecords.length > 0) return trialRecords.map(mapSolarPackage);
-      }
-
-      const stableRecords = await this.prisma.solarPackage.findMany({
-        where: {
-          active: true,
-          dataVersion: {
-            not: { startsWith: TRIAL_PACKAGE_DATA_VERSION_PREFIX },
-          },
-        },
-        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
-      });
-      return stableRecords.map(mapSolarPackage);
-    }
-
     const records = await this.prisma.solarPackage.findMany({
+      ...(activeOnly ? { where: { active: true } } : {}),
       orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
     });
-    return records.map(mapSolarPackage);
+    if (!activeOnly) return records.map(mapSolarPackage);
+    return selectCustomerCatalog(records, isTrialMarketDataEnabled()).packages.map(
+      mapSolarPackage,
+    );
+  }
+
+  private async customerCatalogVersion(): Promise<string | null> {
+    const records = await this.prisma.solarPackage.findMany({
+      where: { active: true },
+      select: { active: true, dataVersion: true },
+    });
+    return selectCustomerCatalog(records, isTrialMarketDataEnabled()).catalogVersion;
   }
 
   async findById(id: string): Promise<SolarPackage | null> {
@@ -328,7 +301,8 @@ export class SolarPackageRepository {
         systemType: prismaSystemTypeByDomain[systemType],
         electricalPhase: prismaElectricalPhaseByDomain[electricalPhase],
         dataStatus: PrismaDataStatus.DEMO,
-        dataVersion: "demo-package-unapproved",
+        // Join the catalog customers currently see, marked as unapproved.
+        dataVersion: adminCreatedVersion(await this.customerCatalogVersion()),
         approvedBy: null,
         approvedAt: null,
       },
@@ -341,12 +315,19 @@ export class SolarPackageRepository {
     data: SolarPackageUpdateData,
   ): Promise<SolarPackage> {
     const { systemType, electricalPhase, ...remainingData } = data;
+    const existing = await this.prisma.solarPackage.findUnique({
+      where: { id },
+      select: { dataVersion: true },
+    });
     const record = await this.prisma.solarPackage.update({
       where: { id },
       data: {
         ...remainingData,
         dataStatus: PrismaDataStatus.DRAFT,
-        dataVersion: "draft-package-unapproved",
+        // Keep the package in its catalog; the marker records the edit.
+        dataVersion: existing
+          ? adminEditedVersion(existing.dataVersion)
+          : "draft-package-unapproved",
         approvedBy: null,
         approvedAt: null,
         ...(systemType

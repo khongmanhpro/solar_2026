@@ -16,6 +16,7 @@ import {
   CALCULATION_ALGORITHM_VERSION,
   CALCULATION_SNAPSHOT_SCHEMA_VERSION,
 } from "@/config/data-governance";
+import { CUSTOMER_REFERENCE_PACKAGES } from "@/config/customer-reference-packages";
 import {
   DEFAULT_CALCULATION_SETTINGS,
   DEFAULT_PROVINCES,
@@ -792,6 +793,67 @@ describe("service integration", () => {
     expect(await prisma.solarPackage.count({ where: { id: created.id } })).toBe(
       1,
     );
+  });
+
+  it("admin sửa hoặc thêm gói thì khách vẫn thấy gói đó (bộ gói tham khảo)", async () => {
+    await prisma.solarPackage.createMany({
+      data: CUSTOMER_REFERENCE_PACKAGES.map((solarPackage) => ({
+        id: solarPackage.code,
+        ...solarPackage,
+        dataStatus: PrismaDataStatus.DEMO,
+        systemType:
+          solarPackage.systemType === "grid-tied"
+            ? PrismaSolarSystemType.GRID_TIED
+            : PrismaSolarSystemType.HYBRID,
+        electricalPhase:
+          solarPackage.electricalPhase === "single-phase"
+            ? PrismaElectricalPhase.SINGLE_PHASE
+            : PrismaElectricalPhase.THREE_PHASE,
+      })),
+    });
+    const visibleCodes = async () =>
+      (await services.packages.list(true)).map((item) => item.code);
+    const referenceCodes = CUSTOMER_REFERENCE_PACKAGES.map((item) => item.code);
+    expect(await visibleCodes()).toEqual(referenceCodes);
+
+    const edited = await services.packages.update("HOME-GT-1P-5K", { priceVnd: 57_000_000 });
+    // Reordering edits two packages at once; both must stay visible.
+    await services.packages.update("HOME-GT-1P-6K", { displayOrder: 3 });
+    await services.packages.update("HOME-GT-1P-8K", { displayOrder: 2 });
+    expect(edited.dataStatus).toBe("draft");
+    expect(edited.dataVersion).toContain("+admin-edit");
+
+    const reference = CUSTOMER_REFERENCE_PACKAGES[0];
+    const created = await services.packages.create({
+      code: "HOME-GT-1P-3K",
+      name: "Gói nhỏ 3 kW",
+      description: reference.description,
+      priceVnd: 35_000_000,
+      capacityKwp: 3,
+      baseMonthlyGenerationKwh: 360,
+      requiredRoofAreaM2: 15,
+      systemType: "grid-tied",
+      electricalPhase: "single-phase",
+      batteryCapacityKwh: 0,
+      inverterAcKw: 3,
+      equipmentSummary: reference.equipmentSummary,
+      panelBrand: reference.panelBrand,
+      panelModel: reference.panelModel,
+      inverterBrand: reference.inverterBrand,
+      inverterModel: reference.inverterModel,
+      panelWarrantyYears: reference.panelWarrantyYears,
+      inverterWarrantyYears: reference.inverterWarrantyYears,
+      active: true,
+      displayOrder: 0,
+    });
+
+    const visible = await services.packages.list(true);
+    expect(visible.map((item) => item.code).sort()).toEqual(
+      [...referenceCodes, created.code].sort(),
+    );
+    expect(visible.find((item) => item.code === "HOME-GT-1P-5K")?.priceVnd).toBe(57_000_000);
+    // Old demo packages stay out of the customer list.
+    expect(visible.some((item) => item.id === "package-0")).toBe(false);
   });
 
   it("cập nhật package làm thay đổi phép tính kế tiếp, không sửa snapshot cũ", async () => {

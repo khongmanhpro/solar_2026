@@ -1,5 +1,6 @@
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { PackagesManager } from "@/components/admin/PackagesManager";
+import { isTrialMarketDataEnabled } from "@/config/trial-market-data";
 import { services } from "@/server/container";
 
 export const metadata = { title: "Quản lý gói | Solar Admin" };
@@ -14,7 +15,7 @@ export default async function AdminPackagesPage() {
         eyebrow="Trạm điều khiển / Packages"
         title="Gói hệ thống"
       />
-      <PackagesManager initialPackages={packages} />
+      <PackagesManager initialPackages={packages} trialCatalogEnabled={isTrialMarketDataEnabled()} />
     </>
   );
 }

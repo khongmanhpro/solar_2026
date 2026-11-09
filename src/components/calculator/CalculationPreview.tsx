@@ -26,6 +26,10 @@ const NO_RECOMMENDATION_COPY: Record<
     title: "Nhu cầu dự phòng vượt dung lượng pin của các gói sẵn có",
     body: "Tải thiết yếu × số giờ dự phòng bạn khai cần nhiều điện hơn pin 16 kWh có thể giữ. Kỹ sư sẽ tư vấn cấu hình pin lớn hơn (ví dụ 32 kWh) hoặc giảm tải dự phòng.",
   },
+  backup_exceeds_power: {
+    title: "Tải dự phòng vượt công suất inverter của các gói sẵn có",
+    body: "Tổng công suất thiết bị bạn khai lớn hơn công suất tối đa inverter cấp được khi mất điện. Thường không phải mọi thiết bị chạy cùng lúc — hãy khai lại phần chạy đồng thời, hoặc kỹ sư sẽ tư vấn inverter lớn hơn hoặc hệ 3 pha.",
+  },
   backup_needs_battery: {
     title: "Chưa có gói có pin lưu trữ phù hợp",
     body: "Bạn cần điện dự phòng nhưng hiện không có gói hybrid kèm pin phù hợp với điều kiện đã chọn. Kỹ sư sẽ tư vấn cấu hình riêng.",

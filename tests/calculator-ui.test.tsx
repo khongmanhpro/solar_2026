@@ -312,6 +312,28 @@ describe("SolarCalculator", () => {
     expect(screen.getByText("Đã hiểu: 1.200,5 kWh")).toBeTruthy();
   });
 
+  it("không âm thầm đổi kWh âm thành dương và chặn mức dùng ngoài phạm vi hộ gia đình", async () => {
+    const user = userEvent.setup();
+    render(<SolarCalculator />);
+
+    await user.click(await screen.findByRole("radio", { name: /Nhập số điện/ }));
+    const input = screen.getByLabelText("Số điện trên hóa đơn") as HTMLInputElement;
+
+    await user.type(input, "-50");
+    await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    expect(screen.getByText("Giá trị phải là một số lớn hơn 0.")).toBeTruthy();
+
+    await user.clear(input);
+    await user.type(input, "10001");
+    await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    expect(screen.getByText(/dành cho hộ gia đình \(tối đa 10\.000 kWh\/tháng\)/)).toBeTruthy();
+
+    await user.clear(input);
+    await user.type(input, "10000");
+    await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    expect(await screen.findByLabelText("Tỉnh hoặc thành phố lắp đặt")).toBeTruthy();
+  });
+
   it("yêu cầu chọn pha điện và focus radio pha đầu tiên", async () => {
     const user = userEvent.setup();
     render(<SolarCalculator />);
@@ -845,5 +867,39 @@ describe("BackupPlanner", () => {
       />,
     );
     expect(screen.getByText("Chi phí thêm cho pin")).toBeTruthy();
+  });
+
+  it("bắt đầu từ tải khách đã khai và giải thích phần pin giữ cho dự phòng", () => {
+    render(
+      <BackupPlanner
+        alternatives={[]}
+        declaredBackup={{ watts: 5_500, hours: 2 }}
+        onSelectPackage={() => {}}
+        selectedPackage={{ ...hybridPackage, batteryCapacityKwh: 16, inverterAcKw: 6 } as never}
+        selectedResult={hybridResult as never}
+      />,
+    );
+    expect(screen.getByText(/Theo nhu cầu bạn khai:/).parentElement?.textContent).toContain("5.500 W trong 2 giờ");
+    // 5.5 kW x 2 h / 0.9 inverter efficiency ≈ 12.2 kWh kept back.
+    expect(screen.getByText(/pin giữ lại khoảng 12,2 kWh/)).toBeTruthy();
+    expect(screen.getByText(/Tải bạn khai 5\.500 W/)).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText(/Tủ lạnh/));
+    expect(screen.queryByText(/Tải bạn khai/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Quay lại nhu cầu bạn khai" })).toBeTruthy();
+  });
+
+  it("cảnh báo khi tải khai vượt công suất inverter của gói", () => {
+    render(
+      <BackupPlanner
+        alternatives={[]}
+        declaredBackup={{ watts: 7_000, hours: 1 }}
+        onSelectPackage={() => {}}
+        selectedPackage={{ ...hybridPackage, batteryCapacityKwh: 16, inverterAcKw: 6 } as never}
+        selectedResult={hybridResult as never}
+      />,
+    );
+    expect(screen.getByRole("alert").textContent).toContain("công suất inverter (6 kW)");
   });
 });

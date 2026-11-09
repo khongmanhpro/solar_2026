@@ -5,6 +5,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { SYSTEM_TYPE_LABELS } from "@/config/admin";
 import { ApiClientError, requestJson } from "@/lib/api-client";
 import { formatVnd } from "@/lib/formatters";
+import { selectCustomerCatalog } from "@/lib/package-catalog";
 import { solarPackageCreateSchema } from "@/lib/validations";
 import type { SolarPackageCreateData } from "@/lib/validations";
 import type { SolarPackage } from "@/types/solar";
@@ -89,12 +90,23 @@ function Field({
   );
 }
 
-export function PackagesManager({ initialPackages }: { initialPackages: SolarPackage[] }) {
+export function PackagesManager({
+  initialPackages,
+  trialCatalogEnabled = false,
+}: {
+  initialPackages: SolarPackage[];
+  trialCatalogEnabled?: boolean;
+}) {
   const [packages, setPackages] = useState(() => sortedPackages(initialPackages));
   const [editor, setEditor] = useState<EditorState>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const customerVisibleIds = useMemo(
+    () => new Set(selectCustomerCatalog(packages, trialCatalogEnabled).packages.map((item) => item.id)),
+    [packages, trialCatalogEnabled],
+  );
 
   const editingPackage = useMemo(() => {
     if (!editor || editor.mode === "new") return EMPTY_PACKAGE;
@@ -120,9 +132,21 @@ export function PackagesManager({ initialPackages }: { initialPackages: SolarPac
     const formData = new FormData(event.currentTarget);
     const raw = Object.fromEntries(formData.entries()) as Record<string, unknown>;
     for (const field of numericFields) raw[field] = Number(raw[field]);
+    const badPowerFields: FieldErrors = {};
     for (const field of optionalPowerFields) {
+      // A number input reports "" for unparsable text such as "--3"; treat
+      // that as an error, not as "unknown".
+      const input = event.currentTarget.elements.namedItem(field);
+      if (input instanceof HTMLInputElement && input.validity.badInput) {
+        badPowerFields[field] = "Giá trị không hợp lệ — nhập số kW hoặc để trống nếu chưa rõ.";
+      }
       const value = String(raw[field] ?? "").trim();
       raw[field] = value === "" ? null : Number(value);
+    }
+    if (Object.keys(badPowerFields).length > 0) {
+      setErrors(badPowerFields);
+      setNotice("Vui lòng kiểm tra lại các trường được đánh dấu.");
+      return;
     }
     raw.active = formData.get("active") === "on";
 
@@ -228,6 +252,16 @@ export function PackagesManager({ initialPackages }: { initialPackages: SolarPac
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--brand)]">{item.code}</span>
                   <span className={`rounded-full px-2 py-1 text-xs font-bold ${item.active ? "bg-[var(--brand-soft)] text-[var(--brand-dark)]" : "bg-[var(--danger-soft)] text-[var(--danger)]"}`}>{item.active ? "Đang bật" : "Đã tắt"}</span>
+                  {item.active ? (
+                    customerVisibleIds.has(item.id) ? (
+                      <span className="rounded-full bg-[var(--brand-soft)] px-2 py-1 text-xs font-bold text-[var(--brand-dark)]">Khách đang thấy</span>
+                    ) : (
+                      <span className="rounded-full bg-[var(--warning-soft)] px-2 py-1 text-xs font-bold text-[var(--warning-ink)]">Khách không thấy (ngoài bộ gói đang dùng)</span>
+                    )
+                  ) : null}
+                  {item.dataStatus === "draft" ? (
+                    <span className="rounded-full bg-[var(--warning-soft)] px-2 py-1 text-xs font-bold text-[var(--warning-ink)]">Đã sửa — chưa duyệt</span>
+                  ) : null}
                 </div>
                 <h2 className="mt-2 font-display text-2xl font-semibold">{item.name}</h2>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{item.description}</p>
@@ -241,6 +275,7 @@ export function PackagesManager({ initialPackages }: { initialPackages: SolarPac
                 ["Sản lượng", `${item.baseMonthlyGenerationKwh} kWh/tháng`],
                 ["Loại", SYSTEM_TYPE_LABELS[item.systemType]],
                 ["Pha điện", item.electricalPhase === "single-phase" ? "1 pha" : "3 pha"],
+                ["Inverter AC", item.inverterAcKw ? `${item.inverterAcKw} kW` : "Chưa rõ"],
               ].map(([label, value]) => (
                 <div className="bg-[var(--paper)] p-3" key={label}><dt className="text-xs uppercase tracking-[0.1em] text-[var(--muted)]">{label}</dt><dd className="mt-1 text-xs font-semibold">{value}</dd></div>
               ))}

@@ -39,6 +39,8 @@ describe("Vietnamese number input", () => {
     ["12,500", "12.5"],
     ["1,500", "1.5"],
     ["1,200,000", "1200000"],
+    ["-50", "-50"],
+    [" -1.200", "-1200"],
   ])("decimal %s -> %s", (raw, expected) => {
     expect(Number(normalizeDecimalInput(raw))).toBe(Number(expected));
   });

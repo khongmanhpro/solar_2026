@@ -3,6 +3,7 @@ import {
   requiredBackupReserveKwh,
   usableBatteryKwh,
 } from "@/lib/energy-simulation";
+import { packagePowerLimits } from "@/lib/package-power";
 import { calculateSolarPackage } from "@/lib/solar-calculator";
 import type {
   CalculationSettings,
@@ -56,11 +57,27 @@ export function isPackageEligible(
       solarPackage.systemType === "hybrid" &&
       solarPackage.batteryCapacityKwh > 0 &&
       requiredBackupReserveKwh(input.essentialLoadWatts, input.backupHours) <=
-        usableBatteryKwh(solarPackage.batteryCapacityKwh)
+        usableBatteryKwh(solarPackage.batteryCapacityKwh) &&
+      canCarryBackupLoad(solarPackage, input.essentialLoadWatts)
     );
   }
 
   return true;
+}
+
+/**
+ * The inverter must also deliver the declared load as power: a 7 kW load on a
+ * 6 kW backup output trips the inverter, however large the battery is.
+ * Unknown load keeps the package eligible (flagged for survey elsewhere).
+ */
+function canCarryBackupLoad(
+  solarPackage: SolarPackage,
+  essentialLoadWatts: number | null,
+): boolean {
+  if (essentialLoadWatts === null || !Number.isFinite(essentialLoadWatts) || essentialLoadWatts <= 0) {
+    return true;
+  }
+  return essentialLoadWatts / 1_000 <= packagePowerLimits(solarPackage).backupKw + 1e-9;
 }
 
 export function filterEligiblePackages(
@@ -249,6 +266,10 @@ function diagnoseNoEligiblePackage(
       (solarPackage) => reserve <= usableBatteryKwh(solarPackage.batteryCapacityKwh),
     );
     if (remaining.length === 0) return "backup_exceeds_battery";
+    remaining = remaining.filter((solarPackage) =>
+      canCarryBackupLoad(solarPackage, input.essentialLoadWatts),
+    );
+    if (remaining.length === 0) return "backup_exceeds_power";
   }
 
   return "roof_too_small";

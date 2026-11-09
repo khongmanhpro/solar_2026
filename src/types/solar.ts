@@ -255,6 +255,7 @@ export type NoRecommendationReason =
   | "roof_too_small"
   | "backup_needs_battery"
   | "backup_exceeds_battery"
+  | "backup_exceeds_power"
   | "not_economical";
 
 export interface SolarRecommendationResult {

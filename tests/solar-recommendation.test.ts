@@ -206,6 +206,55 @@ describe("recommendation honesty rules", () => {
     expect(result.noRecommendationReason).toBe("backup_exceeds_battery");
   });
 
+  it("loại gói hybrid khi tải dự phòng vượt công suất inverter (kW), dù pin đủ kWh", () => {
+    // 16 kWh battery easily holds 7 kW x 1 h, but a 6 kW inverter cannot carry 7 kW.
+    const hybrid6kW: SolarPackage = {
+      ...createPackages()[3]!,
+      id: "hybrid-6kw",
+      capacityKwp: 7.2,
+      batteryCapacityKwh: 16,
+      inverterAcKw: 6,
+    };
+    const run = (essentialLoadWatts: number) =>
+      recommendSolarPackages({
+        input: {
+          ...standardInput,
+          monthlyConsumptionKwh: 700,
+          monthlyBill: estimateElectricityBillForTest(700),
+          backupRequired: true,
+          essentialLoadWatts,
+          backupHours: 1,
+        },
+        packages: [hybrid6kW],
+        settings,
+        provinceFactor: 1,
+      });
+
+    const tooBig = run(7_000);
+    expect(tooBig.recommendedPackage).toBeNull();
+    expect(tooBig.noRecommendationReason).toBe("backup_exceeds_power");
+    expect(run(3_000).recommendedPackage?.packageId).toBe("hybrid-6kw");
+    // Equal to the rating is still allowed.
+    expect(filterEligiblePackages([hybrid6kW], {
+      ...standardInput,
+      backupRequired: true,
+      essentialLoadWatts: 6_000,
+      backupHours: 1,
+    })).toHaveLength(1);
+  });
+
+  it("chưa biết tải dự phòng thì không loại gói vì công suất", () => {
+    const hybrid = { ...createPackages()[3]!, inverterAcKw: 2 };
+    expect(
+      filterEligiblePackages([hybrid], {
+        ...standardInput,
+        backupRequired: true,
+        essentialLoadWatts: null,
+        backupHours: null,
+      }),
+    ).toHaveLength(1);
+  });
+
   it("nêu lý do mái không đủ và sai pha", () => {
     expect(
       recommendSolarPackages({

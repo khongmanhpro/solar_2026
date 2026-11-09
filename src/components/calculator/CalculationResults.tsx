@@ -415,6 +415,11 @@ export function CalculationResults({
               const solarPackage = findPackage(packagesForCalculation, item.packageId);
               return solarPackage ? [{ solarPackage, result: item }] : [];
             })}
+          declaredBackup={
+            result.inputSummary.backupRequired && result.inputSummary.essentialLoadWatts
+              ? { watts: result.inputSummary.essentialLoadWatts, hours: result.inputSummary.backupHours }
+              : null
+          }
           onSelectPackage={selectPackage}
           selectedPackage={selectedPackage}
           selectedResult={selectedResult}

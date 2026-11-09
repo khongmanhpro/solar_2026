@@ -17,8 +17,8 @@ import {
   type BackupDeviceId,
 } from "@/config/backup-devices";
 import type { PlannedLoadId } from "@/config/planned-loads";
-import { CUSTOMER_REFERENCE_PACKAGE_DATA_VERSION } from "@/config/customer-reference-packages";
 import { TRIAL_PACKAGE_DATA_VERSION_PREFIX } from "@/config/trial-market-data";
+import { isReferenceCatalogVersion } from "@/lib/package-catalog";
 import { ApiClientError, requestJson } from "@/lib/api-client";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -70,6 +70,9 @@ function focusField(field: string | null): void {
   });
 }
 
+/** Household calculator only; larger users (shops, workshops) need a survey. */
+const MAX_HOUSEHOLD_KWH_PER_MONTH = 10_000;
+
 function validateEnergyStep(values: CalculatorFormValues): CalculatorFormErrors {
   const errors: CalculatorFormErrors = {};
 
@@ -96,8 +99,9 @@ function validateEnergyStep(values: CalculatorFormValues): CalculatorFormErrors 
           : "Vui lòng nhập tổng tiền thanh toán của tháng này.";
     } else if (!Number.isFinite(value) || value <= 0) {
       errors[valuePath] = "Giá trị phải là một số lớn hơn 0.";
-    } else if (values.energyMethod === "kwh" && value > 100_000) {
-      errors[valuePath] = "Sản lượng điện vượt quá phạm vi hỗ trợ.";
+    } else if (values.energyMethod === "kwh" && value > MAX_HOUSEHOLD_KWH_PER_MONTH) {
+      errors[valuePath] =
+        "Công cụ này dành cho hộ gia đình (tối đa 10.000 kWh/tháng). Mức dùng lớn hơn cần kỹ sư khảo sát riêng.";
     } else if (values.energyMethod === "money" && value > 500_000_000) {
       errors[valuePath] = "Tổng tiền thanh toán vượt quá phạm vi hỗ trợ.";
     } else if (values.energyMethod === "money" && value < MIN_PLAUSIBLE_BILL_VND) {
@@ -374,7 +378,7 @@ export function SolarCalculator() {
     item.dataVersion.startsWith(TRIAL_PACKAGE_DATA_VERSION_PREFIX),
   )?.dataVersion;
   const referenceCatalogLoaded = packages.some(
-    (item) => item.dataVersion === CUSTOMER_REFERENCE_PACKAGE_DATA_VERSION,
+    (item) => isReferenceCatalogVersion(item.dataVersion),
   );
 
   useEffect(() => {

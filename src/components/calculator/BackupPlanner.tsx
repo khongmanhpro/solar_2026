@@ -9,6 +9,7 @@ import {
   type BackupDeviceId,
 } from "@/config/backup-devices";
 import { backupPowerWarning, batteryUpgradeValue, estimateBackup } from "@/lib/backup-planner";
+import { requiredBackupReserveKwh } from "@/lib/energy-simulation";
 import { formatCustomerPackageName, formatVnd } from "@/lib/formatters";
 import type { PackageCalculationResult, SolarPackage } from "@/types/solar";
 
@@ -17,10 +18,13 @@ interface BackupPlannerProps {
   selectedResult: PackageCalculationResult;
   alternatives: { solarPackage: SolarPackage; result: PackageCalculationResult }[];
   onSelectPackage: (packageId: string) => void;
+  /** Outage load the customer declared in the form; the planner starts there. */
+  declaredBackup?: { watts: number; hours: number | null } | null;
 }
 
 const DEFAULT_DEVICES: BackupDeviceId[] = ["refrigerator", "lights", "wifi-camera", "fans"];
 const hoursFormatter = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 });
+const kwhFormatter = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 
 const SAME_PV_TOLERANCE_KWP = 0.1;
 
@@ -39,8 +43,14 @@ export function BackupPlanner({
   selectedResult,
   alternatives,
   onSelectPackage,
+  declaredBackup = null,
 }: BackupPlannerProps) {
-  const [deviceIds, setDeviceIds] = useState<BackupDeviceId[]>(DEFAULT_DEVICES);
+  const declared = declaredBackup && declaredBackup.watts > 0 ? declaredBackup : null;
+  // null = showing the load the customer declared; a list = exploring devices.
+  const [deviceIds, setDeviceIds] = useState<BackupDeviceId[] | null>(
+    declared ? null : DEFAULT_DEVICES,
+  );
+  const usingDeclared = deviceIds === null && declared !== null;
   const hasBattery = selectedPackage.batteryCapacityKwh > 0;
   const hybridAlternative = alternatives.find((item) => item.solarPackage.batteryCapacityKwh > 0);
   // The "battery value" comparison is only honest between packages with the
@@ -54,11 +64,12 @@ export function BackupPlanner({
     (item) => item.solarPackage.batteryCapacityKwh > 0 && samePvArray(item),
   );
   const batteryPackage = hasBattery ? selectedPackage : hybridAlternative?.solarPackage ?? null;
-  const loadWatts = calculateBackupDeviceWatts(deviceIds);
+  const loadWatts = usingDeclared ? declared.watts : calculateBackupDeviceWatts(deviceIds ?? []);
+  const reserveKwh = declared ? requiredBackupReserveKwh(declared.watts, declared.hours) : 0;
   const estimate = batteryPackage
     ? estimateBackup(batteryPackage, loadWatts)
     : null;
-  const cautions = getBackupDeviceCautions(deviceIds);
+  const cautions = getBackupDeviceCautions(deviceIds ?? []);
   const upgrade =
     hasBattery && gridAlternative
       ? batteryUpgradeValue(
@@ -73,9 +84,10 @@ export function BackupPlanner({
         : null;
 
   function toggle(id: BackupDeviceId) {
-    setDeviceIds((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    );
+    setDeviceIds((current) => {
+      const list = current ?? [];
+      return list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
+    });
   }
 
   return (
@@ -84,7 +96,7 @@ export function BackupPlanner({
         {hasBattery ? (
           <p className="text-sm leading-6 text-[var(--ink)]">
             Pin {selectedPackage.batteryCapacityKwh} kWh dùng được khoảng {hoursFormatter.format(estimate?.usableKwh ?? 0)} kWh.
-            Chọn thiết bị bạn muốn giữ khi mất điện:
+            {usingDeclared ? " Đang tính theo nhu cầu bạn khai; có thể chọn thiết bị khác để thử:" : " Chọn thiết bị bạn muốn giữ khi mất điện:"}
           </p>
         ) : (
           <p className="text-sm leading-6 text-[var(--ink)]">
@@ -97,11 +109,34 @@ export function BackupPlanner({
 
         {batteryPackage ? (
           <>
+            {declared ? (
+              <div className="mt-4 rounded-xl border border-[var(--line-strong)] p-4 text-sm leading-6 text-[var(--ink)]">
+                <p>
+                  <strong>Theo nhu cầu bạn khai:</strong> {hoursFormatter.format(declared.watts)} W
+                  {declared.hours ? ` trong ${kwhFormatter.format(declared.hours)} giờ` : ""}.
+                </p>
+                {hasBattery && reserveKwh > 0 ? (
+                  <p className="mt-1 text-[var(--muted)]">
+                    Để luôn sẵn điện cho nhu cầu này, pin giữ lại khoảng {kwhFormatter.format(reserveKwh)} kWh không dùng hằng ngày,
+                    nên tiền tiết kiệm thấp hơn so với khi không cần dự phòng.
+                  </p>
+                ) : null}
+                {usingDeclared ? null : (
+                  <button
+                    className="mt-2 text-sm font-semibold text-[var(--brand-dark)] underline underline-offset-2"
+                    onClick={() => setDeviceIds(null)}
+                    type="button"
+                  >
+                    Quay lại nhu cầu bạn khai
+                  </button>
+                )}
+              </div>
+            ) : null}
             <fieldset className="mt-4">
               <legend className="sr-only">Thiết bị cần giữ khi mất điện</legend>
               <div className="flex flex-wrap gap-2">
                 {BACKUP_DEVICE_OPTIONS.map((device) => {
-                  const checked = deviceIds.includes(device.id);
+                  const checked = deviceIds?.includes(device.id) ?? false;
                   return (
                     <label
                       className={`cursor-pointer rounded-full border px-3 py-2 text-sm transition focus-within:ring-2 focus-within:ring-[var(--brand-dark)] ${
@@ -127,7 +162,7 @@ export function BackupPlanner({
               <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--focus)]">Khi pin đầy, mất điện lưới</p>
               <p className="mt-2 text-3xl font-semibold">{formatHours(estimate?.hours ?? null)}</p>
               <p className="mt-2 text-sm leading-6 text-[var(--line)]">
-                Tải {hoursFormatter.format(loadWatts)} W tính theo công suất danh định — con số thận trọng; tủ lạnh và máy lạnh inverter thường chạy lâu hơn.
+                {usingDeclared ? "Tải bạn khai" : "Tải"} {hoursFormatter.format(loadWatts)} W tính theo công suất danh định — con số thận trọng; tủ lạnh và máy lạnh inverter thường chạy lâu hơn.
                 Ban ngày có nắng, tấm pin tiếp tục sạc thêm.
               </p>
             </div>

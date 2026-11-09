@@ -88,7 +88,7 @@ const checkedAt = new Date("2026-07-22T00:00:00.000Z");
 describe("calculation version identity", () => {
   it("bumps snapshot and algorithm identifiers for electrical-phase behavior", () => {
     expect(CALCULATION_SNAPSHOT_SCHEMA_VERSION).toBe("2.4.0");
-    expect(CALCULATION_ALGORITHM_VERSION).toBe("3.3.0-power-limits");
+    expect(CALCULATION_ALGORITHM_VERSION).toBe("3.3.1-backup-power-check");
   });
 });
 
