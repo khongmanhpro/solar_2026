@@ -9,7 +9,7 @@ import { MethodologyPanel } from "@/components/calculator/MethodologyPanel";
 import { MonthlyEnergyChart } from "@/components/calculator/MonthlyEnergyChart";
 import { PaymentOptions } from "@/components/calculator/PaymentOptions";
 import { ShareBar } from "@/components/calculator/ShareBar";
-import { CALCULATION_CONSTANTS } from "@/config/defaults";
+import { CALCULATION_CONSTANTS, RECOMMENDATION_CONSTANTS } from "@/config/defaults";
 import { LeadForm } from "@/components/calculator/LeadForm";
 import { PackageComparison } from "@/components/calculator/PackageComparison";
 import { trackEvent } from "@/lib/analytics";
@@ -19,6 +19,7 @@ import {
   formatKwh,
   formatKwhRange,
   formatPaybackRange,
+  formatPaybackYears,
   formatPercent,
   formatVnd,
   formatVndSpoken,
@@ -271,6 +272,19 @@ export function CalculationResults({
             : " nối lưới, không có pin (mất điện lưới thì hệ thống cũng tạm ngưng)"}
           , cần khoảng {formatDecimal(selectedPackage.requiredRoofAreaM2, 0)} m² mái.
         </p>
+        {selectedResult.economicNote === "backup_cost" ? (
+          <p
+            className="mt-4 rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] p-4 text-base leading-7 text-[var(--ink)]"
+            role="note"
+          >
+            <strong>Nói thẳng về chi phí:</strong> gói này được đề xuất vì bạn cần điện dự phòng khi mất điện.
+            Nếu chỉ tính tiền điện tiết kiệm,{" "}
+            {selectedResult.paybackYears === null
+              ? `hệ thống chưa hoàn vốn trong ${horizonYears} năm sử dụng`
+              : `hệ thống cần khoảng ${formatPaybackYears(selectedResult.paybackYears)} để hoàn vốn, lâu hơn mức ${RECOMMENDATION_CONSTANTS.maxViablePaybackYears} năm chúng tôi coi là đáng đầu tư`}
+            . Phần pin là chi phí cho sự an tâm, không phải khoản sinh lời.
+          </p>
+        ) : null}
 
         {isStale ? null : <div className="mt-6"><ShareBar calculationId={result.calculationId} /></div>}
 

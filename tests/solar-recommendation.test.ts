@@ -253,9 +253,49 @@ describe("recommendation honesty rules", () => {
     expect(score(nearEqualValue, "hybrid")).toBeGreaterThan(score(nearEqualValue, "grid"));
     expect(nearEqualValue.recommendedPackage?.packageId).toBe("grid");
 
-    // When the hybrid adds clearly more lifetime value, it stays on top.
+    // Policy (2026-11-09): without a backup need the battery is an upsell, so
+    // grid-tied leads even when the hybrid adds lifetime value; the hybrid
+    // stays in the comparison as the upgrade option.
     const clearlyBetter = recommend(40_000_000);
-    expect(clearlyBetter.recommendedPackage?.packageId).toBe("hybrid");
+    expect(clearlyBetter.recommendedPackage?.packageId).toBe("grid");
+    expect(clearlyBetter.comparedPackages.map((item) => item.packageId)).toContain("hybrid");
+  });
+
+  it("khách cần dự phòng vẫn được đề xuất gói hybrid đủ pin dù không hoàn vốn trong 10 năm", () => {
+    const base = createPackages()[1]!;
+    const expensiveHybrid: SolarPackage = {
+      ...base,
+      id: "hybrid-expensive",
+      code: "HYBRID-EXP",
+      systemType: "hybrid",
+      batteryCapacityKwh: 16,
+      priceVnd: 400_000_000,
+    };
+    const backupInput = {
+      ...standardInput,
+      backupRequired: true,
+      essentialLoadWatts: 500,
+      backupHours: 4,
+    };
+    const withBackup = recommendSolarPackages({
+      input: backupInput,
+      packages: [expensiveHybrid],
+      settings,
+      provinceFactor: 1,
+    });
+    expect(withBackup.noRecommendationReason).toBeUndefined();
+    expect(withBackup.recommendedPackage?.packageId).toBe("hybrid-expensive");
+    expect(withBackup.recommendedPackage?.economicNote).toBe("backup_cost");
+
+    // The same package for a customer without a backup need stays unsold.
+    const withoutBackup = recommendSolarPackages({
+      input: standardInput,
+      packages: [expensiveHybrid],
+      settings,
+      provinceFactor: 1,
+    });
+    expect(withoutBackup.recommendedPackage).toBeNull();
+    expect(withoutBackup.noRecommendationReason).toBe("not_economical");
   });
 });
 

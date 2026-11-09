@@ -228,6 +228,11 @@ export interface PackageCalculationResult
   extends UnscoredPackageCalculationResult {
   score: number;
   scoreBreakdown: PackageScoreBreakdown;
+  /**
+   * "backup_cost": offered only because the customer needs outage backup; the
+   * package does not pay back within the viability horizon on savings alone.
+   */
+  economicNote?: "backup_cost";
 }
 
 /** Why no package is recommended; absent when one is (or on old snapshots). */

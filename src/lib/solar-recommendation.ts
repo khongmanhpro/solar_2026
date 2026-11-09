@@ -208,6 +208,21 @@ function promoteCapitalEfficientPackage(
   return [best, ...ranked.filter((candidate) => candidate !== best)];
 }
 
+/**
+ * Without a backup need, a battery is an upsell: lead with the best viable
+ * grid-tied package and keep hybrids in the list as the upgrade option.
+ */
+function preferGridTiedPackage(
+  ranked: PackageCalculationResult[],
+  packageById: ReadonlyMap<string, SolarPackage>,
+): PackageCalculationResult[] {
+  const gridTied = ranked.find(
+    (candidate) => packageById.get(candidate.packageId)?.systemType === "grid-tied",
+  );
+  if (!gridTied || gridTied === ranked[0]) return ranked;
+  return [gridTied, ...ranked.filter((candidate) => candidate !== gridTied)];
+}
+
 /** First filter that removes every remaining package, in customer terms. */
 function diagnoseNoEligiblePackage(
   packages: readonly SolarPackage[],
@@ -269,9 +284,19 @@ export function recommendSolarPackages({
     );
   // Only economically sound packages are offered; if none qualify the
   // customer is told so honestly rather than sold an unprofitable system.
-  const comparedPackages = promoteCapitalEfficientPackage(
-    scoredPackages.filter(isEconomicallyViable),
-    packageById,
+  // Exception: a customer who asked for outage backup is buying resilience,
+  // not only savings. Every eligible package already meets that need, so they
+  // are still offered, labelled honestly as a backup cost.
+  const viablePackages = scoredPackages.filter(isEconomicallyViable);
+  const offeredPackages =
+    input.backupRequired && viablePackages.length === 0
+      ? scoredPackages.map(
+          (result): PackageCalculationResult => ({ ...result, economicNote: "backup_cost" }),
+        )
+      : viablePackages;
+  const ranked = promoteCapitalEfficientPackage(offeredPackages, packageById);
+  const comparedPackages = (
+    input.backupRequired ? ranked : preferGridTiedPackage(ranked, packageById)
   ).slice(0, RECOMMENDATION_CONSTANTS.maximumComparedPackages);
   const noRecommendationReason: NoRecommendationReason | undefined =
     eligiblePackages.length === 0
