@@ -128,7 +128,8 @@ export const ELECTRICAL_PHASES = ["single-phase", "three-phase"] as const;
 export type ElectricalPhase = (typeof ELECTRICAL_PHASES)[number];
 
 export interface CustomerSiteInputV2_2 extends CustomerSiteInput {
-  electricalPhase: ElectricalPhase;
+  /** "unknown": customer is unsure; flagged for the survey. */
+  electricalPhase: ElectricalPhase | "unknown";
   /** Appliances the customer plans to add (sizing for future demand). */
   plannedLoads?: PlannedLoadId[];
 }

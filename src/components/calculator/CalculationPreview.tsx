@@ -46,7 +46,7 @@ const NO_RECOMMENDATION_COPY: Record<
 
 const RANGE_OPTION_LABELS: Record<RecommendationRangeOption["bound"], string> = {
   lowerBound: "Nếu mức dùng ở cận thấp",
-  expected: "Nếu mức dùng ở giữa khoảng",
+  expected: "Nếu là hóa đơn một hộ bình thường",
   upperBound: "Nếu hóa đơn chủ yếu là tiền điện và VAT",
 };
 

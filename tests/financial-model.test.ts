@@ -75,6 +75,44 @@ describe("calculateLifetimeFinance", () => {
     expect(result.paybackYears).toBeCloseTo(2 + -afterTwo / flows[2], 10);
   });
 
+  it("reports payback after a replacement dip, not at the first crossing", () => {
+    // Cumulative cash turns positive around year 8, the year-10 battery swap
+    // (50 kWh) drags it back below zero, and it recovers years later.
+    const result = calculateLifetimeFinance({
+      ...base,
+      systemType: "hybrid",
+      batteryCapacityKwh: 50,
+      annualSavingsAtGenerationFactor: (factor) => 12_000_000 * factor,
+    });
+    const firstCrossing = result.cashFlow.find((point) => point.year > 0 && point.cumulativeCashFlowVnd >= 0)!;
+    const dip = result.cashFlow.find(
+      (point) => point.year > firstCrossing.year && point.cumulativeCashFlowVnd < 0,
+    );
+    expect(firstCrossing.year).toBeLessThan(10);
+    expect(dip).toBeDefined();
+    expect(result.paybackYears).not.toBeNull();
+    expect(result.paybackYears!).toBeGreaterThan(dip!.year);
+    expect(result.breakEvenYear!).toBeGreaterThan(dip!.year);
+    expect(
+      result.cashFlow
+        .filter((point) => point.year >= result.breakEvenYear!)
+        .every((point) => point.cumulativeCashFlowVnd >= 0),
+    ).toBe(true);
+  });
+
+  it("returns null payback when a late replacement leaves the horizon negative", () => {
+    const result = calculateLifetimeFinance({
+      ...base,
+      horizonYears: 11,
+      systemType: "hybrid",
+      batteryCapacityKwh: 50,
+      annualSavingsAtGenerationFactor: (factor) => 12_000_000 * factor,
+    });
+    expect(result.cashFlow.at(-1)!.cumulativeCashFlowVnd).toBeLessThan(0);
+    expect(result.paybackYears).toBeNull();
+    expect(result.breakEvenYear).toBeNull();
+  });
+
   it("charges escalating maintenance and reports NPV/IRR consistently", () => {
     const withMaintenance = calculateLifetimeFinance({ ...base, maintenanceRatePerYear: 0.01 });
     const without = calculateLifetimeFinance(base);

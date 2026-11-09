@@ -598,12 +598,36 @@ function isCustomerRequest(
   );
 }
 
+/**
+ * Above this monthly use a household is plausibly on 3-phase supply, so an
+ * "unknown" phase keeps 3-phase packages in play; below it almost all
+ * Vietnamese homes are single-phase. Either way the survey confirms it.
+ */
+export const UNKNOWN_PHASE_THREE_PHASE_MIN_KWH = 700;
+
+function isElectricalPhaseUnknown(request: CustomerCalculationRequest): boolean {
+  return (
+    request.schemaVersion === CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION &&
+    request.site.electricalPhase === "unknown"
+  );
+}
+
 function selectedElectricalPhase(
   request: CustomerCalculationRequest,
+  monthlyConsumptionKwh: number,
 ): SolarCalculationInput["electricalPhase"] {
-  return request.schemaVersion === CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION
-    ? request.site.electricalPhase
-    : null;
+  if (request.schemaVersion !== CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION) return null;
+  const phase = request.site.electricalPhase;
+  if (phase !== "unknown") return phase;
+  return monthlyConsumptionKwh >= UNKNOWN_PHASE_THREE_PHASE_MIN_KWH ? null : "single-phase";
+}
+
+function electricalPhaseWarnings(request: CustomerCalculationRequest): string[] {
+  return isElectricalPhaseUnknown(request)
+    ? [
+        "Bạn chưa rõ nhà dùng điện 1 pha hay 3 pha; kỹ sư sẽ kiểm tra công tơ khi khảo sát trước khi chốt inverter.",
+      ]
+    : [];
 }
 
 function selectedPlannedLoads(
@@ -738,9 +762,13 @@ function resolveMoneyContext(
     exact: false,
     warnings: [
       "Chưa rõ thành phần hóa đơn, số hộ hoặc kỳ ghi điện; khoảng kWh được mở rộng từ 0 đến biên bảo thủ của phạm vi hỗ trợ.",
-      "Điểm giữa chỉ phục vụ tính nội bộ và không phải số điện đã đo; chỉ đề xuất gói khi cùng một gói phù hợp trên toàn khoảng.",
+      "Mức dự kiến giả định hóa đơn một hộ, chỉ gồm tiền điện và VAT; không phải số điện đã đo. Chỉ đề xuất một gói khi cùng một gói phù hợp trên toàn khoảng.",
     ],
   };
+}
+
+function clampToRange(value: number, lower: number, upper: number): number {
+  return Math.min(Math.max(value, Math.min(lower, upper)), Math.max(lower, upper));
 }
 
 function createMoneyConversion(
@@ -777,11 +805,36 @@ function createMoneyConversion(
     consumptionKwh: range.minKwh,
     context: context.engineContext,
   });
+  // With an unknown bill make-up the range runs from 0 kWh to an extreme
+  // multi-household bound, so its midpoint is meaningless (a 1.5M VND bill
+  // would read as ~350 kWh and a ~750k "bill before solar"). Anchor the
+  // expected point on the most common case instead: one household, energy
+  // charge + VAT only. The wide range still drives the stability check.
+  const expectedContext =
+    billingContext.kind === "unknown"
+      ? resolveMoneyContext({ kind: "standard_single_household" }, observation.totalPaymentVnd)
+      : context;
+  const expectedKwh =
+    billingContext.kind === "unknown"
+      ? Math.min(
+          range.maxKwh,
+          Math.max(
+            range.minKwh,
+            estimateElectricityConsumptionRangeFromTotal({
+              tariff,
+              vatRule,
+              totalPaymentVnd: observation.totalPaymentVnd,
+              otherChargesVnd: expectedContext.otherChargesVnd,
+              context: expectedContext.engineContext,
+            }).estimatedKwh,
+          ),
+        )
+      : range.estimatedKwh;
   const expectedBreakdown = calculateElectricityBillBreakdown({
     tariff,
     vatRule,
-    consumptionKwh: range.estimatedKwh,
-    context: context.engineContext,
+    consumptionKwh: expectedKwh,
+    context: expectedContext.engineContext,
   });
   const upperBreakdown = calculateElectricityBillBreakdown({
     tariff,
@@ -790,7 +843,9 @@ function createMoneyConversion(
     context: context.engineContext,
   });
   const otherChargesExpected =
-    (range.otherChargesVnd.minVnd + range.otherChargesVnd.maxVnd) / 2;
+    billingContext.kind === "unknown"
+      ? expectedContext.otherChargesVnd.minVnd
+      : (range.otherChargesVnd.minVnd + range.otherChargesVnd.maxVnd) / 2;
 
   return {
     observationPath: `energy.observations.${index}.totalPaymentVnd`,
@@ -805,13 +860,19 @@ function createMoneyConversion(
         ? null
         : expectedBreakdown.billingContext.quotaScale,
     totalPaymentVnd: observation.totalPaymentVnd,
+    // The one-household anchor and the extreme bound can differ by rounding
+    // only; keep the expected point inside its own range.
     energyChargeBeforeVatVnd: {
-      expected: expectedBreakdown.energyChargeBeforeVatVnd,
+      expected: clampToRange(
+        expectedBreakdown.energyChargeBeforeVatVnd,
+        lowerBreakdown.energyChargeBeforeVatVnd,
+        upperBreakdown.energyChargeBeforeVatVnd,
+      ),
       lowerBound: lowerBreakdown.energyChargeBeforeVatVnd,
       upperBound: upperBreakdown.energyChargeBeforeVatVnd,
     },
     vatVnd: {
-      expected: expectedBreakdown.vatVnd,
+      expected: clampToRange(expectedBreakdown.vatVnd, lowerBreakdown.vatVnd, upperBreakdown.vatVnd),
       lowerBound: lowerBreakdown.vatVnd,
       upperBound: upperBreakdown.vatVnd,
     },
@@ -821,7 +882,7 @@ function createMoneyConversion(
       upperBound: range.otherChargesVnd.maxVnd,
     },
     consumptionKwh: {
-      expected: range.estimatedKwh,
+      expected: expectedKwh,
       lowerBound: range.minKwh,
       upperBound: range.maxKwh,
     },
@@ -917,6 +978,7 @@ function prepareMoneyCalculationInput(
     ...new Set([
       ...conversions.flatMap((conversion) => conversion.warnings),
       ...plannedLoadWarnings(request),
+      ...electricalPhaseWarnings(request),
       ...(conversions.length === 1
         ? ["Chỉ có dữ liệu của một tháng; mức dùng theo mùa chưa được phản ánh."]
         : []),
@@ -981,7 +1043,7 @@ function prepareMoneyCalculationInput(
     tariffBillingContext: projectionBillingContext,
     vatRate: projectionConversion.vatRate,
     electricityType: "residential",
-    electricalPhase: selectedElectricalPhase(request),
+    electricalPhase: selectedElectricalPhase(request, consumptionEstimate.expected),
     plannedLoads: selectedPlannedLoads(request),
     province: request.site.province,
     daytimeUsageLevel:
@@ -1123,6 +1185,7 @@ function prepareMoneyCalculationInput(
     tariffVersions,
     quality:
       !request.site.roof.known ||
+      isElectricalPhaseUnknown(request) ||
       !allExact ||
       (request.site.backup.required &&
         (request.site.backup.essentialLoadWatts === null ||
@@ -1233,7 +1296,7 @@ export function prepareCalculationInput(
     tariffBillingContext,
     vatRate: selectCurrentVatRate(options.allowUnapprovedTariffData === true),
     electricityType: "residential",
-    electricalPhase: selectedElectricalPhase(request),
+    electricalPhase: selectedElectricalPhase(request, monthlyConsumptionKwh),
     plannedLoads: selectedPlannedLoads(request),
     province: request.site.province,
     daytimeUsageLevel:
@@ -1310,6 +1373,7 @@ export function prepareCalculationInput(
     tariffVersion: tariff.version,
     quality:
       !request.site.roof.known ||
+      isElectricalPhaseUnknown(request) ||
       (request.site.backup.required &&
         (request.site.backup.essentialLoadWatts === null ||
           request.site.backup.backupHours === null))
@@ -1319,6 +1383,7 @@ export function prepareCalculationInput(
           : "preliminary",
     warnings: [
       ...plannedLoadWarnings(request),
+      ...electricalPhaseWarnings(request),
       ...(values.length === 1
         ? ["Chỉ có dữ liệu của một tháng; mức dùng theo mùa chưa được phản ánh."]
         : []),

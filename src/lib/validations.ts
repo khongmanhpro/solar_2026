@@ -357,8 +357,10 @@ export const customerCalculationRequestV2Schema = z
     energy: customerEnergyInputSchema,
     site: customerSiteInputSchema
       .extend({
-        electricalPhase: z.enum(ELECTRICAL_PHASES, {
-          error: "Vui lòng chọn loại điện 1 pha hoặc 3 pha.",
+        // "unknown" is a real customer answer: the engine sizes for it and
+        // the result is flagged for the survey to confirm the phase.
+        electricalPhase: z.enum([...ELECTRICAL_PHASES, "unknown"], {
+          error: "Vui lòng chọn loại điện 1 pha, 3 pha hoặc chưa rõ.",
         }),
         // Optional and additive: older 2.2.0 clients simply omit it.
         plannedLoads: z.array(z.enum(PLANNED_LOAD_IDS)).max(PLANNED_LOAD_IDS.length).optional(),

@@ -4,7 +4,7 @@ import { DEFAULT_CALCULATION_SETTINGS, DEFAULT_SOLAR_PACKAGES } from "@/config/d
 import { QD1279_RESIDENTIAL_TARIFF } from "@/config/electricity-tariffs";
 import { resolvePlannedLoads } from "@/config/planned-loads";
 import { prepareCalculationInput } from "@/lib/customer-input";
-import { calculateElectricityEnergyCharge } from "@/lib/electricity-tariff";
+import { calculateElectricityBill, calculateElectricityEnergyCharge } from "@/lib/electricity-tariff";
 import { calculateSolarPackage, householdDemand } from "@/lib/solar-calculator";
 import { calculationRequestSchema } from "@/lib/validations";
 import type { SolarCalculationInput } from "@/types/solar";
@@ -77,6 +77,39 @@ describe("planned loads", () => {
     expect(withCar.billAfterSolarVnd).toBeLessThanOrEqual(withCar.baselineBillVnd! + 1e-6);
     // The same PV avoids pricier top tiers at higher demand.
     expect(withCar.monthlySavingsVnd).toBeGreaterThan(today.monthlySavingsVnd);
+  });
+
+  it("keeps the customer's own bill as the anchor when the bill make-up is unknown", () => {
+    // Unknown billing context: no tariff context, so the engine prices kWh
+    // with the legacy table. The customer's bill must still be the baseline,
+    // moved only by what the planned appliance adds on that same table.
+    const unknownContext: SolarCalculationInput = {
+      ...input,
+      energyInputMethod: "money",
+      tariffBillingContext: null,
+      monthlyBill: 900_000,
+    };
+    const today = calculateSolarPackage({
+      input: unknownContext,
+      solarPackage,
+      settings,
+      provinceFactor: 1,
+      allowUnapprovedTariffData: true,
+    });
+    const withCar = calculateSolarPackage({
+      input: { ...unknownContext, plannedLoads: resolvePlannedLoads(["electric-car"]) },
+      solarPackage,
+      settings,
+      provinceFactor: 1,
+      allowUnapprovedTariffData: true,
+    });
+    const legacyDelta =
+      calculateElectricityBill("residential", 480) - calculateElectricityBill("residential", 300);
+
+    expect(today.baselineBillVnd).toBeCloseTo(900_000 * 1.08, 6);
+    expect(withCar.baselineBillVnd).toBeCloseTo((900_000 + legacyDelta) * 1.08, 6);
+    // Adding an appliance never lowers savings for the same PV array.
+    expect(withCar.monthlySavingsVnd).toBeGreaterThanOrEqual(today.monthlySavingsVnd - 1e-6);
   });
 
   it("is carried from the customer request with a provenance warning, and validated", () => {

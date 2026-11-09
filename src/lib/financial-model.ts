@@ -123,14 +123,22 @@ export function calculateLifetimeFinance(
   }
 
   const cashFlow: CashFlowPoint[] = [{ year: 0, cumulativeCashFlowVnd: -params.priceVnd }];
+  // Payback is the LAST time cumulative cash turns non-negative: a later
+  // inverter/battery replacement can push it back below zero, and quoting the
+  // first crossing would then overstate how fast the system pays for itself.
   let paybackYears: number | null = params.priceVnd <= 0 ? 0 : null;
+  let breakEvenYear: number | null = params.priceVnd <= 0 ? 0 : null;
   for (let year = 1; year <= horizon; year++) {
     const previous = cashFlow[year - 1].cumulativeCashFlowVnd;
     const flow = yearlyNetCashFlowVnd[year - 1];
     const current = previous + flow;
     cashFlow.push({ year, cumulativeCashFlowVnd: current });
-    if (paybackYears === null && previous < 0 && current >= 0 && flow > 0) {
+    if (current < 0) {
+      paybackYears = null;
+      breakEvenYear = null;
+    } else if (previous < 0 && flow > 0) {
       paybackYears = year - 1 + -previous / flow;
+      breakEvenYear = year;
     }
   }
 
@@ -138,8 +146,7 @@ export function calculateLifetimeFinance(
     cashFlow,
     yearlyNetCashFlowVnd,
     paybackYears,
-    breakEvenYear:
-      cashFlow.find((point) => point.cumulativeCashFlowVnd >= 0)?.year ?? null,
+    breakEvenYear,
     npvVnd: netPresentValue(finance.discountRate, params.priceVnd, yearlyNetCashFlowVnd),
     irr: internalRateOfReturn(params.priceVnd, yearlyNetCashFlowVnd),
     cumulativeNetSavingsVnd: (years: number) =>

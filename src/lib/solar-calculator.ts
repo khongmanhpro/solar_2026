@@ -17,7 +17,6 @@ import { selectElectricityTariffByVersion } from "@/lib/tariff-selection";
 import type {
   CalculationScenarioResult,
   CalculationSettings,
-  CashFlowPoint,
   DaytimeUsageLevel,
   LongTermSavings,
   MonthlyBreakdownEntry,
@@ -243,10 +242,18 @@ function createYearSimulator(params: {
           context: input.tariffBillingContext,
         }).energyChargeBeforeVatVnd
       : calculateElectricityBill(input.electricityType, consumptionKwh);
-  // With planned appliances the "before solar" bill is the future bill at the
-  // higher consumption, so savings compare like-for-like.
+  // Anchor every bill on the customer's own bill and move it only by tariff
+  // DIFFERENCES from one price function. Mixing the customer's bill with an
+  // absolute price from a different table (e.g. the legacy table when the
+  // bill make-up is unknown) makes savings jump by the gap between tables.
+  // - before solar: current bill + the cost of planned appliances' kWh;
+  // - after solar: before - (charge at full demand - charge at grid import).
+  const chargeAtFullDemand = energyCharge(demand.monthlyConsumptionKwh);
   const baselineEnergyChargeVnd =
-    demand.plannedKwh > 0 ? energyCharge(demand.monthlyConsumptionKwh) : input.monthlyBill;
+    demand.plannedKwh > 0
+      ? input.monthlyBill +
+        Math.max(0, chargeAtFullDemand - energyCharge(demand.monthlyConsumptionKwh - demand.plannedKwh))
+      : input.monthlyBill;
 
   const cache = new Map<number, SimulatedMonth[]>();
   return (generationFactor) => {
@@ -268,7 +275,7 @@ function createYearSimulator(params: {
       // Tariff charges are before VAT; package prices include VAT. Apply VAT
       // to both sides of the bill so savings compare like-for-like.
       const energyChargeAfterSolarVnd = clamp(
-        energyCharge(flows.gridImportKwh),
+        baselineEnergyChargeVnd - (chargeAtFullDemand - energyCharge(flows.gridImportKwh)),
         0,
         baselineEnergyChargeVnd,
       );
@@ -294,7 +301,6 @@ function sum(values: readonly number[]): number {
 
 function summariseScenario(
   months: readonly SimulatedMonth[],
-  input: SolarCalculationInput,
   finance: LifetimeFinanceResult,
 ): CalculationScenarioResult {
   const average = (pick: (month: SimulatedMonth) => number) =>
@@ -336,12 +342,6 @@ function summariseScenario(
       1,
     ),
   };
-}
-
-export function findBreakEvenYear(cashFlow: CashFlowPoint[]): number | null {
-  return (
-    cashFlow.find((point) => point.cumulativeCashFlowVnd >= 0)?.year ?? null
-  );
 }
 
 function calculateLongTermSavings(finance: LifetimeFinanceResult): LongTermSavings {
@@ -393,7 +393,7 @@ export function calculateSolarPackage({
       capacityKwp: solarPackage.capacityKwp,
       batteryCapacityKwh: solarPackage.batteryCapacityKwh,
     });
-    return { months, finance, summary: summariseScenario(months, input, finance) };
+    return { months, finance, summary: summariseScenario(months, finance) };
   };
 
   const highGrowthFinance = calculateLifetimeFinance({

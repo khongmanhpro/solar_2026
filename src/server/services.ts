@@ -127,8 +127,14 @@ function attachMoneyRecommendationStability(params: {
     }
   }
 
+  // When another bound offers a viable package, a "not economical" headline
+  // would contradict the option card shown right under it.
+  const { noRecommendationReason, ...recommendationWithoutReason } = recommendation;
+  const keepReason = stable || rangeOptions.length === 0;
+
   return {
-    ...recommendation,
+    ...recommendationWithoutReason,
+    ...(keepReason && noRecommendationReason ? { noRecommendationReason } : {}),
     recommendedPackage: stable ? recommendation.recommendedPackage : null,
     comparedPackages: stable ? recommendation.comparedPackages : [],
     recommendationStability: {

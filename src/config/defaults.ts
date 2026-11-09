@@ -57,7 +57,6 @@ export const CALCULATION_CONSTANTS = {
   daysPerMonth: 30,
   daysInMonth: [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
   /** Fallback horizon when settings are unavailable (legacy helpers). */
-  cashFlowHorizonYears: 20,
   longTermSavingYears: [5, 10, 20],
   roofConstraintInsightThreshold: 0.8,
   /**

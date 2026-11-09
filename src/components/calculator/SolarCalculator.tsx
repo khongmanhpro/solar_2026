@@ -298,10 +298,8 @@ function toRequest(values: CalculatorFormValues): CustomerCalculationRequestV2 |
     site: {
       province: values.province,
       daytimeBehavior: values.daytimeBehavior,
-      // Unknown phase: size for single-phase, the common household case; the
-      // review step and survey flag it for the engineer to confirm.
-      electricalPhase:
-        values.electricalPhase === "unknown" ? "single-phase" : values.electricalPhase,
+      // "unknown" is sent as-is: the server sizes for it and flags the survey.
+      electricalPhase: values.electricalPhase,
       ...(values.plannedLoadIds.length > 0 ? { plannedLoads: values.plannedLoadIds } : {}),
       roof:
         values.roofKnown === "true"

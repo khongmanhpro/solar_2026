@@ -13,6 +13,7 @@ import {
   prepareCalculationInput,
 } from "@/lib/customer-input";
 import { assessCalculationDataReadiness } from "@/lib/data-readiness";
+import { calculationRequestSchema } from "@/lib/validations";
 import {
   calculateElectricityBill,
   calculateElectricityBillBreakdown,
@@ -422,6 +423,32 @@ describe("prepareCalculationInput", () => {
     expect(legacy.input.electricalPhase).toBeNull();
   });
 
+  it("pha điện chưa rõ: gửi nguyên, gắn cờ khảo sát, chỉ mở gói 3 pha khi dùng nhiều", () => {
+    const request = (valueKwh: number) => ({
+      schemaVersion: "2.2.0" as const,
+      energy: { method: "kwh" as const, observations: [{ period: "2026-09", valueKwh }] },
+      site: {
+        province: "ho-chi-minh",
+        daytimeBehavior: "some_daytime_use" as const,
+        electricalPhase: "unknown" as const,
+        roof: { known: true as const, areaM2: 60 },
+        backup: { required: false as const },
+      },
+    });
+    const parsed = calculationRequestSchema.parse(request(450));
+    const small = prepareCalculationInput(parsed, "unused", { allowUnapprovedTariffData: true });
+    const large = prepareCalculationInput(calculationRequestSchema.parse(request(900)), "unused", {
+      allowUnapprovedTariffData: true,
+    });
+
+    expect(small.input.electricalPhase).toBe("single-phase");
+    expect(large.input.electricalPhase).toBeNull();
+    for (const prepared of [small, large]) {
+      expect(prepared.normalizedInput.quality).toBe("survey_required");
+      expect(prepared.normalizedInput.warnings.join(" ")).toContain("1 pha hay 3 pha");
+    }
+  });
+
   it("lấy trung bình kWh trực tiếp, lưu từng quan sát và gắn giả định điện sinh hoạt", () => {
     // "High" confidence requires the latest period to be recent; pin the clock
     // so this case does not decay as real time passes.
@@ -678,6 +705,36 @@ describe("prepareCalculationInput", () => {
     expect(prepared.normalizedInput.monthlyConsumptionKwh.value.upperBound).toBeGreaterThan(0);
     expect(prepared.normalizedInput.moneyConversions?.[0]?.exact).toBe(false);
     expect(prepared.normalizedInput.quality).toBe("survey_required");
+
+    // The expected point is the common one-household reading of the same
+    // bill, not the midpoint of 0..extreme (which halves the customer's bill).
+    const standard = prepareCalculationInput(
+      {
+        schemaVersion: "2.1.0",
+        energy: {
+          method: "money",
+          amountBasis: "total_payment",
+          billingContext: { kind: "standard_single_household" },
+          observations: [{ period: "2026-06", totalPaymentVnd: 2_160_000 }],
+        },
+        site: {
+          province: "ho-chi-minh",
+          daytimeBehavior: "some_daytime_use",
+          roof: { known: false },
+          backup: { required: false },
+        },
+      },
+      "unused-for-money",
+      { allowUnapprovedTariffData: true },
+    );
+    expect(prepared.input.monthlyConsumptionKwh).toBeCloseTo(
+      standard.input.monthlyConsumptionKwh,
+      0,
+    );
+    expect(prepared.input.monthlyBill).toBeCloseTo(
+      standard.input.monthlyBill,
+      -2,
+    );
   });
 
   it("dự phóng lịch sử nhiều biểu giá theo kỳ mới nhất thay vì fallback legacy", () => {

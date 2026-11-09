@@ -449,6 +449,8 @@ describe("service integration", () => {
       expect(option.monthlyConsumptionKwh).toBeGreaterThanOrEqual(0);
       expect(option.result.monthlySavingsVnd).toBeGreaterThan(0);
     }
+    // An option card and a "not economical" headline must never coexist.
+    expect(result.noRecommendationReason).toBeUndefined();
   });
 
   it("không tự dùng VAT ngoài khoảng registry", async () => {

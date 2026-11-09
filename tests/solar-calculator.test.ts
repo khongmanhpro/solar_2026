@@ -7,7 +7,6 @@ import {
 import { QD1279_RESIDENTIAL_TARIFF } from "@/config/electricity-tariffs";
 import {
   calculateSolarPackage,
-  findBreakEvenYear,
 } from "@/lib/solar-calculator";
 import {
   calculateElectricityEnergyCharge,
@@ -230,17 +229,6 @@ describe("calculateSolarPackage", () => {
         provinceFactor: 1,
       }),
     ).toThrow(RangeError);
-  });
-});
-
-describe("cash flow helpers", () => {
-  it("trả null khi dòng tiền chưa hòa vốn", () => {
-    expect(
-      findBreakEvenYear([
-        { year: 0, cumulativeCashFlowVnd: -50_000_000 },
-        { year: 1, cumulativeCashFlowVnd: -49_000_000 },
-      ]),
-    ).toBeNull();
   });
 });
 
