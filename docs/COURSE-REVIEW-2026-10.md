@@ -80,9 +80,8 @@ Những điểm dưới đây đúng với thực hành chuẩn hoặc nguy hi�
 - Hướng Bắc "tạm ổn" cho bán cầu Bắc (buổi 3). Phải hướng Nam.
 - Sạc trực tiếp bình khi không có bộ điều khiển (buổi 3).
 - Dùng tấm nứt cho bơm vì rẻ (buổi 3). Trái nguyên tắc, nguy cơ điểm nóng và cháy.
-- Đứng hoặc đi trên tấm pin, xếp quá nhiều tấm, kéo tay qua mép gạch (buổi 7).
-- Dùng vít sắt cho xà gồ gỗ (buổi 7 nói đúng ngược lại, phải dùng vít gỗ cho xà gồ gỗ).
-- Ví dụ pin 15 kWh xả 5 kW "3 giờ": nhầm kW với kWh. Thời gian chuyển mạch backup nói khi 20 ms, khi 3 ms, khi 30 giây, mâu thuẫn.
+- Kéo tay tấm pin qua mép gạch (buổi 7). (Đính chính 09/11: buổi 7 nói đúng về vít — "xà gồ gỗ thì vít gỗ, xà gồ sắt dùng vít sắt" — và đúng về xếp ≤ 10–12 tấm, không đứng lên tấm pin.)
+- (Đính chính 09/11: pin 15 kWh xả 5 kW hết sau 3 giờ là phép tính đúng; ý của thầy là công suất xả của inverter giới hạn tải chạy được.) Thời gian chuyển mạch backup nói khi 20 ms, khi 3 ms, khi 30 giây, mâu thuẫn.
 - "Không bao giờ quá tải, inverter tự điều tiết" (buổi 4): nói quá.
 
 ## 7. Mức độ tin cậy
@@ -90,3 +89,68 @@ Những điểm dưới đây đúng với thực hành chuẩn hoặc nguy hi�
 - Slide (230 trang, đọc hình): đáng tin hơn về công thức và bảng số liệu. Có vài trang mờ (p.24, p.69, p.109) cần kiểm lại.
 - Video (phiên âm tự động): dùng để hiểu ý tưởng và kinh nghiệm thực tế. Không dùng số trong video nếu chưa đối chiếu slide.
 - Các mâu thuẫn trong chính khóa học (6% và 3%, hệ số 6 và 8, K_TK 80% và 95%, thời gian chuyển mạch) cho thấy tài liệu là bản nháp cần giảng viên xác nhận.
+
+## 8. Đọc lại toàn bộ (09/11/2026): slide, 4 file Excel, 7 buổi video phiên âm lại
+
+Nguồn: whisper large-v3-turbo chạy tại máy cho cả 7 buổi; 21 phút cuối buổi 1 bị lặp chữ, đã phiên âm lại riêng.
+Số trong video vẫn có thể sai; ưu tiên slide và Excel.
+
+### 8.1 Sản lượng: engine khớp khóa học (bỏ nghi ngờ "ERA5 thấp ở miền Bắc")
+
+Excel "Tinh San luong" cho sản lượng **chưa trừ tổn thất**; file "3.2 Phan tich" trừ thêm 10% DC/AC. Sau khi trừ:
+
+| Tỉnh | Excel (thô) | Excel −10% | Engine (PVGIS, loss 14%) | Lệch |
+|---|---|---|---|---|
+| Hà Nội | 1.175 | 1.057 | 1.028 | −3% |
+| TP.HCM | 1.518 | 1.366 | 1.358 | −1% |
+| Bắc Giang / Hải Phòng / Thái Bình | 1.163 / 1.164 / 1.204 | 1.047 / 1.047 / 1.083 | 1.050 / 1.140 / 1.203 | 0 / +9 / +11% |
+| Đồng Nai / Bình Dương / Tây Ninh | 1.574 / 1.562 / 1.597 | 1.416 / 1.406 / 1.437 | 1.330 / 1.350 / 1.373 | −6 / −4 / −4% |
+
+Hệ quả: quy tắc nhanh của khóa học (3,2 h Bắc, 4 h Nam) là số **thô**, cao hơn thực nhận ~10%. Engine không cần nâng sản lượng.
+Sheet Ninh Bình và Thái Nguyên trong Excel bị lỗi công thức (0,37 h/ngày) — không dùng.
+
+### 8.2 Cách thầy định cỡ hệ hộ gia đình (buổi 1, 6)
+
+- Sơ bộ: chỉ lấy kWh **từ bậc 4 trở lên** (bậc đắt), ÷30 ÷ giờ nắng. Excel "1. TINH kWh" làm đúng vậy.
+- Hệ nhỏ nhất ~3 kW (inverter nhỏ nhất). TP.HCM: 3 × 4 × 30 = 360 kWh/tháng → hộ từ ~360 kWh (~1 triệu/tháng) "bắt đầu lắp được". Slide: Bắc > 300, Nam > 400.
+- Chi tiết: hỏi **tỉ lệ dùng ban ngày** và khung giờ dùng (6–18 h hộ dân; 8–16 h xưởng). P_tb = kWh ban ngày ÷ số giờ.
+  P_PV = P_tb ÷ 0,45 (Bắc, hướng kém) đến ÷ 0,65 (Nam, hướng tốt), +20% dự phòng, làm tròn lên cỡ tấm.
+- Điện dư: E_dư ≈ 6·(P12h − P_tb)²/P12h (buổi 1 xác nhận); nên mua pin ≈ 80% E_dư. Không pin thì bỏ phần dư khỏi tiết kiệm và hoàn vốn.
+- Lời khuyên: khách dùng nhiều điện ban ngày → lắp **vừa đủ theo tải trung bình**, lắp dư mà không có pin là phí.
+- Tiết kiệm = 0,8 (hộ dân) hoặc 0,95 (tải đều) × (E_PV − E_dư) — hệ số 0,8 là "để giữ uy tín".
+- Hộ nhỏ: theo cách chi tiết, hộ 300 kWh/70% ban ngày chỉ cần ~1,5 kWp — nhỏ hơn nhiều so với "hóa đơn ÷ giờ nắng" (~3 kWp).
+  Thầy gợi ý micro-inverter 2–3 tấm cho tải nhỏ. **Liên quan trực tiếp Wave 3.**
+- Lỗi số trong bài giảng: ví dụ HN 6 kWp ra E_dư "2 kWh" nhưng 8×(2,7−2,15) ≈ 4,4 kWh → tiết kiệm ~46%, không phải 53%.
+  "1.318 kWh, 1.118 kWh từ bậc 4" sai số học (đúng là 1.018).
+
+Engine mô phỏng theo giờ nên đã chứa các hiệu ứng trên; dùng công thức khóa học để **kiểm tra chéo**, không thay engine.
+
+### 8.3 Pin, hybrid, dự phòng (buổi 1, 5, 6)
+
+- Thầy không định giá dự phòng bằng tiền; ba mức: không dùng cổng backup / chỉ tải quan trọng / cả nhà qua ATS.
+- Tải nên để trên backup: cửa cuốn, wifi, camera, phòng ngủ chính, máy tính, đèn hành lang; máy lạnh, máy giặt, lò vi sóng, bình nóng lạnh để phía lưới.
+- Công suất backup dùng được = min(công suất EPS, giới hạn xả của pin/inverter, dòng bypass). Ví dụ Sungrow SH5K: backup 3 kW, sạc/xả 65 A × 48 V ≈ 3,1 kW.
+- Khởi động: tủ lạnh 4–5×, máy lạnh thường 3×, bơm 6×, động cơ tới 7×; máy lạnh inverter ≈ định mức.
+- Khách ngại pin to → bán pin nhỏ, mở rộng sau; nếu có khả năng thêm pin thì lắp **inverter hybrid ngay** (inverter hòa lưới không gắn pin được).
+- Hybrid bám tải không bán điện: pin đầy thì tấm pin bị cắt bớt (ví dụ 35–38 → 20–24 kWh/ngày khi pin kém).
+- Hybrid hoàn vốn "ít gì cũng 5 năm trở lên"; ví dụ 609 kWh của thầy: hóa đơn tháng đầu 800k (chậm đấu nối), sau đó 400–600k.
+
+### 8.4 Việc engine có thể làm thêm (chưa làm, cần quyết định)
+
+| # | Việc | Ảnh hưởng | Ưu tiên |
+|---|---|---|---|
+| 1 | Giới hạn công suất sạc/xả pin theo kW mỗi giờ (từ thông số inverter) | Nhỏ với hộ dân (tải tối 1–2 kW); lớn với nhà hàng/khách sạn | Trung bình |
+| 2 | Cắt đỉnh khi DC/AC > 1 (clipping) | Nhỏ ở DC/AC 1,15–1,2 hiện tại; cần nếu thêm gói DC/AC 1,3–1,5 | Thấp |
+| 3 | Backup planner dùng công suất EPS thật của gói thay vì kWp ÷ 1,15 | Khách thấy "vượt khả năng inverter" đúng hơn | Trung bình |
+| 4 | Wave 3: gói ~1,5–3 kWp (hoặc micro-inverter) cho hộ 300–400 kWh | Mở thêm phân khúc; phải giữ hoàn vốn trung thực | Cao (đã có kế hoạch) |
+| 5 | Mặc định không bán điện dư nếu chưa xác nhận công tơ hai chiều | Engine đã không cộng tiền điện dư vào hoàn vốn — khớp | Đã khớp |
+
+### 8.5 Thông tin cũ hoặc sai cần tránh (bổ sung)
+
+- Giá điện dư "~2.050 đ/kWh" (buổi 8) — sai; theo NĐ 58 là giá thị trường bình quân năm trước, thấp hơn nhiều.
+- Viện dẫn NĐ 135/2024 (đã thay thế), không nói NĐ 243/2026; slide còn ghi bán dư tối đa 20%.
+- Khung giờ cao điểm 9h30–11h30 & 17–20h và "tiết kiệm 3.200 đ/kWh ban ngày" cho khách kinh doanh — cần đối chiếu khung giờ hiện hành trước khi dùng.
+- Đổi tiền ra kWh bằng giá phẳng 3.200–3.300 đ/kWh — sai cho hộ nhỏ (giá bình quân thấp hơn). Engine dùng biểu bậc thang — đúng.
+- "Buổi trưa chỉ 45–65% công suất đỉnh" là thấp so với thực tế VN (thường 75–85% ngày nắng); dùng được cho P_tb trung bình năm, không dùng để chọn DC/AC 1,5–2.
+- CB "càng to càng tốt"; "inverter không bao giờ vượt dòng"; cáp "mm² = kW"; nhiều chuỗi chung MPPT không nói cầu chì; hiệu suất inverter "93%" (nay 97–98,8%).
+- Hợp đồng thuê/PPA "rẻ hơn điện lực 15–30%" — tính pháp lý bán điện cho bên thứ ba cần kiểm tra.
