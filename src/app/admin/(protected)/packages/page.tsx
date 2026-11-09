@@ -3,7 +3,7 @@ import { PackagesManager } from "@/components/admin/PackagesManager";
 import { isTrialMarketDataEnabled } from "@/config/trial-market-data";
 import { services } from "@/server/container";
 
-export const metadata = { title: "Quản lý gói | Solar Admin" };
+export const metadata = { title: "Quản lý gói · Quản trị" };
 
 export default async function AdminPackagesPage() {
   const packages = await services.packages.list();

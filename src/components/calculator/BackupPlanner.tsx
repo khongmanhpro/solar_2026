@@ -92,7 +92,7 @@ export function BackupPlanner({
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr]">
-      <div className="rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-5 sm:p-6">
+      <div className="rounded-[10px] border border-[var(--line)] bg-[var(--paper)] p-5 sm:p-6">
         {hasBattery ? (
           <p className="text-sm leading-6 text-[var(--ink)]">
             Pin {selectedPackage.batteryCapacityKwh} kWh dùng được khoảng {hoursFormatter.format(estimate?.usableKwh ?? 0)} kWh.
@@ -110,7 +110,7 @@ export function BackupPlanner({
         {batteryPackage ? (
           <>
             {declared ? (
-              <div className="mt-4 rounded-xl border border-[var(--line-strong)] p-4 text-sm leading-6 text-[var(--ink)]">
+              <div className="mt-4 rounded-[10px] border border-[var(--line-strong)] p-4 text-sm leading-6 text-[var(--ink)]">
                 <p>
                   <strong>Theo nhu cầu bạn khai:</strong> {hoursFormatter.format(declared.watts)} W
                   {declared.hours ? ` trong ${kwhFormatter.format(declared.hours)} giờ` : ""}.
@@ -158,7 +158,7 @@ export function BackupPlanner({
                 })}
               </div>
             </fieldset>
-            <div className="mt-5 rounded-xl bg-[var(--ink)] p-5 text-[var(--paper)]" aria-live="polite">
+            <div className="mt-5 rounded-[10px] bg-[var(--ink)] p-5 text-[var(--paper)]" aria-live="polite">
               <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--focus)]">Khi pin đầy, mất điện lưới</p>
               <p className="mt-2 text-3xl font-semibold">{formatHours(estimate?.hours ?? null)}</p>
               <p className="mt-2 text-sm leading-6 text-[var(--line)]">
@@ -167,7 +167,7 @@ export function BackupPlanner({
               </p>
             </div>
             {estimate?.exceedsBackupPower ? (
-              <p className="mt-3 rounded-lg bg-[var(--warning-soft)] p-3 text-sm text-[var(--warning-ink)]" role="alert">
+              <p className="mt-3 rounded-[8px] bg-[var(--warning-soft)] p-3 text-sm text-[var(--warning-ink)]" role="alert">
                 {backupPowerWarning(estimate.backupKw, estimate.backupKwSource)}
               </p>
             ) : null}
@@ -180,7 +180,7 @@ export function BackupPlanner({
         ) : null}
       </div>
 
-      <div className="rounded-2xl border border-[var(--line)] bg-[var(--admin-panel)] p-5 sm:p-6">
+      <div className="rounded-[10px] border border-[var(--line)] bg-[var(--admin-panel)] p-5 sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--brand)]">Pin có đáng tiền không?</p>
         {upgrade ? (
           <>
@@ -207,7 +207,7 @@ export function BackupPlanner({
             </p>
             {!hasBattery && hybridAlternative ? (
               <button
-                className="mt-4 min-h-11 rounded-lg bg-[var(--ink)] px-4 py-2.5 text-sm font-semibold text-[var(--paper)] hover:bg-[var(--brand-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2"
+                className="mt-4 min-h-11 rounded-[8px] bg-[var(--ink)] px-4 py-2.5 text-sm font-semibold text-[var(--paper)] hover:bg-[var(--brand-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2"
                 onClick={() => onSelectPackage(hybridAlternative.solarPackage.id)}
                 type="button"
               >
@@ -216,7 +216,7 @@ export function BackupPlanner({
             ) : null}
             {hasBattery && gridAlternative ? (
               <button
-                className="mt-4 min-h-11 rounded-lg border border-[var(--line-strong)] px-4 py-2.5 text-sm font-semibold text-[var(--ink)] hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2"
+                className="mt-4 min-h-11 rounded-[8px] border border-[var(--line-strong)] px-4 py-2.5 text-sm font-semibold text-[var(--ink)] hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2"
                 onClick={() => onSelectPackage(gridAlternative.solarPackage.id)}
                 type="button"
               >

@@ -38,7 +38,7 @@ export function MonthlyEnergyChart({ months, hasBattery, seasonalData }: Monthly
     <figure>
       <div
         aria-label="Biểu đồ 12 tháng: điện dùng từ mặt trời, từ pin và từ lưới điện"
-        className="h-72 w-full rounded-2xl border border-[var(--line)] bg-[var(--paper)] px-2 pb-2 pt-5 sm:h-80 sm:px-4"
+        className="h-72 w-full rounded-[10px] border border-[var(--line)] bg-[var(--paper)] px-2 pb-2 pt-5 sm:h-80 sm:px-4"
         role="img"
       >
         <ResponsiveContainer height="100%" minWidth={0} width="100%">
@@ -68,7 +68,7 @@ export function MonthlyEnergyChart({ months, hasBattery, seasonalData }: Monthly
           ? `Tiết kiệm thấp nhất vào tháng ${weakest.month} (${formatVnd(weakest.savingsVnd)}), cao nhất vào tháng ${strongest.month} (${formatVnd(strongest.savingsVnd)}). Mức tiêu thụ mỗi tháng đang giữ bằng mức trung bình bạn cung cấp.`
           : "Tỉnh này chưa có dữ liệu sản lượng theo mùa đã đồng bộ; các tháng đang dùng sản lượng trung bình."}
       </figcaption>
-      <details className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--admin-panel)] p-4 text-sm">
+      <details className="mt-3 rounded-[10px] border border-[var(--line)] bg-[var(--admin-panel)] p-4 text-sm">
         <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-[var(--ink)]">Xem bảng số liệu 12 tháng</summary>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[34rem] text-left">

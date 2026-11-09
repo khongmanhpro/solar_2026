@@ -2,7 +2,7 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { LeadsManager, type AdminLeadListItem } from "@/components/admin/LeadsManager";
 import { services } from "@/server/container";
 
-export const metadata = { title: "Khách hàng tiềm năng | Solar Admin" };
+export const metadata = { title: "Khách hàng tiềm năng · Quản trị" };
 
 export default async function AdminLeadsPage() {
   const leads = await services.leads.list();

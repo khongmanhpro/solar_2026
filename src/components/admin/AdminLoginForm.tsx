@@ -69,7 +69,7 @@ export function AdminLoginForm() {
         />
       </div>
       {error ? (
-        <p className="rounded-lg border border-[var(--danger-line)] bg-[var(--danger-soft)] p-3 text-sm font-medium text-[var(--danger)]" role="alert">
+        <p className="rounded-[8px] border border-[var(--danger-line)] bg-[var(--danger-soft)] p-3 text-sm font-medium text-[var(--danger)]" role="alert">
           {error}
         </p>
       ) : null}

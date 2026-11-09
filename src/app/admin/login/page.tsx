@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 
 import { AdminLoginForm } from "@/components/admin/AdminLoginForm";
+import { EvoSolarLogo } from "@/components/brand/EvoSolarLogo";
 import { getOptionalAdminPageSession } from "@/server/admin-auth";
 
-export const metadata = { title: "Đăng nhập quản trị | Solar" };
+export const metadata = { title: "Đăng nhập quản trị" };
 
 export default async function AdminLoginPage() {
   if (await getOptionalAdminPageSession()) redirect("/admin");
@@ -12,9 +13,9 @@ export default async function AdminLoginPage() {
     <main className="admin-login-grid min-h-screen">
       <section className="relative hidden overflow-hidden bg-[var(--ink)] p-12 text-[var(--paper)] lg:flex lg:flex-col lg:justify-between">
         <div className="admin-login-orbit" aria-hidden="true" />
-        <p className="relative z-10 text-xs font-bold uppercase tracking-[0.22em] text-[var(--focus)]">
-          Solar Operations / 09
-        </p>
+        <div className="relative z-10">
+          <EvoSolarLogo height={32} variant="dark" />
+        </div>
         <div className="relative z-10 max-w-xl">
           <span className="sun-mark" aria-hidden="true" />
           <p className="mt-7 font-display text-6xl font-semibold leading-[1.05]">
@@ -29,7 +30,7 @@ export default async function AdminLoginPage() {
         </p>
       </section>
       <section className="flex items-center justify-center px-5 py-12 sm:px-10">
-        <div className="w-full max-w-md rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] p-6 shadow-[0_24px_80px_var(--shadow)] sm:p-9">
+        <div className="w-full max-w-md rounded-[10px] border border-[var(--line-strong)] bg-[var(--paper)] p-6 shadow-[0_24px_80px_var(--shadow)] sm:p-9">
           <div className="flex items-center gap-3">
             <span className="status-dot" aria-hidden="true" />
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--success)]">

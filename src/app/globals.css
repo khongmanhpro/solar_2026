@@ -2,29 +2,36 @@
 
 :root {
   color-scheme: light;
-  --background: #f2f6f1;
-  --paper: #fffef8;
-  --ink: #12303a;
-  --muted: #617278;
-  --brand: #087c69;
-  --brand-dark: #075746;
-  --brand-soft: #e3f4ec;
-  --sun: #f4b823;
-  --line: #d9e2dc;
-  --line-strong: #bdccc4;
-  --focus: #a8dacc;
-  --success: #087c69;
-  --danger: #a33131;
-  --danger-soft: #fff0ec;
-  --danger-line: #edb8ae;
-  --warning-soft: #fff2c9;
-  --warning-line: #f0d99b;
-  --warning-ink: #73540a;
-  --skeleton: #e6ece7;
-  --shadow: rgba(25, 54, 48, 0.12);
-  --admin-rail: #31515a;
-  --admin-panel: #edf3ef;
-  --admin-overlay: rgba(18, 48, 58, 0.58);
+  /* EvoSolar Brand Book v1.0 — Sương sớm / Silicon / Nắng trưa / Lục xanh / Bình minh */
+  --background: #f3f6f5;
+  --paper: #ffffff;
+  --ink: #13283d;
+  --muted: #44525f;
+  --brand: #13283d;
+  --brand-dark: #0b1a29;
+  --brand-soft: #e7ecf0;
+  --sun: #f4a51c;
+  --sun-hover: #e3950f;
+  --sun-soft: #fff4d6;
+  --accent-ink: #8a5a00;
+  --savings: #2e7d66;
+  --savings-soft: #e3f2ec;
+  --dawn: #e8633a;
+  --line: #dde3e6;
+  --line-strong: #c9d1d6;
+  --focus: rgba(244, 165, 28, 0.45);
+  --success: #2e7d66;
+  --danger: #b03e1a;
+  --danger-soft: #fdeee8;
+  --danger-line: #f2b9a5;
+  --warning-soft: #fff4d6;
+  --warning-line: #f3d48f;
+  --warning-ink: #6b4600;
+  --skeleton: #e6ebed;
+  --shadow: rgba(19, 40, 61, 0.1);
+  --admin-rail: #24405b;
+  --admin-panel: #edf1f3;
+  --admin-overlay: rgba(19, 40, 61, 0.58);
 }
 
 * {
@@ -39,12 +46,8 @@ html {
 body {
   margin: 0;
   background: var(--background);
-  background-image:
-    linear-gradient(var(--line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line) 1px, transparent 1px);
-  background-size: 48px 48px;
   color: var(--ink);
-  font-family: "Inter Variable", "Be Vietnam Pro", system-ui, sans-serif;
+  font-family: "Be Vietnam Pro", system-ui, sans-serif;
   font-synthesis: none;
   line-height: 1.6;
 }
@@ -56,8 +59,10 @@ textarea {
   font: inherit;
 }
 
-.font-display {
-  font-family: "Inter Variable", "Be Vietnam Pro", system-ui, sans-serif;
+.font-display,
+.hero-headline {
+  font-family: "Bricolage Grotesque Variable", "Be Vietnam Pro", system-ui, sans-serif;
+  font-optical-sizing: auto;
 }
 
 .hero-headline {
@@ -268,7 +273,7 @@ textarea {
 .admin-logout-button {
   min-height: 2.75rem;
   border: 1px solid var(--admin-rail);
-  border-radius: 0.65rem;
+  border-radius: 8px;
   background: transparent;
   color: var(--line);
   cursor: pointer;
@@ -293,7 +298,7 @@ textarea {
   min-height: 3rem;
   margin-top: 0.5rem;
   border: 1px solid var(--line-strong);
-  border-radius: 0.65rem;
+  border-radius: 8px;
   background: var(--paper);
   padding: 0.7rem 0.85rem;
   color: var(--ink);
@@ -319,7 +324,7 @@ textarea {
   min-height: 3rem;
   align-items: center;
   justify-content: center;
-  border-radius: 0.65rem;
+  border-radius: 8px;
   padding: 0.7rem 1.1rem;
   cursor: pointer;
   font-size: 0.85rem;
@@ -357,7 +362,7 @@ textarea {
 
 .admin-panel {
   border: 1px solid var(--line-strong);
-  border-radius: 1rem;
+  border-radius: 10px;
   background: var(--paper);
 }
 

@@ -243,7 +243,7 @@ export function PackagesManager({
         <button className="admin-primary-button" onClick={openNew} type="button">+ Thêm gói hệ thống</button>
       </div>
 
-      {notice ? <p className="rounded-lg border border-[var(--line-strong)] bg-[var(--admin-panel)] p-3 text-sm text-[var(--ink)]" role="status">{notice}</p> : null}
+      {notice ? <p className="rounded-[8px] border border-[var(--line-strong)] bg-[var(--admin-panel)] p-3 text-sm text-[var(--ink)]" role="status">{notice}</p> : null}
 
       <div className="grid gap-4 xl:grid-cols-2">
         {packages.map((item) => (

@@ -48,7 +48,7 @@ export function ShareBar({ calculationId }: ShareBarProps) {
   }
 
   const buttonClass =
-    "min-h-11 rounded-lg border border-[var(--line-strong)] bg-[var(--paper)] px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2";
+    "min-h-11 rounded-[8px] border border-[var(--line-strong)] bg-[var(--paper)] px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2";
 
   return (
     <div className="flex flex-wrap items-center gap-3 print:hidden">

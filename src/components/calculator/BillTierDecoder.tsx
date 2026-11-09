@@ -36,7 +36,7 @@ export function BillTierDecoder({
       : null;
 
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-5 sm:p-6">
+    <div className="rounded-[10px] border border-[var(--line)] bg-[var(--paper)] p-5 sm:p-6">
       <p className="text-sm leading-6 text-[var(--ink)]">
         Hóa đơn EVN tính theo bậc thang: dùng càng nhiều, mỗi kWh càng đắt. Điện mặt trời thay phần điện
         <strong> ở các bậc trên cùng</strong> — đắt nhất — trước
@@ -57,12 +57,12 @@ export function BillTierDecoder({
                   <span className="ml-2 font-normal text-[var(--muted)]">{tierRange(row.fromKwh, row.toKwh)}</span>
                 </span>
                 <span className="text-[var(--muted)]">
-                  {formatKwh(row.beforeKwh)} → <strong className={removed ? "text-[var(--brand-dark)]" : "text-[var(--ink)]"}>{formatKwh(row.afterKwh)}</strong>
+                  {formatKwh(row.beforeKwh)} → <strong className={removed ? "text-[var(--savings)]" : "text-[var(--ink)]"}>{formatKwh(row.afterKwh)}</strong>
                 </span>
               </div>
               <div className="relative mt-1.5 h-3 overflow-hidden rounded-full bg-[var(--admin-panel)]" aria-hidden="true">
                 <div className="absolute inset-y-0 left-0 rounded-full bg-[var(--line-strong)]" style={{ width: `${beforeWidth}%` }} />
-                <div className="absolute inset-y-0 left-0 rounded-full bg-[var(--brand)]" style={{ width: `${afterWidth}%` }} />
+                <div className="absolute inset-y-0 left-0 rounded-full bg-[var(--savings)]" style={{ width: `${afterWidth}%` }} />
               </div>
               <p className="sr-only">
                 {row.label}: trước {formatVnd(row.beforeVnd)}, sau {formatVnd(row.afterVnd)}.
@@ -76,7 +76,7 @@ export function BillTierDecoder({
           <span className="h-2.5 w-5 rounded-full bg-[var(--line-strong)]" aria-hidden="true" /> Trước khi lắp: <strong className="text-[var(--ink)]">{formatVnd(comparison.totalBeforeVnd)}</strong>
         </span>
         <span className="flex items-center gap-2 text-[var(--muted)]">
-          <span className="h-2.5 w-5 rounded-full bg-[var(--brand)]" aria-hidden="true" /> Sau khi lắp (tháng điển hình): <strong className="text-[var(--brand-dark)]">{formatVnd(comparison.totalAfterVnd)}</strong>
+          <span className="h-2.5 w-5 rounded-full bg-[var(--savings)]" aria-hidden="true" /> Sau khi lắp (tháng điển hình): <strong className="text-[var(--savings)]">{formatVnd(comparison.totalAfterVnd)}</strong>
         </span>
       </div>
       <p className="mt-2 text-xs leading-5 text-[var(--muted)]">

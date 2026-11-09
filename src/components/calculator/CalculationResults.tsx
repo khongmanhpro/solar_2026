@@ -51,7 +51,7 @@ function Metric({ label, value, accent = false }: MetricProps) {
       </dt>
       <dd
         className={`mt-2 break-words text-2xl font-semibold leading-snug sm:text-3xl ${
-          accent ? "text-[var(--brand-dark)]" : "text-[var(--ink)]"
+          accent ? "text-[var(--savings)]" : "text-[var(--ink)]"
         }`}
       >
         {value}
@@ -95,7 +95,7 @@ function findResult(
 function StaleResultNotice() {
   return (
     <aside
-      className="mb-8 rounded-xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]"
+      className="mb-8 rounded-[10px] border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]"
       role="status"
     >
       <strong>Kết quả này đang theo thông tin cũ.</strong> Hãy xác nhận và cập
@@ -115,7 +115,7 @@ function MoneyConversionNotice({ result }: { result: CalculationResponse }) {
     ) === true;
 
   return (
-    <aside className="mb-8 rounded-xl border border-[var(--line-strong)] bg-[var(--admin-panel)] p-5" aria-labelledby="money-conversion-title">
+    <aside className="mb-8 rounded-[10px] border border-[var(--line-strong)] bg-[var(--admin-panel)] p-5" aria-labelledby="money-conversion-title">
       <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--brand)]">
         Tổng tiền → mức dùng điện
       </p>
@@ -172,7 +172,7 @@ export function CalculationResults({
 
   if (!selectedResult || !selectedPackage || !result.recommendedPackage) {
     return (
-      <div id="ket-qua" className="rounded-2xl border border-[var(--danger-line)] bg-[var(--danger-soft)] p-6 text-[var(--danger)]">
+      <div id="ket-qua" className="rounded-[10px] border border-[var(--danger-line)] bg-[var(--danger-soft)] p-6 text-[var(--danger)]">
         <h2 className="font-display text-2xl font-semibold tracking-tight">Thiếu dữ liệu gói sản phẩm</h2>
         <p className="mt-2 text-sm leading-6">
           Kết quả đã được tính nhưng thông tin gói không còn trong danh sách đang hoạt động. Hãy tính lại để nhận dữ liệu mới nhất.
@@ -217,7 +217,7 @@ export function CalculationResults({
   }
 
   return (
-    <div id="ket-qua" className="rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] px-5 pb-24 pt-8 sm:px-10 sm:py-14" tabIndex={-1}>
+    <div id="ket-qua" className="rounded-[10px] border border-[var(--line-strong)] bg-[var(--paper)] px-5 pb-24 pt-8 sm:px-10 sm:py-14" tabIndex={-1}>
       {isStale ? <StaleResultNotice /> : null}
 
       <section aria-labelledby="recommended-title">
@@ -246,22 +246,28 @@ export function CalculationResults({
 
         <dl
           aria-label="Tóm tắt phương án"
-          className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[var(--brand)] bg-[var(--brand)] lg:grid-cols-4"
+          className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-[10px] border border-[var(--ink)] bg-[var(--admin-rail)] lg:grid-cols-4"
         >
           {[
             ["Chi phí lắp đặt", formatVndSpoken(selectedPackage.priceVnd), "giá tham khảo, đã gồm VAT"],
-            ["Mỗi tháng bớt", `~${formatVndSpoken(selectedResult.monthlySavingsVnd)}`, `thận trọng: ~${formatVndSpoken(selectedResult.lowEstimate.monthlySavingsVnd)}`],
-            ["Tiền điện còn trả", `~${formatVndSpoken(selectedResult.billAfterSolarVnd)}`, "mỗi tháng, trung bình cả năm"],
+            ["Mỗi tháng bớt", formatVndSpoken(selectedResult.monthlySavingsVnd), `ước tính · thận trọng: ${formatVndSpoken(selectedResult.lowEstimate.monthlySavingsVnd)}`],
+            ["Tiền điện còn trả", formatVndSpoken(selectedResult.billAfterSolarVnd), "ước tính, trung bình mỗi tháng cả năm"],
             [
               "Hoàn vốn sau",
               formatPaybackRange(selectedResult.lowEstimate.paybackYears, selectedResult.highEstimate.paybackYears),
               "đã trừ chi phí bảo trì, thay thiết bị",
             ],
           ].map(([label, value, hint]) => (
-            <div className="bg-[var(--brand-soft)] p-4 sm:p-5" key={label}>
-              <dt className="text-sm font-semibold text-[var(--brand-dark)]">{label}</dt>
-              <dd className="mt-1 break-words text-xl font-semibold leading-snug text-[var(--ink)] sm:text-2xl">{value}</dd>
-              <dd className="mt-1 text-xs leading-5 text-[var(--muted)]">{hint}</dd>
+            <div className="bg-[var(--ink)] p-4 sm:p-5" key={label}>
+              <dt className="text-sm font-semibold text-[var(--line-strong)]">{label}</dt>
+              <dd
+                className={`mt-1 break-words font-display text-xl font-extrabold leading-snug sm:text-2xl ${
+                  label === "Mỗi tháng bớt" ? "text-[var(--sun)]" : "text-[var(--paper)]"
+                }`}
+              >
+                {value}
+              </dd>
+              <dd className="mt-1 text-xs leading-5 text-[var(--line-strong)]">{hint}</dd>
             </div>
           ))}
         </dl>
@@ -274,7 +280,7 @@ export function CalculationResults({
         </p>
         {selectedResult.economicNote === "backup_cost" ? (
           <p
-            className="mt-4 rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] p-4 text-base leading-7 text-[var(--ink)]"
+            className="mt-4 rounded-[10px] border border-[var(--line-strong)] bg-[var(--paper)] p-4 text-base leading-7 text-[var(--ink)]"
             role="note"
           >
             <strong>Nói thẳng về chi phí:</strong> gói này được đề xuất vì bạn cần điện dự phòng khi mất điện.
@@ -288,7 +294,7 @@ export function CalculationResults({
 
         {isStale ? null : <div className="mt-6"><ShareBar calculationId={result.calculationId} /></div>}
 
-        <dl className="mt-8 grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="mt-8 grid gap-px overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-4">
           <Metric label="Công suất" value={`${formatDecimal(selectedPackage.capacityKwp)} kWp`} />
           <Metric
             label="Sản lượng dự kiến"
@@ -313,7 +319,7 @@ export function CalculationResults({
       <MoneyConversionNotice result={result} />
 
       {roofAreaUnknown ? (
-        <aside className="mb-4 rounded-xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]" role="note">
+        <aside className="mb-4 rounded-[10px] border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]" role="note">
           <strong>Chưa có diện tích mái.</strong> Gói bên dưới chỉ được xếp theo nhu cầu điện và không khẳng định mái đủ chỗ hoặc có thể thi công. Cần khảo sát mái trước khi chốt phương án.
         </aside>
       ) : null}
@@ -322,7 +328,7 @@ export function CalculationResults({
 
       <section aria-labelledby="savings-title" className="mt-14">
         <SectionHeading eyebrow="Hiệu quả hàng tháng" id="savings-title" title="Hóa đơn thay đổi thế nào?" />
-        <dl className="grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
+        <dl className="grid gap-px overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
           <Metric
             label={
               plannedKwh > 0
@@ -345,7 +351,7 @@ export function CalculationResults({
           <Metric label="Tỷ lệ giảm hóa đơn" value={formatPercent(selectedResult.reductionPercent)} />
           <Metric label="Điện mặt trời tự sử dụng" value={formatPercent(selectedResult.selfConsumptionRate * 100)} />
         </dl>
-        <p className="mt-3 rounded-lg border-l-2 border-[var(--sun)] bg-[var(--warning-soft)] px-4 py-3 text-sm leading-6 text-[var(--warning-ink)]">
+        <p className="mt-3 rounded-[8px] border-l-2 border-[var(--sun)] bg-[var(--warning-soft)] px-4 py-3 text-sm leading-6 text-[var(--warning-ink)]">
           Điện sinh hoạt hộ gia đình · {usedDirectKwh ? "kWh được nhập trực tiếp" : "kWh được ước tính từ dữ liệu hóa đơn"} · {formatKwh(selectedResult.estimatedMonthlyConsumptionKwh)}/tháng{plannedKwh > 0 ? ` (gồm ~${Math.round(plannedKwh)} kWh dự kiến cho thiết bị mới)` : ""} · tiền điện trước và sau khi lắp đều được tính theo biểu giá trong phiên tính, {vatRate > 0 ? `đã gồm VAT ${formatPercent(vatRate * 100)} để so sánh cùng cơ sở với giá gói đã gồm VAT` : "chưa gồm VAT"}.
         </p>
       </section>
@@ -373,7 +379,7 @@ export function CalculationResults({
       <section aria-labelledby="long-term-title" className="mt-14">
         <SectionHeading eyebrow={`Tầm nhìn ${horizonYears} năm`} id="long-term-title" title="Hoàn vốn và lợi ích dài hạn" />
         <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr]">
-          <div className="rounded-2xl bg-[var(--ink)] p-6 text-[var(--paper)]">
+          <div className="rounded-[10px] bg-[var(--ink)] p-6 text-[var(--paper)]">
             <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--focus)]">Khoảng hoàn vốn dự kiến</p>
             <p className="mt-4 text-4xl font-semibold leading-snug sm:text-5xl">
               {formatPaybackRange(
@@ -388,7 +394,7 @@ export function CalculationResults({
                 : ""}
             </p>
           </div>
-          <dl className="grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3 lg:grid-cols-1">
+          <dl className="grid gap-px overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3 lg:grid-cols-1">
             <Metric label="Tiết kiệm ròng sau 5 năm" value={formatVnd(selectedResult.longTermSavings.saving5YearsVnd)} />
             <Metric label="Tiết kiệm ròng sau 10 năm" value={formatVnd(selectedResult.longTermSavings.saving10YearsVnd)} />
             <Metric label={`Tiết kiệm ròng sau ${Math.min(20, horizonYears)} năm`} value={formatVnd(selectedResult.longTermSavings.saving20YearsVnd)} />
@@ -444,7 +450,7 @@ export function CalculationResults({
 
       <section aria-labelledby="equipment-title" className="mt-14">
         <SectionHeading eyebrow="Cấu hình thiết bị" id="equipment-title" title="Những gì có trong phương án" />
-        <div className="grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2">
+        <div className="grid gap-px overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2">
           {[
             ["Tấm pin", selectedPackage.panelBrand, selectedPackage.panelModel],
             ["Inverter", selectedPackage.inverterBrand, selectedPackage.inverterModel],
@@ -485,13 +491,13 @@ export function CalculationResults({
         <div className="space-y-3">
           {insights.length > 0 ? (
             insights.map((insight) => (
-              <p className="flex gap-3 rounded-xl border border-[var(--line)] bg-[var(--admin-panel)] p-4 text-sm leading-7 text-[var(--ink)]" key={insight}>
+              <p className="flex gap-3 rounded-[10px] border border-[var(--line)] bg-[var(--admin-panel)] p-4 text-sm leading-7 text-[var(--ink)]" key={insight}>
                 <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[var(--brand)]" />
                 {insight}
               </p>
             ))
           ) : (
-            <p className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4 text-sm leading-7 text-[var(--muted)]">
+            <p className="rounded-[10px] border border-[var(--line)] bg-[var(--paper)] p-4 text-sm leading-7 text-[var(--muted)]">
               Phương án nằm trong giới hạn mái và nhu cầu đã cung cấp; chưa có lưu ý đặc biệt cần bổ sung.
             </p>
           )}
@@ -502,7 +508,7 @@ export function CalculationResults({
         <MethodologyPanel result={result} selectedResult={selectedResult} />
       </section>
 
-      <aside aria-label="Lưu ý về kết quả ước tính" className="mt-14 rounded-xl border border-[var(--line-strong)] bg-[var(--admin-panel)] p-5">
+      <aside aria-label="Lưu ý về kết quả ước tính" className="mt-14 rounded-[10px] border border-[var(--line-strong)] bg-[var(--admin-panel)] p-5">
         <p className="text-xs font-bold uppercase tracking-[0.1em] text-[var(--warning-ink)]">Lưu ý bắt buộc</p>
         <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
           Kết quả là ước tính dựa trên thông tin khách hàng cung cấp, dữ liệu sản phẩm và các giả định tính toán hiện tại. Sản lượng và chi phí thực tế có thể thay đổi theo thời tiết, hướng mái, độ che bóng, kết cấu mái, biểu giá điện và điều kiện thi công. Báo giá chính thức được xác nhận sau khi khảo sát công trình.
@@ -514,7 +520,7 @@ export function CalculationResults({
 
       {isStale ? null : (
         <a
-          className="fixed inset-x-3 bottom-3 z-30 flex min-h-12 items-center justify-center rounded-xl bg-[var(--brand-dark)] px-5 py-3 text-base font-semibold text-[var(--paper)] shadow-[0_10px_30px_var(--shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)] lg:hidden print:hidden"
+          className="fixed inset-x-3 bottom-3 z-30 flex min-h-12 items-center justify-center rounded-[10px] bg-[var(--sun)] px-5 py-3 text-base font-semibold text-[var(--ink)] shadow-[0_10px_30px_var(--shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)] lg:hidden print:hidden"
           href="#survey-title"
         >
           Đăng ký khảo sát miễn phí ↓

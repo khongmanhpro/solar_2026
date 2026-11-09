@@ -92,9 +92,9 @@ interface CalculatorFormProps {
 }
 
 const fieldClassName =
-  "mt-2 min-h-12 w-full rounded-lg border border-[var(--line)] bg-[var(--paper)] px-4 py-3 text-base text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-dark)] focus:ring-offset-2 focus:ring-offset-[var(--paper)] disabled:cursor-not-allowed disabled:opacity-60";
+  "mt-2 min-h-12 w-full rounded-[8px] border border-[var(--line)] bg-[var(--paper)] px-4 py-3 text-base text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-dark)] focus:ring-offset-2 focus:ring-offset-[var(--paper)] disabled:cursor-not-allowed disabled:opacity-60";
 const choiceClassName =
-  "flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4 transition has-[:checked]:border-[var(--brand)] has-[:checked]:bg-[var(--brand-soft)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--brand-dark)] has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[var(--paper)]";
+  "flex min-h-12 cursor-pointer items-start gap-3 rounded-[10px] border border-[var(--line)] bg-[var(--paper)] p-4 transition has-[:checked]:border-[var(--brand)] has-[:checked]:bg-[var(--brand-soft)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--brand-dark)] has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[var(--paper)]";
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
@@ -187,7 +187,7 @@ function Progress({ currentStep }: { currentStep: CalculatorStep }) {
       {steps.map(([step, label]) => (
         <li
           aria-current={currentStep === step ? "step" : undefined}
-          className={`rounded-lg border px-2 py-3 text-center text-xs font-semibold sm:text-sm ${
+          className={`rounded-[8px] border px-2 py-3 text-center text-xs font-semibold sm:text-sm ${
             currentStep === step
               ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-dark)]"
               : currentStep > step
@@ -219,7 +219,7 @@ function NavigationButtons({
     <div className={`flex gap-3 ${showBack ? "justify-between" : "justify-end"}`}>
       {showBack ? (
         <button
-          className="min-h-12 rounded-xl border border-[var(--line-strong)] px-5 py-3 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--admin-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2"
+          className="min-h-12 rounded-[10px] border border-[var(--line-strong)] px-5 py-3 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--admin-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2"
           disabled={isSubmitting}
           onClick={onBack}
           type="button"
@@ -228,7 +228,7 @@ function NavigationButtons({
         </button>
       ) : null}
       <button
-        className="min-h-12 rounded-xl bg-[var(--brand-dark)] px-6 py-3 text-sm font-semibold text-[var(--paper)] transition hover:bg-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 disabled:opacity-60"
+        className="min-h-12 rounded-[10px] bg-[var(--sun)] px-6 py-3 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--sun-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)] focus-visible:ring-offset-2 disabled:opacity-60"
         disabled={isSubmitting}
         onClick={onNext}
         type="button"
@@ -277,7 +277,7 @@ export function CalculatorForm({
             </StepDescription>
           </div>
 
-          <div className="hidden rounded-xl border border-[var(--line)] bg-[var(--admin-panel)] p-4 text-sm leading-6 text-[var(--muted)] sm:block">
+          <div className="hidden rounded-[10px] border border-[var(--line)] bg-[var(--admin-panel)] p-4 text-sm leading-6 text-[var(--muted)] sm:block">
             Công cụ hiện chỉ dành cho <strong className="text-[var(--ink)]">điện sinh hoạt hộ gia đình</strong>. Bạn không cần chọn loại điện.
           </div>
 
@@ -313,14 +313,14 @@ export function CalculatorForm({
           </fieldset>
 
           {values.energyMethod === "invoice_ocr" ? (
-            <div className="rounded-xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-5">
+            <div className="rounded-[10px] border border-[var(--warning-line)] bg-[var(--warning-soft)] p-5">
               <p className="font-semibold text-[var(--warning-ink)]">Đọc hóa đơn tự động chưa sẵn sàng</p>
               <p className="mt-2 text-sm leading-6 text-[var(--warning-ink)]">
                 Hệ thống chưa có bộ OCR thật và bước để bạn xác nhận dữ liệu đọc được, nên chúng tôi không tải lên hoặc tự điền số liệu giả.
               </p>
               <button
                 aria-disabled="true"
-                className="mt-4 min-h-12 w-full cursor-not-allowed rounded-lg border border-dashed border-[var(--line-strong)] px-4 py-3 text-sm font-semibold text-[var(--muted)] opacity-70"
+                className="mt-4 min-h-12 w-full cursor-not-allowed rounded-[8px] border border-dashed border-[var(--line-strong)] px-4 py-3 text-sm font-semibold text-[var(--muted)] opacity-70"
                 disabled
                 type="button"
               >
@@ -328,14 +328,14 @@ export function CalculatorForm({
               </button>
               <div className="mt-4 flex flex-wrap gap-3">
                 <button
-                  className="min-h-11 rounded-lg bg-[var(--brand-dark)] px-4 py-2 text-sm font-semibold text-[var(--paper)]"
+                  className="min-h-11 rounded-[8px] bg-[var(--brand-dark)] px-4 py-2 text-sm font-semibold text-[var(--paper)]"
                   onClick={() => onEnergyMethodChange("kwh")}
                   type="button"
                 >
                   Chuyển sang nhập kWh
                 </button>
                 <button
-                  className="min-h-11 rounded-lg border border-[var(--line-strong)] px-4 py-2 text-sm font-semibold text-[var(--ink)]"
+                  className="min-h-11 rounded-[8px] border border-[var(--line-strong)] px-4 py-2 text-sm font-semibold text-[var(--ink)]"
                   onClick={() => onEnergyMethodChange("money")}
                   type="button"
                 >
@@ -365,7 +365,7 @@ export function CalculatorForm({
                 const periodErrorId = `energy-period-${index}-error`;
 
                 return (
-                  <div className="rounded-xl border border-[var(--line)] p-4" key={index}>
+                  <div className="rounded-[10px] border border-[var(--line)] p-4" key={index}>
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-semibold text-[var(--ink)]">Tháng {index + 1}</p>
                       {values.energyObservations.length > 1 ? (
@@ -461,7 +461,7 @@ export function CalculatorForm({
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <button
-                  className="min-h-11 rounded-lg border border-[var(--line-strong)] px-4 py-2 text-sm font-semibold text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-11 rounded-[8px] border border-[var(--line-strong)] px-4 py-2 text-sm font-semibold text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={isSubmitting || values.energyObservations.length >= 12}
                   onClick={onAddObservation}
                   type="button"
@@ -481,7 +481,7 @@ export function CalculatorForm({
               </div>
 
               {isMoneyMethod ? (
-                <fieldset className="rounded-xl border border-[var(--line-strong)] p-5">
+                <fieldset className="rounded-[10px] border border-[var(--line-strong)] p-5">
                   <legend className="px-1 text-sm font-semibold text-[var(--ink)]">
                     Hóa đơn này thuộc trường hợp nào?
                   </legend>
@@ -654,7 +654,7 @@ export function CalculatorForm({
                   ) : null}
 
                   {values.moneyBillingContext === "unknown" ? (
-                    <p className="mt-5 rounded-lg border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]">
+                    <p className="mt-5 rounded-[8px] border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]">
                       Kết quả sẽ hiển thị khoảng kWh rộng hơn. Nếu khoảng đó làm thay đổi gói phù hợp, hệ thống sẽ yêu cầu thêm kWh thay vì chọn một gói thiếu chắc chắn.
                     </p>
                   ) : null}
@@ -664,7 +664,7 @@ export function CalculatorForm({
           ) : null}
 
           {values.energyMethod === "money" ? (
-            <p className="rounded-lg border border-[var(--line)] bg-[var(--admin-panel)] p-4 text-sm leading-6 text-[var(--muted)]">
+            <p className="rounded-[8px] border border-[var(--line)] bg-[var(--admin-panel)] p-4 text-sm leading-6 text-[var(--muted)]">
               Hệ thống chọn biểu giá và VAT theo từng kỳ hóa đơn. Phiên bản, ngày hiệu lực và nguồn dữ liệu dùng cho phép tính sẽ được hiển thị trong kết quả.
             </p>
           ) : null}
@@ -831,7 +831,7 @@ export function CalculatorForm({
           ) : null}
 
           {values.roofKnown === "false" ? (
-            <p className="rounded-xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]">
+            <p className="rounded-[10px] border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]">
               Vẫn có thể xếp gói theo nhu cầu điện, nhưng kết quả sẽ không khẳng định mái đủ diện tích hoặc có thể thi công. Cần khảo sát để xác nhận.
             </p>
           ) : null}
@@ -862,7 +862,7 @@ export function CalculatorForm({
           </fieldset>
 
           {values.backupRequired === "true" ? (
-            <div className="rounded-xl border border-[var(--line)] p-4">
+            <div className="rounded-[10px] border border-[var(--line)] p-4">
               <h4 className="text-sm font-semibold text-[var(--ink)]">Khi mất điện, bạn muốn ưu tiên thiết bị nào?</h4>
               <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
                 Chọn các thiết bị cần dùng. Hệ thống sẽ tự ước tính công suất để đề xuất pin và inverter phù hợp.
@@ -876,7 +876,7 @@ export function CalculatorForm({
                   return (
                     <button
                       aria-pressed={isSelected}
-                      className={`rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] ${
+                      className={`rounded-[10px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] ${
                         isSelected
                           ? "border-[var(--brand)] bg-[var(--brand-soft)]"
                           : "border-[var(--line)] bg-[var(--paper)] hover:border-[var(--brand)]"
@@ -899,7 +899,7 @@ export function CalculatorForm({
                   return (
                     <button
                       aria-pressed={isSelected}
-                      className={`min-h-16 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] ${
+                      className={`min-h-16 rounded-[10px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] ${
                         isSelected
                           ? "border-[var(--brand)] bg-[var(--brand-soft)]"
                           : "border-[var(--line)] bg-[var(--paper)] hover:border-[var(--brand)]"
@@ -955,7 +955,7 @@ export function CalculatorForm({
                   ].map(([value, label]) => (
                     <button
                       aria-pressed={values.backupHours === value}
-                      className={`min-h-11 rounded-lg border px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] ${
+                      className={`min-h-11 rounded-[8px] border px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] ${
                         values.backupHours === value
                           ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-dark)]"
                           : "border-[var(--line)] text-[var(--muted)] hover:border-[var(--brand)]"
@@ -1029,7 +1029,7 @@ export function CalculatorForm({
             </div>
           ) : null}
 
-          <fieldset className="rounded-xl border border-[var(--line)] p-5">
+          <fieldset className="rounded-[10px] border border-[var(--line)] p-5">
             <legend className="px-1 text-sm font-semibold text-[var(--ink)]">
               1–2 năm tới bạn có định dùng thêm? <span className="font-normal text-[var(--muted)]">(không bắt buộc)</span>
             </legend>
@@ -1042,7 +1042,7 @@ export function CalculatorForm({
                 return (
                   <button
                     aria-pressed={isSelected}
-                    className={`min-h-16 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] ${
+                    className={`min-h-16 rounded-[10px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] ${
                       isSelected
                         ? "border-[var(--brand)] bg-[var(--brand-soft)]"
                         : "border-[var(--line)] bg-[var(--paper)] hover:border-[var(--brand)]"
@@ -1084,7 +1084,7 @@ export function CalculatorForm({
           </div>
 
           <div className="space-y-4">
-            <article className="rounded-xl border border-[var(--line)] p-5">
+            <article className="rounded-[10px] border border-[var(--line)] p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand)]">Mức dùng điện</p>
@@ -1103,7 +1103,7 @@ export function CalculatorForm({
                   </p>
                   <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Giả định loại điện: sinh hoạt hộ gia đình.</p>
                   {isMoneyMethod ? (
-                    <div className="mt-3 space-y-1 rounded-lg bg-[var(--admin-panel)] p-3 text-sm leading-6 text-[var(--ink)]">
+                    <div className="mt-3 space-y-1 rounded-[8px] bg-[var(--admin-panel)] p-3 text-sm leading-6 text-[var(--ink)]">
                       <p>
                         <strong>Kỳ hóa đơn:</strong>{" "}
                         {values.energyObservations.map((observation) => observation.period).join(", ")}
@@ -1119,7 +1119,7 @@ export function CalculatorForm({
               </div>
             </article>
 
-            <article className="rounded-xl border border-[var(--line)] p-5">
+            <article className="rounded-[10px] border border-[var(--line)] p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2 text-sm leading-6">
                   <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand)]">Ngôi nhà</p>
@@ -1161,14 +1161,14 @@ export function CalculatorForm({
           </div>
 
           {values.roofKnown === "false" ? (
-            <p className="rounded-xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]">
+            <p className="rounded-[10px] border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)]">
               Vì chưa có diện tích mái, kết quả chỉ xếp gói theo nhu cầu điện và không xác nhận khả năng lắp đặt.
             </p>
           ) : null}
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
             <button
-              className="min-h-12 rounded-xl border border-[var(--line-strong)] px-5 py-3 text-sm font-semibold text-[var(--ink)]"
+              className="min-h-12 rounded-[10px] border border-[var(--line-strong)] px-5 py-3 text-sm font-semibold text-[var(--ink)]"
               disabled={isSubmitting}
               onClick={onBack}
               type="button"
@@ -1176,7 +1176,7 @@ export function CalculatorForm({
               Quay lại
             </button>
             <button
-              className="group flex min-h-14 items-center justify-between rounded-xl bg-[var(--brand-dark)] px-6 py-4 text-left text-base font-semibold text-[var(--paper)] transition hover:bg-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-72"
+              className="group flex min-h-14 items-center justify-between rounded-[10px] bg-[var(--sun)] px-6 py-4 text-left text-base font-semibold text-[var(--ink)] transition hover:bg-[var(--sun-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-72"
               disabled={
                 isSubmitting ||
                 (values.energyMethod !== "kwh" && values.energyMethod !== "money")

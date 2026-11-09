@@ -43,7 +43,7 @@ export function MethodologyPanel({ result, selectedResult }: MethodologyPanelPro
   const surplusSale = selectedResult.surplusSale;
 
   return (
-    <details className="group rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] p-5 sm:p-6">
+    <details className="group rounded-[10px] border border-[var(--line-strong)] bg-[var(--paper)] p-5 sm:p-6">
       <summary className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-3">
         <span className="text-lg font-semibold text-[var(--ink)]">Chúng tôi tính như thế nào?</span>
         {status ? (

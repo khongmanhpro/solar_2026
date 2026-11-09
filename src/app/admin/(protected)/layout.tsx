@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AdminNav } from "@/components/admin/AdminNav";
+import { EvoSolarLogo } from "@/components/brand/EvoSolarLogo";
 import { requireAdminPage } from "@/server/admin-auth";
 
 export default async function ProtectedAdminLayout({
@@ -13,13 +14,10 @@ export default async function ProtectedAdminLayout({
       <aside className="admin-sidebar">
         <div>
           <Link className="inline-flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sun)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ink)]" href="/admin">
-            <span className="sun-mark" aria-hidden="true" />
-            <span className="font-display text-xl font-semibold text-[var(--paper)]">
-              Solar Ops
-            </span>
+            <EvoSolarLogo height={28} title="EvoSolar — Quản trị" variant="dark" />
           </Link>
           <p className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-[var(--line-strong)]">
-            Busbar điều hành
+            Quản trị
           </p>
         </div>
         <div className="admin-busbar" aria-hidden="true">

@@ -2,7 +2,7 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { SettingsManager } from "@/components/admin/SettingsManager";
 import { services } from "@/server/container";
 
-export const metadata = { title: "Cấu hình | Solar Admin" };
+export const metadata = { title: "Cấu hình · Quản trị" };
 
 export default async function AdminSettingsPage() {
   const [settings, provinces] = await Promise.all([

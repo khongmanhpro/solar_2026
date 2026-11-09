@@ -42,7 +42,7 @@ const INITIAL_VALUES: LeadFormValues = {
 };
 
 const fieldClassName =
-  "mt-2 min-h-12 w-full rounded-lg border border-[var(--line)] bg-[var(--paper)] px-4 py-3 text-base text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-dark)] focus:ring-offset-2 focus:ring-offset-[var(--paper)] disabled:cursor-not-allowed disabled:opacity-60";
+  "mt-2 min-h-12 w-full rounded-[8px] border border-[var(--line)] bg-[var(--paper)] px-4 py-3 text-base text-[var(--ink)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-dark)] focus:ring-offset-2 focus:ring-offset-[var(--paper)] disabled:cursor-not-allowed disabled:opacity-60";
 
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
@@ -163,7 +163,7 @@ export function LeadForm({
   const { zaloHref, phoneHref, hotlineLabel } = resolveContactChannels(settings);
 
   return (
-    <section aria-labelledby="survey-title" className="mt-14 overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] print:hidden">
+    <section aria-labelledby="survey-title" className="mt-14 overflow-hidden rounded-[10px] border border-[var(--line-strong)] bg-[var(--paper)] print:hidden">
       <div className="bg-[var(--ink)] p-6 sm:p-8 text-[var(--paper)]">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--focus)]">Phiếu khảo sát mái</p>
         <h3 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:text-3xl" id="survey-title">
@@ -205,7 +205,7 @@ export function LeadForm({
             <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--muted)]">
               Thông tin đã được gắn với kết quả tính toán này. Tư vấn viên sẽ dùng thời gian bạn chọn để sắp xếp liên hệ.
             </p>
-            <div className="mt-6 inline-block w-fit rounded-lg bg-[var(--brand-soft)] px-4 py-3 text-sm font-semibold text-[var(--brand-dark)]">
+            <div className="mt-6 inline-block w-fit rounded-[8px] bg-[var(--brand-soft)] px-4 py-3 text-sm font-semibold text-[var(--brand-dark)]">
               Mã yêu cầu: {leadId}
             </div>
           </div>
@@ -291,7 +291,7 @@ export function LeadForm({
                     ["anytime", "Bất kỳ lúc nào"],
                   ].map(([value, label]) => (
                     <label
-                      className="cursor-pointer rounded-lg border border-[var(--line)] bg-[var(--paper)] px-3 py-3 text-center text-sm font-semibold text-[var(--ink)] transition has-[:checked]:border-[var(--brand)] has-[:checked]:bg-[var(--brand-soft)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--brand-dark)] has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[var(--paper)]"
+                      className="cursor-pointer rounded-[8px] border border-[var(--line)] bg-[var(--paper)] px-3 py-3 text-center text-sm font-semibold text-[var(--ink)] transition has-[:checked]:border-[var(--brand)] has-[:checked]:bg-[var(--brand-soft)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--brand-dark)] has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[var(--paper)]"
                       key={value}
                     >
                       <input
@@ -336,13 +336,13 @@ export function LeadForm({
             </div>
 
             {serverError ? (
-              <div className="mt-5 rounded-lg border border-[var(--danger-line)] bg-[var(--danger-soft)] p-4 text-sm leading-6 text-[var(--danger)]" role="alert">
+              <div className="mt-5 rounded-[8px] border border-[var(--danger-line)] bg-[var(--danger-soft)] p-4 text-sm leading-6 text-[var(--danger)]" role="alert">
                 {serverError}
               </div>
             ) : null}
 
             <button
-              className="mt-6 flex min-h-14 w-full items-center justify-between rounded-xl bg-[var(--brand-dark)] px-6 py-4 text-left text-base font-semibold text-[var(--paper)] transition hover:bg-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)] disabled:cursor-wait disabled:opacity-70"
+              className="mt-6 flex min-h-14 w-full items-center justify-between rounded-[10px] bg-[var(--sun)] px-6 py-4 text-left text-base font-semibold text-[var(--ink)] transition hover:bg-[var(--sun-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)] disabled:cursor-wait disabled:opacity-70"
               disabled={isSubmitting}
               type="submit"
             >
@@ -362,7 +362,7 @@ export function LeadForm({
             <div className="mt-7 grid gap-3 border-t border-[var(--line)] pt-6 sm:grid-cols-2">
               {zaloHref ? (
                 <a
-                  className="flex min-h-12 items-center justify-between rounded-lg border border-[var(--line-strong)] px-4 py-3 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--brand)] hover:bg-[var(--brand-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)]"
+                  className="flex min-h-12 items-center justify-between rounded-[8px] border border-[var(--line-strong)] px-4 py-3 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--brand)] hover:bg-[var(--brand-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)]"
                   href={zaloHref}
                   rel="noopener noreferrer"
                   target="_blank"
@@ -374,7 +374,7 @@ export function LeadForm({
               ) : null}
               {phoneHref ? (
                 <a
-                  className="flex min-h-12 items-center justify-between rounded-lg border border-[var(--line-strong)] px-4 py-3 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--sun)] hover:bg-[var(--warning-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)]"
+                  className="flex min-h-12 items-center justify-between rounded-[8px] border border-[var(--line-strong)] px-4 py-3 text-sm font-semibold text-[var(--ink)] transition hover:border-[var(--sun)] hover:bg-[var(--warning-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)]"
                   href={phoneHref}
                   onClick={() => trackEvent("hotline_clicked", { packageId })}
                 >

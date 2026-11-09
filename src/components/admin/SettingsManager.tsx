@@ -176,7 +176,7 @@ export function SettingsManager({
 
   return (
     <div className="space-y-8">
-      {notice ? <p className="rounded-lg border border-[var(--line-strong)] bg-[var(--admin-panel)] p-3 text-sm" role="status">{notice}</p> : null}
+      {notice ? <p className="rounded-[8px] border border-[var(--line-strong)] bg-[var(--admin-panel)] p-3 text-sm" role="status">{notice}</p> : null}
 
       <section className="admin-panel overflow-hidden">
         <div className="border-b border-[var(--line)] bg-[var(--admin-panel)] p-5">

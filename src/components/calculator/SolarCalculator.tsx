@@ -725,7 +725,7 @@ export function SolarCalculator() {
   return (
     <section className="mt-6 sm:mt-12 lg:mt-16" aria-label="Công cụ tính toán điện mặt trời">
       {resourceState === "error" ? (
-        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[var(--danger-line)] bg-[var(--danger-soft)] p-4 text-sm text-[var(--danger)] sm:flex-row sm:items-center sm:justify-between" role="alert">
+        <div className="mb-5 flex flex-col gap-3 rounded-[10px] border border-[var(--danger-line)] bg-[var(--danger-soft)] p-4 text-sm text-[var(--danger)] sm:flex-row sm:items-center sm:justify-between" role="alert">
           <span>Chưa tải được danh sách khu vực và gói điện mặt trời.</span>
           <button
             className="min-h-11 w-fit font-bold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)]"
@@ -742,7 +742,7 @@ export function SolarCalculator() {
 
       {resourceState === "ready" && (trialCatalogVersion || referenceCatalogLoaded) ? (
         <aside
-          className="mb-5 rounded-2xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)] sm:p-5"
+          className="mb-5 rounded-[10px] border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm leading-6 text-[var(--warning-ink)] sm:p-5"
           role="note"
         >
           <p className="font-semibold sm:font-display sm:text-lg">
@@ -759,7 +759,7 @@ export function SolarCalculator() {
       ) : null}
 
       {resourceState === "ready" && (provinces.length === 0 || packages.length === 0) ? (
-        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm text-[var(--warning-ink)] sm:flex-row sm:items-center sm:justify-between" role="alert">
+        <div className="mb-5 flex flex-col gap-3 rounded-[10px] border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 text-sm text-[var(--warning-ink)] sm:flex-row sm:items-center sm:justify-between" role="alert">
           <span>
             Danh sách tỉnh/thành hoặc gói điện mặt trời chưa có dữ liệu. Hãy chạy{' '}
             <code className="rounded bg-[var(--paper)] px-1 py-0.5 font-mono text-xs">docker compose run --rm seed</code>{' '}
@@ -768,7 +768,7 @@ export function SolarCalculator() {
         </div>
       ) : null}
 
-      <div className="calculator-shell overflow-hidden rounded-2xl border border-[var(--line-strong)] bg-[var(--paper)] shadow-[0_20px_60px_var(--shadow)]">
+      <div className="calculator-shell overflow-hidden rounded-[10px] border border-[var(--line-strong)] bg-[var(--paper)] shadow-[0_20px_60px_var(--shadow)]">
         <div className="mx-auto max-w-4xl p-5 sm:p-10 lg:p-14">
           {/* The page hero already says this on mobile; keep it for screen readers. */}
           <div className="sr-only sm:not-sr-only sm:mb-8 sm:flex sm:items-start sm:justify-between sm:gap-4">
@@ -782,10 +782,10 @@ export function SolarCalculator() {
           </div>
 
           {result && hasChangesSinceResult ? (
-            <div className="mb-6 flex flex-col gap-3 rounded-xl border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 sm:flex-row sm:items-center sm:justify-between" role="status">
+            <div className="mb-6 flex flex-col gap-3 rounded-[10px] border border-[var(--warning-line)] bg-[var(--warning-soft)] p-4 sm:flex-row sm:items-center sm:justify-between" role="status">
               <p className="text-sm font-semibold text-[var(--warning-ink)]">Thông tin đã thay đổi — Cập nhật kết quả</p>
               <button
-                className="min-h-11 rounded-lg bg-[var(--brand-dark)] px-4 py-2 text-sm font-semibold text-[var(--paper)]"
+                className="min-h-11 rounded-[8px] bg-[var(--brand-dark)] px-4 py-2 text-sm font-semibold text-[var(--paper)]"
                 onClick={reviewUpdatedDraft}
                 type="button"
               >
@@ -797,7 +797,7 @@ export function SolarCalculator() {
           {resourceState === "loading" ? (
             <div aria-label="Đang tải biểu mẫu" className="space-y-5" role="status">
               {[1, 2, 3, 4].map((item) => (
-                <div className="h-20 animate-pulse rounded-xl bg-[var(--skeleton)]" key={item} />
+                <div className="h-20 animate-pulse rounded-[10px] bg-[var(--skeleton)]" key={item} />
               ))}
             </div>
           ) : resourceState === "ready" ? (
@@ -821,13 +821,13 @@ export function SolarCalculator() {
               onSubmit={handleSubmit}
             />
           ) : (
-            <div className="min-h-44 rounded-xl border border-dashed border-[var(--line-strong)] p-6 text-sm leading-6 text-[var(--muted)]">
+            <div className="min-h-44 rounded-[10px] border border-dashed border-[var(--line-strong)] p-6 text-sm leading-6 text-[var(--muted)]">
               Biểu mẫu sẽ xuất hiện sau khi dữ liệu được tải lại thành công.
             </div>
           )}
 
           {serverError ? (
-            <div className="mt-5 rounded-xl border border-[var(--danger-line)] bg-[var(--danger-soft)] p-4 text-sm leading-6 text-[var(--danger)]" role="alert">
+            <div className="mt-5 rounded-[10px] border border-[var(--danger-line)] bg-[var(--danger-soft)] p-4 text-sm leading-6 text-[var(--danger)]" role="alert">
               {serverError}
             </div>
           ) : null}

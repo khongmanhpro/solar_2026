@@ -100,7 +100,7 @@ export function PaymentOptions({ priceVnd, monthlySavingsVnd }: PaymentOptionsPr
         const copy = OPTION_COPY[option.id];
         const positive = option.netMonthlyDuringTermVnd >= 0;
         return (
-          <article className="flex flex-col rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-5" key={option.id}>
+          <article className="flex flex-col rounded-[10px] border border-[var(--line)] bg-[var(--paper)] p-5" key={option.id}>
             <h4 className="text-lg font-semibold text-[var(--ink)]">{copy.title}</h4>
             <dl className="mt-4 space-y-2 text-sm">
               <div className="flex justify-between gap-3">
@@ -119,8 +119,8 @@ export function PaymentOptions({ priceVnd, monthlySavingsVnd }: PaymentOptionsPr
               </div>
             </dl>
             <p
-              className={`mt-4 rounded-lg p-3 text-sm leading-6 ${
-                positive ? "bg-[var(--brand-soft)] text-[var(--brand-dark)]" : "bg-[var(--warning-soft)] text-[var(--warning-ink)]"
+              className={`mt-4 rounded-[8px] p-3 text-sm leading-6 ${
+                positive ? "bg-[var(--savings-soft)] text-[var(--savings)]" : "bg-[var(--warning-soft)] text-[var(--warning-ink)]"
               }`}
             >
               {option.termMonths === 0

@@ -30,7 +30,7 @@ export function PackageComparison({
 }: PackageComparisonProps) {
   if (results.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-[var(--line-strong)] p-6 text-sm leading-6 text-[var(--muted)]">
+      <div className="rounded-[10px] border border-dashed border-[var(--line-strong)] p-6 text-sm leading-6 text-[var(--muted)]">
         Chưa có gói đủ điều kiện để so sánh với dữ liệu hiện tại.
       </div>
     );
@@ -49,7 +49,7 @@ export function PackageComparison({
 
         return (
           <article
-            className={`relative flex flex-col rounded-2xl border bg-[var(--paper)] p-5 transition ${
+            className={`relative flex flex-col rounded-[10px] border bg-[var(--paper)] p-5 transition ${
               isRecommended
                 ? "border-[var(--success)] bg-[var(--brand-soft)]"
                 : isSelected
@@ -102,7 +102,7 @@ export function PackageComparison({
 
             <button
               aria-pressed={isSelected}
-              className={`mt-5 min-h-11 rounded-lg px-4 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)] ${
+              className={`mt-5 min-h-11 rounded-[8px] px-4 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-dark)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--paper)] ${
                 isSelected
                   ? "bg-[var(--brand-dark)] text-[var(--paper)] hover:bg-[var(--ink)]"
                   : "bg-[var(--ink)] text-[var(--paper)] hover:bg-[var(--brand-dark)]"

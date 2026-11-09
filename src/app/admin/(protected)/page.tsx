@@ -5,7 +5,7 @@ import { LEAD_STATUS_LABELS } from "@/config/admin";
 import { formatVnd } from "@/lib/formatters";
 import { services } from "@/server/container";
 
-export const metadata = { title: "Tổng quan quản trị | Solar" };
+export const metadata = { title: "Tổng quan quản trị" };
 
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "short",
@@ -99,7 +99,7 @@ export default async function AdminDashboardPage() {
               <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Giá điện, tỷ lệ sử dụng và hệ số sản lượng tỉnh.</p>
             </Link>
           </div>
-          <p className="mt-6 rounded-lg border border-[var(--line)] p-3 text-xs leading-5 text-[var(--muted)]">
+          <p className="mt-6 rounded-[8px] border border-[var(--line)] p-3 text-xs leading-5 text-[var(--muted)]">
             Mọi thay đổi đã lưu sẽ được dùng từ phép tính kế tiếp; các snapshot cũ vẫn giữ nguyên.
           </p>
         </article>

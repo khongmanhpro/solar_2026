@@ -29,7 +29,7 @@ export function CashFlowChart({ data, breakEvenYear }: CashFlowChartProps) {
   const horizonYears = data.at(-1)?.year ?? 0;
   if (data.length < 2) {
     return (
-      <div className="flex min-h-64 items-center justify-center rounded-2xl border border-dashed border-[var(--line-strong)] bg-[var(--paper)] p-8 text-center">
+      <div className="flex min-h-64 items-center justify-center rounded-[10px] border border-dashed border-[var(--line-strong)] bg-[var(--paper)] p-8 text-center">
         <div>
           <p className="text-xl font-semibold text-[var(--ink)]">
             Chưa có dữ liệu dòng tiền
@@ -51,7 +51,7 @@ export function CashFlowChart({ data, breakEvenYear }: CashFlowChartProps) {
     <figure>
       <div
         aria-label={`Biểu đồ dòng tiền tích lũy từ năm 0 đến năm ${horizonYears}`}
-        className="h-64 sm:h-80 w-full rounded-2xl border border-[var(--line)] bg-[var(--paper)] px-2 pb-2 pt-5 sm:px-4"
+        className="h-64 sm:h-80 w-full rounded-[10px] border border-[var(--line)] bg-[var(--paper)] px-2 pb-2 pt-5 sm:px-4"
         role="img"
       >
         <ResponsiveContainer height="100%" minWidth={0} width="100%">
