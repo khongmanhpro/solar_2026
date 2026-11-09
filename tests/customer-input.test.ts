@@ -443,10 +443,49 @@ describe("prepareCalculationInput", () => {
 
     expect(small.input.electricalPhase).toBe("single-phase");
     expect(large.input.electricalPhase).toBeNull();
+    // The 1-phase filter is provisional, never a customer-confirmed fact.
+    expect(small.input.electricalPhaseUnknown).toBe(true);
+    expect(large.input.electricalPhaseUnknown).toBe(true);
     for (const prepared of [small, large]) {
       expect(prepared.normalizedInput.quality).toBe("survey_required");
       expect(prepared.normalizedInput.warnings.join(" ")).toContain("1 pha hay 3 pha");
     }
+  });
+
+  it("pha chưa rõ: ngưỡng 3 pha tính cả thiết bị dự định mua", () => {
+    const parsed = calculationRequestSchema.parse({
+      schemaVersion: "2.2.0",
+      energy: { method: "kwh", observations: [{ period: "2026-09", valueKwh: 550 }] },
+      site: {
+        province: "ho-chi-minh",
+        daytimeBehavior: "some_daytime_use",
+        electricalPhase: "unknown",
+        plannedLoads: ["electric-car"],
+        roof: { known: true, areaM2: 60 },
+        backup: { required: false },
+      },
+    });
+    const prepared = prepareCalculationInput(parsed, "unused", { allowUnapprovedTariffData: true });
+
+    // 550 kWh measured + 180 kWh car = 730 kWh of future demand.
+    expect(prepared.input.electricalPhase).toBeNull();
+  });
+
+  it("pha đã chọn rõ không bị gắn cờ chưa rõ", () => {
+    const parsed = calculationRequestSchema.parse({
+      schemaVersion: "2.2.0",
+      energy: { method: "kwh", observations: [{ period: "2026-09", valueKwh: 450 }] },
+      site: {
+        province: "ho-chi-minh",
+        daytimeBehavior: "some_daytime_use",
+        electricalPhase: "single-phase",
+        roof: { known: true, areaM2: 60 },
+        backup: { required: false },
+      },
+    });
+    const prepared = prepareCalculationInput(parsed, "unused", { allowUnapprovedTariffData: true });
+
+    expect(prepared.input.electricalPhaseUnknown).toBe(false);
   });
 
   it("lấy trung bình kWh trực tiếp, lưu từng quan sát và gắn giả định điện sinh hoạt", () => {

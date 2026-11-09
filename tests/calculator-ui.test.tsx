@@ -719,6 +719,48 @@ describe("SolarCalculator", () => {
     ).toBe("tel:0901234567");
   });
 
+  it("nhãn phương án theo khoảng nói rõ cách đọc hóa đơn, không trùng nghĩa", () => {
+    const rangeResult = (billingContextKind: "unknown" | "known") =>
+      ({
+        calculationId: "calculation-range",
+        recommendedPackage: null,
+        comparedPackages: [],
+        inputSummary: {} as CalculationResponse["inputSummary"],
+        assumptions: calculationSettings,
+        normalizedInput: {
+          monthlyConsumptionKwh: { value: { lowerBound: 0, expected: 480, upperBound: 1400 } },
+          moneyConversions: [{ billingContextKind }],
+        },
+        recommendationStability: {
+          evaluated: true,
+          stable: false,
+          rangeOptions: [
+            {
+              bound: "expected",
+              monthlyConsumptionKwh: 480,
+              result: { packageId: solarPackage.id, monthlySavingsVnd: 900_000, paybackYears: 6 },
+            },
+            {
+              bound: "upperBound",
+              monthlyConsumptionKwh: 1400,
+              result: { packageId: alternativePackage.id, monthlySavingsVnd: 2_000_000, paybackYears: 5 },
+            },
+          ],
+        },
+      }) as unknown as CalculationResponse;
+    const packages = [solarPackage, alternativePackage] as never;
+
+    render(<CalculationPreview isSubmitting={false} packages={packages} result={rangeResult("unknown")} />);
+    expect(screen.getByText(/Nếu là hóa đơn một hộ bình thường/)).toBeTruthy();
+    expect(screen.getByText(/Nếu hóa đơn gộp nhiều hộ/)).toBeTruthy();
+    expect(screen.queryByText(/chủ yếu là tiền điện và VAT/)).toBeNull();
+
+    cleanup();
+    render(<CalculationPreview isSubmitting={false} packages={packages} result={rangeResult("known")} />);
+    expect(screen.getByText(/Mức dùng ước tính/)).toBeTruthy();
+    expect(screen.getByText(/Mức dùng cao nhất có thể/)).toBeTruthy();
+  });
+
   it("hiển thị lỗi lead tại đúng trường trước khi gọi API", async () => {
     const user = userEvent.setup();
     render(

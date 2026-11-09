@@ -612,6 +612,22 @@ function isElectricalPhaseUnknown(request: CustomerCalculationRequest): boolean 
   );
 }
 
+/**
+ * Package filter for a customer who does not know their phase, judged on the
+ * demand the system must serve (measured use plus planned appliances).
+ */
+export function phaseFilterForUnknownPhase(
+  demandKwh: number,
+): SolarCalculationInput["electricalPhase"] {
+  return demandKwh >= UNKNOWN_PHASE_THREE_PHASE_MIN_KWH ? null : "single-phase";
+}
+
+export function plannedLoadsMonthlyKwh(
+  plannedLoads: SolarCalculationInput["plannedLoads"],
+): number {
+  return (plannedLoads ?? []).reduce((sum, load) => sum + load.monthlyKwh, 0);
+}
+
 function selectedElectricalPhase(
   request: CustomerCalculationRequest,
   monthlyConsumptionKwh: number,
@@ -619,7 +635,9 @@ function selectedElectricalPhase(
   if (request.schemaVersion !== CUSTOMER_CALCULATION_REQUEST_SCHEMA_VERSION) return null;
   const phase = request.site.electricalPhase;
   if (phase !== "unknown") return phase;
-  return monthlyConsumptionKwh >= UNKNOWN_PHASE_THREE_PHASE_MIN_KWH ? null : "single-phase";
+  return phaseFilterForUnknownPhase(
+    monthlyConsumptionKwh + plannedLoadsMonthlyKwh(selectedPlannedLoads(request)),
+  );
 }
 
 function electricalPhaseWarnings(request: CustomerCalculationRequest): string[] {
@@ -641,7 +659,7 @@ function selectedPlannedLoads(
 function plannedLoadWarnings(request: CustomerCalculationRequest): string[] {
   const planned = selectedPlannedLoads(request);
   if (planned.length === 0) return [];
-  const total = planned.reduce((sum, load) => sum + load.monthlyKwh, 0);
+  const total = plannedLoadsMonthlyKwh(planned);
   return [
     `Phương án đã cộng thêm khoảng ${Math.round(total)} kWh/tháng cho thiết bị bạn dự định mua; đây là ước tính, không phải số đo trên hóa đơn.`,
   ];
@@ -1044,6 +1062,7 @@ function prepareMoneyCalculationInput(
     vatRate: projectionConversion.vatRate,
     electricityType: "residential",
     electricalPhase: selectedElectricalPhase(request, consumptionEstimate.expected),
+    electricalPhaseUnknown: isElectricalPhaseUnknown(request),
     plannedLoads: selectedPlannedLoads(request),
     province: request.site.province,
     daytimeUsageLevel:
@@ -1297,6 +1316,7 @@ export function prepareCalculationInput(
     vatRate: selectCurrentVatRate(options.allowUnapprovedTariffData === true),
     electricityType: "residential",
     electricalPhase: selectedElectricalPhase(request, monthlyConsumptionKwh),
+    electricalPhaseUnknown: isElectricalPhaseUnknown(request),
     plannedLoads: selectedPlannedLoads(request),
     province: request.site.province,
     daytimeUsageLevel:

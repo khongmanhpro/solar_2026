@@ -136,7 +136,7 @@ export function calculateLifetimeFinance(
     if (current < 0) {
       paybackYears = null;
       breakEvenYear = null;
-    } else if (previous < 0 && flow > 0) {
+    } else if (previous < 0) {
       paybackYears = year - 1 + -previous / flow;
       breakEvenYear = year;
     }

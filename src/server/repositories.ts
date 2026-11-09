@@ -506,9 +506,12 @@ export class CalculationRepository {
           prismaElectricityTypeByDomain[
             normalizedInput.electricityType.value
           ],
-        electricalPhase: input.electricalPhase
-          ? prismaElectricalPhaseByDomain[input.electricalPhase]
-          : null,
+        // A provisional filter for an "unknown" answer is not the site's
+        // phase; store null so the survey checks the meter.
+        electricalPhase:
+          input.electricalPhase && !input.electricalPhaseUnknown
+            ? prismaElectricalPhaseByDomain[input.electricalPhase]
+            : null,
         province: siteInput.province.value,
         daytimeUsageLevel:
           prismaDaytimeLevelByDomain[siteInput.daytimeUsageLevel.value],

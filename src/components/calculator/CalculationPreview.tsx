@@ -44,19 +44,36 @@ const NO_RECOMMENDATION_COPY: Record<
   },
 };
 
-const RANGE_OPTION_LABELS: Record<RecommendationRangeOption["bound"], string> = {
-  lowerBound: "Nếu mức dùng ở cận thấp",
+type RangeLabels = Record<RecommendationRangeOption["bound"], string>;
+
+// With an unknown bill make-up each bound is a different reading of the same
+// bill, so name the reading; otherwise the bounds are plain kWh uncertainty.
+const UNKNOWN_CONTEXT_RANGE_LABELS: RangeLabels = {
+  lowerBound: "Nếu hóa đơn có nhiều khoản ngoài tiền điện",
   expected: "Nếu là hóa đơn một hộ bình thường",
-  upperBound: "Nếu hóa đơn chủ yếu là tiền điện và VAT",
+  upperBound: "Nếu hóa đơn gộp nhiều hộ / công tơ chung",
 };
+
+const DEFAULT_RANGE_LABELS: RangeLabels = {
+  lowerBound: "Mức dùng thấp nhất có thể",
+  expected: "Mức dùng ước tính",
+  upperBound: "Mức dùng cao nhất có thể",
+};
+
+function rangeOptionLabels(unknownBillMakeUp: boolean): RangeLabels {
+  return unknownBillMakeUp ? UNKNOWN_CONTEXT_RANGE_LABELS : DEFAULT_RANGE_LABELS;
+}
 
 function RangeOptions({
   options,
   packages,
+  unknownBillMakeUp,
 }: {
   options: RecommendationRangeOption[];
   packages: SolarPackage[];
+  unknownBillMakeUp: boolean;
 }) {
+  const labels = rangeOptionLabels(unknownBillMakeUp);
   const packageById = new Map(packages.map((item) => [item.id, item]));
   const rows = options.flatMap((option) => {
     const solarPackage = packageById.get(option.result.packageId);
@@ -79,7 +96,7 @@ function RangeOptions({
             key={option.result.packageId}
           >
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
-              {RANGE_OPTION_LABELS[option.bound]} · {formatKwh(option.monthlyConsumptionKwh)}/tháng
+              {labels[option.bound]} · {formatKwh(option.monthlyConsumptionKwh)}/tháng
             </p>
             <p className="mt-2 text-xl font-semibold leading-snug text-[var(--ink)]">
               {formatCustomerPackageName(solarPackage.name)}
@@ -175,6 +192,11 @@ export function CalculationPreview({
           <RangeOptions
             options={rangeOptions}
             packages={result.sourceSnapshot?.packages ?? packages}
+            unknownBillMakeUp={
+              result.normalizedInput?.moneyConversions?.some(
+                (conversion) => conversion.billingContextKind === "unknown",
+              ) === true
+            }
           />
         ) : null}
 

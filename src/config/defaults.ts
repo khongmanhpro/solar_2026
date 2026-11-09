@@ -56,7 +56,7 @@ export const CALCULATION_CONSTANTS = {
   /** Billing month normalised to 30 days; PV intensity uses real month days. */
   daysPerMonth: 30,
   daysInMonth: [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
-  /** Fallback horizon when settings are unavailable (legacy helpers). */
+  /** Year marks at which cumulative savings are reported (5, 10, 20 years). */
   longTermSavingYears: [5, 10, 20],
   roofConstraintInsightThreshold: 0.8,
   /**

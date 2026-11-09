@@ -61,7 +61,11 @@ export interface SolarCalculationInput {
   /** Future appliances added on top of measured consumption (engine 3.1+). */
   plannedLoads?: { id: string; monthlyKwh: number; daytimeShare: number }[];
   electricityType: ElectricityType;
+  /** Package filter for the engine; null = consider both phases. */
   electricalPhase: ElectricalPhase | null;
+  /** Customer answered "unknown": `electricalPhase` is a provisional filter,
+   * not a confirmed fact, and must not be stored or shown as one. */
+  electricalPhaseUnknown?: boolean;
   province: string;
   daytimeUsageLevel: DaytimeUsageLevel;
   roofAreaM2: number | null;

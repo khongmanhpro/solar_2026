@@ -14,7 +14,11 @@ import {
   createCalculationVersionMetadata,
   getCurrentResidentialTariffVersion,
 } from "@/lib/calculation-snapshot";
-import { prepareCalculationInput } from "@/lib/customer-input";
+import {
+  phaseFilterForUnknownPhase,
+  plannedLoadsMonthlyKwh,
+  prepareCalculationInput,
+} from "@/lib/customer-input";
 import {
   shouldRequireVerifiedCalculationData,
 } from "@/lib/data-readiness";
@@ -44,13 +48,22 @@ function inputAtConsumptionBound(
 ): SolarCalculationInput {
   const energyCharge =
     normalizedInput.bill?.energyChargeBeforeVatEstimateVnd?.value[bound];
+  const monthlyConsumptionKwh = normalizedInput.monthlyConsumptionKwh.value[bound];
 
   return {
     ...input,
-    monthlyConsumptionKwh:
-      normalizedInput.monthlyConsumptionKwh.value[bound],
+    monthlyConsumptionKwh,
     monthlyBill:
       energyCharge === undefined ? input.monthlyBill : Math.round(energyCharge),
+    // An unknown phase was filtered on the expected point; each bound needs
+    // its own decision or the upper bound stays locked to 1-phase packages.
+    ...(input.electricalPhaseUnknown
+      ? {
+          electricalPhase: phaseFilterForUnknownPhase(
+            monthlyConsumptionKwh + plannedLoadsMonthlyKwh(input.plannedLoads),
+          ),
+        }
+      : {}),
   };
 }
 
@@ -145,6 +158,8 @@ function attachMoneyRecommendationStability(params: {
       upperConsumptionPackageId: upperId,
       reason: stable
         ? "Cùng một gói đứng đầu tại cả hai biên và điểm giữa của khoảng kWh."
+        : expectedId === null && rangeOptions.length > 0
+          ? "Ở mức tiêu thụ ước tính chưa có gói phù hợp; xem phương án theo từng mức dùng bên dưới."
         : expectedId === null && allConversionsExact
           ? "Không có gói phù hợp tại mức tiêu thụ ước tính."
           : allConversionsExact

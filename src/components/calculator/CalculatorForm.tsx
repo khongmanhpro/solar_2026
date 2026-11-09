@@ -147,7 +147,7 @@ function electricalPhaseLabel(
     : value === "three-phase"
       ? "Điện 3 pha"
       : value === "unknown"
-        ? "Chưa rõ — tạm tính theo điện 1 pha (phổ biến nhất), kỹ sư kiểm tra khi khảo sát"
+        ? "Chưa rõ — kỹ sư kiểm tra công tơ khi khảo sát (dưới ~700 kWh/tháng tạm tính theo điện 1 pha)"
         : "Chưa chọn";
 }
 

@@ -341,13 +341,23 @@ export function createCalculationSourceSnapshot({
       },
       ...(input.electricalPhase
         ? {
-            electricalPhase: {
-              value: input.electricalPhase,
-              origin: "customer" as const,
-              confidence: "high" as const,
-              customerConfirmed: true,
-              reasons: ["Khách hàng đã chọn loại điện tại công trình."],
-            },
+            electricalPhase: input.electricalPhaseUnknown
+              ? {
+                  value: input.electricalPhase,
+                  origin: "derived" as const,
+                  confidence: "low" as const,
+                  customerConfirmed: false,
+                  reasons: [
+                    "Khách chưa rõ điện 1 pha hay 3 pha; tạm lọc gói theo điện 1 pha vì mức dùng dưới ngưỡng 3 pha. Kỹ sư kiểm tra công tơ khi khảo sát.",
+                  ],
+                }
+              : {
+                  value: input.electricalPhase,
+                  origin: "customer" as const,
+                  confidence: "high" as const,
+                  customerConfirmed: true,
+                  reasons: ["Khách hàng đã chọn loại điện tại công trình."],
+                },
           }
         : {}),
       roofAreaM2: {

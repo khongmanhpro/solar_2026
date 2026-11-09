@@ -220,6 +220,64 @@ describe("service integration", () => {
     });
   });
 
+  it("pha chưa rõ: không lưu 1 pha như khách xác nhận", async () => {
+    const result = await services.calculations.create({
+      ...validCustomerCalculationInput,
+      schemaVersion: "2.2.0",
+      energy: { method: "kwh", observations: [{ period: "2026-09", valueKwh: 450 }] },
+      site: {
+        ...validCustomerCalculationInput.site,
+        electricalPhase: "unknown",
+      },
+    });
+    const stored = await prisma.calculation.findUnique({
+      where: { id: result.calculationId },
+    });
+
+    expect(stored?.electricalPhase).toBeNull();
+    expect(result.sourceSnapshot.siteInput.electricalPhase).toMatchObject({
+      value: "single-phase",
+      origin: "derived",
+      confidence: "low",
+      customerConfirmed: false,
+    });
+  });
+
+  it("pha chưa rõ + hóa đơn chưa rõ: biên trên cao được xét cả gói 3 pha", async () => {
+    // Only 3-phase packages on sale: the 1-phase filter of the expected point
+    // finds nothing, so any option must come from a bound re-judging phase.
+    await prisma.solarPackage.updateMany({
+      data: { electricalPhase: PrismaElectricalPhase.THREE_PHASE },
+    });
+    const result = await services.calculations.create({
+      ...validCustomerCalculationInput,
+      schemaVersion: "2.2.0",
+      energy: {
+        method: "money",
+        amountBasis: "total_payment",
+        billingContext: { kind: "unknown" },
+        observations: [{ period: "2026-06", totalPaymentVnd: 1_500_000 }],
+      },
+      site: {
+        ...validCustomerCalculationInput.site,
+        electricalPhase: "unknown",
+      },
+    });
+    const consumption = result.normalizedInput.monthlyConsumptionKwh.value;
+    expect(consumption.expected).toBeLessThan(700);
+    expect(consumption.upperBound).toBeGreaterThanOrEqual(700);
+
+    const upper = result.recommendationStability?.rangeOptions?.find(
+      (option) => option.bound === "upperBound",
+    );
+    expect(upper).toBeDefined();
+    expect(result.recommendationStability?.expectedConsumptionPackageId).toBeNull();
+    // With an option card on screen the reason must not say "no package".
+    expect(result.recommendationStability?.reason).toContain(
+      "xem phương án theo từng mức dùng",
+    );
+  });
+
   it("chỉ dùng catalog trial trong development khi bật cờ", async () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("TRIAL_MARKET_DATA_ENABLED", "true");
