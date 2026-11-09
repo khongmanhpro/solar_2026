@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatDecimalForDisplay,
   formatMoneyInput,
   normalizeDecimalInput,
   normalizeMoneyInput,
@@ -33,7 +34,18 @@ describe("Vietnamese number input", () => {
     ["1.200.000", "1200000"],
     ["12,5 m²", "12.5"],
     [" 40 ", "40"],
+    ["1.200,5", "1200.5"],
+    ["1,200.5", "1200.5"],
+    ["12,500", "12.5"],
+    ["1,500", "1.5"],
+    ["1,200,000", "1200000"],
   ])("decimal %s -> %s", (raw, expected) => {
-    expect(normalizeDecimalInput(raw)).toBe(expected);
+    expect(Number(normalizeDecimalInput(raw))).toBe(Number(expected));
+  });
+
+  it("echoes normalised decimals in Vietnamese format", () => {
+    expect(formatDecimalForDisplay("1200.5")).toBe("1.200,5");
+    expect(formatDecimalForDisplay("12.5")).toBe("12,5");
+    expect(formatDecimalForDisplay("")).toBe("");
   });
 });

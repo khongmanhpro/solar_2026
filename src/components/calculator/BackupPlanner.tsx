@@ -22,6 +22,8 @@ interface BackupPlannerProps {
 const DEFAULT_DEVICES: BackupDeviceId[] = ["refrigerator", "lights", "wifi-camera", "fans"];
 const hoursFormatter = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 });
 
+const SAME_PV_TOLERANCE_KWP = 0.1;
+
 function formatHours(hours: number | null): string {
   if (hours === null) return "—";
   if (hours >= 48) return "trên 2 ngày";
@@ -41,7 +43,16 @@ export function BackupPlanner({
   const [deviceIds, setDeviceIds] = useState<BackupDeviceId[]>(DEFAULT_DEVICES);
   const hasBattery = selectedPackage.batteryCapacityKwh > 0;
   const hybridAlternative = alternatives.find((item) => item.solarPackage.batteryCapacityKwh > 0);
-  const gridAlternative = alternatives.find((item) => item.solarPackage.batteryCapacityKwh === 0);
+  // The "battery value" comparison is only honest between packages with the
+  // same PV array; otherwise the gap includes extra panels, not just the battery.
+  const samePvArray = (item: (typeof alternatives)[number]) =>
+    Math.abs(item.solarPackage.capacityKwp - selectedPackage.capacityKwp) <= SAME_PV_TOLERANCE_KWP;
+  const gridAlternative = alternatives.find(
+    (item) => item.solarPackage.batteryCapacityKwh === 0 && samePvArray(item),
+  );
+  const hybridSamePv = alternatives.find(
+    (item) => item.solarPackage.batteryCapacityKwh > 0 && samePvArray(item),
+  );
   const batteryPackage = hasBattery ? selectedPackage : hybridAlternative?.solarPackage ?? null;
   const loadWatts = calculateBackupDeviceWatts(deviceIds);
   const estimate = batteryPackage
@@ -54,9 +65,9 @@ export function BackupPlanner({
           { priceVnd: selectedPackage.priceVnd, monthlySavingsVnd: selectedResult.monthlySavingsVnd },
           { priceVnd: gridAlternative.solarPackage.priceVnd, monthlySavingsVnd: gridAlternative.result.monthlySavingsVnd },
         )
-      : !hasBattery && hybridAlternative
+      : !hasBattery && hybridSamePv
         ? batteryUpgradeValue(
-            { priceVnd: hybridAlternative.solarPackage.priceVnd, monthlySavingsVnd: hybridAlternative.result.monthlySavingsVnd },
+            { priceVnd: hybridSamePv.solarPackage.priceVnd, monthlySavingsVnd: hybridSamePv.result.monthlySavingsVnd },
             { priceVnd: selectedPackage.priceVnd, monthlySavingsVnd: selectedResult.monthlySavingsVnd },
           )
         : null;

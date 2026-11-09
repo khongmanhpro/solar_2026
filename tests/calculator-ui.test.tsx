@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SolarCalculator } from "@/components/calculator/SolarCalculator";
 import { CalculationPreview } from "@/components/calculator/CalculationPreview";
+import { BackupPlanner } from "@/components/calculator/BackupPlanner";
 import { CashFlowChart } from "@/components/calculator/CashFlowChart";
 import { LeadForm } from "@/components/calculator/LeadForm";
 import type { CalculationResponse } from "@/types/solar";
@@ -293,6 +294,22 @@ describe("SolarCalculator", () => {
     expect(screen.getByText("Vui lòng chọn thói quen sử dụng điện ban ngày.")).toBeTruthy();
     expect(screen.getByText("Vui lòng chọn có biết diện tích mái hay không.")).toBeTruthy();
     expect(screen.getByText("Vui lòng chọn nhu cầu điện dự phòng.")).toBeTruthy();
+  });
+
+  it("đọc số kWh theo quy ước Việt Nam khi gõ từng phím và hiện lại cách hiểu", async () => {
+    const user = userEvent.setup();
+    render(<SolarCalculator />);
+
+    await user.click(await screen.findByRole("radio", { name: /Nhập số điện/ }));
+    const input = screen.getByLabelText("Số điện trên hóa đơn") as HTMLInputElement;
+
+    await user.type(input, "12,500");
+    expect(input.value).toBe("12,500");
+    expect(screen.getByText("Đã hiểu: 12,5 kWh")).toBeTruthy();
+
+    await user.clear(input);
+    await user.type(input, "1.200,5");
+    expect(screen.getByText("Đã hiểu: 1.200,5 kWh")).toBeTruthy();
   });
 
   it("yêu cầu chọn pha điện và focus radio pha đầu tiên", async () => {
@@ -749,5 +766,42 @@ describe("SolarCalculator", () => {
     expect(
       screen.getByRole("button", { name: "Đăng ký khảo sát công trình" }),
     ).toBeTruthy();
+  });
+});
+
+describe("BackupPlanner", () => {
+  afterEach(() => cleanup());
+
+  const hybridPackage = {
+    ...solarPackage,
+    id: "package-hybrid-3",
+    systemType: "hybrid",
+    batteryCapacityKwh: 10,
+    priceVnd: 90_000_000,
+  };
+  const hybridResult = { ...recommendation, packageId: hybridPackage.id, monthlySavingsVnd: 1_100_000 };
+
+  it("chỉ tính giá trị pin khi so với gói hòa lưới cùng công suất tấm pin", () => {
+    const { unmount } = render(
+      <BackupPlanner
+        alternatives={[{ solarPackage: alternativePackage, result: alternativeResult } as never]}
+        onSelectPackage={() => {}}
+        selectedPackage={hybridPackage as never}
+        selectedResult={hybridResult as never}
+      />,
+    );
+    // 2 kWp grid-tied vs 3 kWp hybrid: the gap is not the battery's cost.
+    expect(screen.queryByText("Chi phí thêm cho pin")).toBeNull();
+    unmount();
+
+    render(
+      <BackupPlanner
+        alternatives={[{ solarPackage, result: recommendation } as never]}
+        onSelectPackage={() => {}}
+        selectedPackage={hybridPackage as never}
+        selectedResult={hybridResult as never}
+      />,
+    );
+    expect(screen.getByText("Chi phí thêm cho pin")).toBeTruthy();
   });
 });

@@ -1,5 +1,6 @@
 import type { FormEvent } from "react";
 
+import { DecimalInput } from "./DecimalInput";
 import {
   BACKUP_DEVICE_OPTIONS,
   BACKUP_DEVICE_PRESETS,
@@ -11,7 +12,6 @@ import {
 import { PLANNED_LOAD_OPTIONS, type PlannedLoadId } from "@/config/planned-loads";
 import {
   formatMoneyInput,
-  normalizeDecimalInput,
   normalizeMoneyInput,
 } from "@/lib/number-input";
 import { formatVnd } from "@/lib/formatters";
@@ -408,37 +408,49 @@ export function CalculatorForm({
                         <label className="text-sm font-semibold text-[var(--ink)]" htmlFor={`energy-value-${index}`}>
                           {values.energyMethod === "kwh" ? "Số điện trên hóa đơn" : "Tổng tiền đã thanh toán"}
                         </label>
-                        <div className="relative">
-                          <input
+                        {values.energyMethod === "kwh" ? (
+                          <DecimalInput
                             aria-describedby={errors[valueName] ? valueErrorId : undefined}
                             aria-invalid={Boolean(errors[valueName])}
+                            autoComplete="off"
                             className={`${fieldClassName} pr-20`}
                             disabled={isSubmitting}
+                            echoId={`energy-value-${index}-echo`}
                             id={`energy-value-${index}`}
-                            autoComplete="off"
-                            inputMode={values.energyMethod === "kwh" ? "decimal" : "numeric"}
                             name={valueName}
-                            onChange={(event) =>
-                              onObservationChange(
-                                index,
-                                "value",
-                                values.energyMethod === "kwh"
-                                  ? normalizeDecimalInput(event.target.value)
-                                  : normalizeMoneyInput(event.target.value),
-                              )
+                            onValueChange={(normalized) => onObservationChange(index, "value", normalized)}
+                            placeholder="Ví dụ: 450"
+                            suffix={
+                              <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-[var(--muted)]">
+                                kWh
+                              </span>
                             }
-                            placeholder={values.energyMethod === "kwh" ? "Ví dụ: 450" : "Ví dụ: 1.500.000"}
-                            type="text"
-                            value={
-                              values.energyMethod === "kwh"
-                                ? observation.value
-                                : formatMoneyInput(observation.value)
-                            }
+                            unit="kWh"
+                            value={observation.value}
                           />
-                          <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-[var(--muted)]">
-                            {values.energyMethod === "kwh" ? "kWh" : "VNĐ"}
-                          </span>
-                        </div>
+                        ) : (
+                          <div className="relative">
+                            <input
+                              aria-describedby={errors[valueName] ? valueErrorId : undefined}
+                              aria-invalid={Boolean(errors[valueName])}
+                              className={`${fieldClassName} pr-20`}
+                              disabled={isSubmitting}
+                              id={`energy-value-${index}`}
+                              autoComplete="off"
+                              inputMode="numeric"
+                              name={valueName}
+                              onChange={(event) =>
+                                onObservationChange(index, "value", normalizeMoneyInput(event.target.value))
+                              }
+                              placeholder="Ví dụ: 1.500.000"
+                              type="text"
+                              value={formatMoneyInput(observation.value)}
+                            />
+                            <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-[var(--muted)]">
+                              VNĐ
+                            </span>
+                          </div>
+                        )}
                         <FieldError id={valueErrorId} message={errors[valueName]} />
                       </div>
                     </div>
@@ -792,23 +804,24 @@ export function CalculatorForm({
               <label className="text-sm font-semibold text-[var(--ink)]" htmlFor="roofAreaM2">
                 Diện tích mái có thể lắp
               </label>
-              <div className="relative max-w-md">
-                <input
-                  aria-describedby={errors.roofAreaM2 ? "roofAreaM2-error roofAreaM2-help" : "roofAreaM2-help"}
-                  aria-invalid={Boolean(errors.roofAreaM2)}
-                  className={`${fieldClassName} pr-16`}
-                  disabled={isSubmitting}
-                  id="roofAreaM2"
-                  autoComplete="off"
-                  inputMode="decimal"
-                  name="roofAreaM2"
-                  onChange={(event) => onChange("roofAreaM2", normalizeDecimalInput(event.target.value))}
-                  placeholder="Ví dụ: 30"
-                  type="text"
-                  value={values.roofAreaM2}
-                />
-                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-[var(--muted)]">m²</span>
-              </div>
+              <DecimalInput
+                aria-describedby={errors.roofAreaM2 ? "roofAreaM2-error roofAreaM2-help" : "roofAreaM2-help"}
+                aria-invalid={Boolean(errors.roofAreaM2)}
+                autoComplete="off"
+                className={`${fieldClassName} pr-16`}
+                disabled={isSubmitting}
+                echoId="roofAreaM2-echo"
+                id="roofAreaM2"
+                name="roofAreaM2"
+                onValueChange={(normalized) => onChange("roofAreaM2", normalized)}
+                placeholder="Ví dụ: 30"
+                suffix={
+                  <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-[var(--muted)]">m²</span>
+                }
+                unit="m²"
+                value={values.roofAreaM2}
+                wrapperClassName="relative max-w-md"
+              />
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]" id="roofAreaM2-help">
                 Chỉ tính phần mái ít bị che bóng và có thể thi công.
               </p>

@@ -52,10 +52,12 @@ function NumberField({
           id={id}
           aria-describedby={`${id}-range`}
           inputMode="decimal"
-          onChange={(event) => setDraft(normalizeDecimalInput(event.target.value))}
+          onChange={(event) => setDraft(event.target.value)}
           onBlur={() => {
-            const next = Number(draft);
-            const clamped = Number.isFinite(next) && draft !== "" ? Math.min(max, Math.max(min, next)) : value;
+            const normalized = normalizeDecimalInput(draft);
+            const next = Number(normalized);
+            const clamped =
+              Number.isFinite(next) && normalized !== "" ? Math.min(max, Math.max(min, next)) : value;
             onChange(clamped);
             setDraft(String(clamped));
           }}
