@@ -93,7 +93,8 @@ export interface CalculationSourceSnapshot<TPackage, TSettings, TProvince> {
     province: ProvenancedValue<string>;
     daytimeUsageLevel: ProvenancedValue<"low" | "medium" | "high">;
     /** Omitted for legacy contracts that did not collect electrical phase. */
-    electricalPhase?: ProvenancedValue<ElectricalPhase>;
+    /** null = customer answered "unknown" and demand keeps both phases open. */
+    electricalPhase?: ProvenancedValue<ElectricalPhase | null>;
     roofAreaM2: ProvenancedValue<number | null>;
     backupRequired: ProvenancedValue<boolean>;
     essentialLoadWatts: ProvenancedValue<number | null>;

@@ -339,7 +339,7 @@ export function createCalculationSourceSnapshot({
             : "Mức sử dụng ban ngày là tự khai báo theo ba lựa chọn của luồng cũ.",
         ],
       },
-      ...(input.electricalPhase
+      ...(input.electricalPhase || input.electricalPhaseUnknown
         ? {
             electricalPhase: input.electricalPhaseUnknown
               ? {
@@ -347,8 +347,11 @@ export function createCalculationSourceSnapshot({
                   origin: "derived" as const,
                   confidence: "low" as const,
                   customerConfirmed: false,
+                  derivedFrom: ["site.electricalPhase", "site.plannedLoads"],
                   reasons: [
-                    "Khách chưa rõ điện 1 pha hay 3 pha; tạm lọc gói theo điện 1 pha vì mức dùng dưới ngưỡng 3 pha. Kỹ sư kiểm tra công tơ khi khảo sát.",
+                    input.electricalPhase
+                      ? "Khách chưa rõ điện 1 pha hay 3 pha; tạm lọc gói theo điện 1 pha vì nhu cầu (kể cả thiết bị dự định mua) dưới ngưỡng 3 pha. Kỹ sư kiểm tra công tơ khi khảo sát."
+                      : "Khách chưa rõ điện 1 pha hay 3 pha; nhu cầu đủ lớn nên xét cả gói 1 pha và 3 pha. Kỹ sư kiểm tra công tơ khi khảo sát.",
                   ],
                 }
               : {

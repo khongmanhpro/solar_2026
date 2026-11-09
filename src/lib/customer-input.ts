@@ -46,6 +46,7 @@ import {
   selectVatRule,
   TariffSelectionError,
 } from "@/lib/tariff-selection";
+import { UNKNOWN_PHASE_THREE_PHASE_MIN_KWH } from "@/config/electrical-phase";
 import { resolvePlannedLoads } from "@/config/planned-loads";
 import type { TariffBillingContext } from "@/types/electricity-tariff";
 import type {
@@ -598,12 +599,6 @@ function isCustomerRequest(
   );
 }
 
-/**
- * Above this monthly use a household is plausibly on 3-phase supply, so an
- * "unknown" phase keeps 3-phase packages in play; below it almost all
- * Vietnamese homes are single-phase. Either way the survey confirms it.
- */
-export const UNKNOWN_PHASE_THREE_PHASE_MIN_KWH = 700;
 
 function isElectricalPhaseUnknown(request: CustomerCalculationRequest): boolean {
   return (

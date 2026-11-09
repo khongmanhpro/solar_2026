@@ -9,6 +9,7 @@ import {
   getBackupDeviceLabels,
   type BackupDeviceId,
 } from "@/config/backup-devices";
+import { UNKNOWN_PHASE_THREE_PHASE_MIN_KWH } from "@/config/electrical-phase";
 import { PLANNED_LOAD_OPTIONS, type PlannedLoadId } from "@/config/planned-loads";
 import {
   formatMoneyInput,
@@ -147,7 +148,7 @@ function electricalPhaseLabel(
     : value === "three-phase"
       ? "Điện 3 pha"
       : value === "unknown"
-        ? "Chưa rõ — kỹ sư kiểm tra công tơ khi khảo sát (dưới ~700 kWh/tháng tạm tính theo điện 1 pha)"
+        ? `Chưa rõ — kỹ sư kiểm tra công tơ khi khảo sát (nhu cầu dưới ~${UNKNOWN_PHASE_THREE_PHASE_MIN_KWH} kWh/tháng, kể cả thiết bị dự định mua, tạm tính theo điện 1 pha)`
         : "Chưa chọn";
 }
 

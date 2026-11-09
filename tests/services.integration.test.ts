@@ -243,6 +243,24 @@ describe("service integration", () => {
     });
   });
 
+  it("pha chưa rõ và dùng nhiều: snapshot vẫn ghi khách chưa rõ", async () => {
+    const result = await services.calculations.create({
+      ...validCustomerCalculationInput,
+      schemaVersion: "2.2.0",
+      energy: { method: "kwh", observations: [{ period: "2026-09", valueKwh: 900 }] },
+      site: {
+        ...validCustomerCalculationInput.site,
+        electricalPhase: "unknown",
+      },
+    });
+
+    expect(result.sourceSnapshot.siteInput.electricalPhase).toMatchObject({
+      value: null,
+      origin: "derived",
+      customerConfirmed: false,
+    });
+  });
+
   it("pha chưa rõ + hóa đơn chưa rõ: biên trên cao được xét cả gói 3 pha", async () => {
     // Only 3-phase packages on sale: the 1-phase filter of the expected point
     // finds nothing, so any option must come from a bound re-judging phase.
